@@ -101,7 +101,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
                 </Link>
                 <button
                   type="button"
-                  onClick={signOut}
+                  onClick={() => void signOut()}
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-foreground stitch-ghost-border transition hover:bg-muted"
                 >
                   <LogOut className="h-4 w-4" />
@@ -186,7 +186,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
                           type="button"
                           onClick={() => {
                             setMenuOpen(false);
-                            signOut();
+                            void signOut();
                           }}
                           className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl")}
                         >

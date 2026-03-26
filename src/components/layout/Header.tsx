@@ -71,7 +71,8 @@ export function Header() {
                     Dashboard
                   </Link>
                   <button
-                    onClick={signOut}
+                    type="button"
+                    onClick={() => void signOut()}
                     className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5 text-[#9994c0] hover:text-white hover:bg-[rgba(108,92,231,0.1)]")}
                   >
                     <LogOut className="h-4 w-4" />
@@ -106,7 +107,7 @@ export function Header() {
                     <LayoutDashboard className="h-5 w-5" />
                   </Link>
                   <button
-                    onClick={signOut}
+                    onClick={() => void signOut()}
                     className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-[#9994c0] hover:text-white")}
                     aria-label="Logout"
                     type="button"
@@ -172,7 +173,8 @@ export function Header() {
                         Dashboard
                       </Link>
                       <button
-                        onClick={() => { setOpen(false); signOut(); }}
+                        type="button"
+                        onClick={() => { setOpen(false); void signOut(); }}
                         className={cn(buttonVariants({ variant: "outline" }), "w-full border-[rgba(108,92,231,0.3)] text-[#9994c0] hover:text-white hover:bg-[rgba(108,92,231,0.1)]")}
                       >
                         <LogOut className="mr-2 h-4 w-4" />
