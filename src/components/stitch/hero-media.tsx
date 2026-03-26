@@ -38,7 +38,7 @@ export function HeroMedia() {
     : "translate3d(0, 0, 0) scale(1)";
 
   return (
-    <div className="absolute inset-y-0 right-0 hidden w-[32%] overflow-hidden lg:block">
+    <div className="absolute inset-y-0 right-0 hidden w-[32%] overflow-hidden xl:block">
       <div
         className="absolute inset-0 transition-transform duration-300 ease-out"
         style={{ transform, transformOrigin: "center center" }}
@@ -55,4 +55,3 @@ export function HeroMedia() {
     </div>
   );
 }
-

@@ -92,7 +92,7 @@ export default function HomePage() {
       <section className="relative overflow-hidden bg-muted">
         <HeroMedia />
         <div className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
-          <div className="max-w-5xl md:pl-[8%]">
+          <div className="max-w-5xl md:pl-[8%] xl:pr-[32%]">
             <Reveal variant="fade">
               <div className="inline-flex items-center rounded-full border border-black/[0.08] bg-white/80 px-4 py-1.5 backdrop-blur-sm">
                 <span className="mr-3 h-2 w-2 rounded-full bg-secondary" />
@@ -103,15 +103,15 @@ export default function HomePage() {
             </Reveal>
 
             <Reveal delay={100} variant="mask-up">
-              <h1 className="mt-8 max-w-5xl text-6xl font-light leading-[1.04] text-primary md:text-8xl">
-                Cultivating the
+              <h1 className="mt-8 max-w-5xl text-4xl font-light leading-[1.05] text-primary sm:text-5xl md:text-7xl xl:text-6xl xl:leading-[1.04] 2xl:text-8xl">
+                <span className="2xl:whitespace-nowrap">Cultivating the</span>
                 <br />
-                <span className="italic">Intellect of Tomorrow.</span>
+                <span className="italic 2xl:whitespace-nowrap">Intellect of Tomorrow.</span>
               </h1>
             </Reveal>
 
             <Reveal delay={200}>
-              <p className="mt-8 max-w-2xl text-xl font-light leading-relaxed text-muted-foreground md:text-2xl">
+              <p className="mt-8 max-w-2xl text-base font-light leading-relaxed text-muted-foreground sm:text-lg md:text-2xl">
                 High-quality teaching, trusted study materials, and strong conceptual learning
                 for students across Gujarat&apos;s most important academic milestones.
               </p>
@@ -119,10 +119,10 @@ export default function HomePage() {
 
             <Reveal delay={280} variant="soft-zoom">
               <div className="mt-12 flex flex-col gap-5 sm:flex-row">
-                <Link href="/about-us" className="rounded-xl bg-primary px-10 py-5 text-center text-lg font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105">
+                <Link href="/about-us" className="rounded-xl bg-primary px-6 py-4 text-center text-base font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 sm:px-8 sm:text-lg md:px-10 md:py-5">
                   Begin Your Inquiry
                 </Link>
-                <Link href="/courses" className="rounded-xl bg-accent px-10 py-5 text-center text-lg font-semibold text-accent-foreground transition hover:-translate-y-0.5 hover:brightness-105">
+                <Link href="/courses" className="rounded-xl bg-accent px-6 py-4 text-center text-base font-semibold text-accent-foreground transition hover:-translate-y-0.5 hover:brightness-105 sm:px-8 sm:text-lg md:px-10 md:py-5">
                   View Curriculum
                 </Link>
               </div>
@@ -135,7 +135,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-[1600px] grid-cols-2 gap-10 px-6 text-center md:grid-cols-4 md:px-12">
           {stats.map((stat, index) => (
             <Reveal key={stat.label} delay={index * 80} variant="fade-up">
-              <div className="text-5xl text-primary">{stat.value}</div>
+              <div className="text-4xl text-primary sm:text-5xl">{stat.value}</div>
               <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
                 {stat.label}
               </div>
