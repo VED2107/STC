@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, Newsreader } from "next/font/google";
+import { Inter, Nunito } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const newsreader = Newsreader({
+const nunito = Nunito({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   style: ["normal", "italic"],
 });
 
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s | STC Academy",
   },
   description:
-    "An editorial academic platform for STC Tuition Centre across admissions, curriculum, faculty, and student mastery.",
+    "STC Tuition Centre provides high-quality study materials and excellent education across every course and level.",
   keywords: [
     "tuition",
     "coaching",
@@ -43,7 +43,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${inter.variable} h-full antialiased`}
+      className={`${nunito.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Providers>{children}</Providers>

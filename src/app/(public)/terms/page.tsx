@@ -8,8 +8,8 @@ export default function TermsPage() {
         class policies, attendance requirements, and academic integrity rules.
       </p>
       <p className="mt-4 text-base leading-8 text-muted-foreground">
-        Fee policies, scheduling updates, and resource access are managed by the
-        academy administration and may be revised each term.
+        Fee policies, scheduling updates, and resource access rules are set by
+        the academy and may be revised each term.
       </p>
     </div>
   );

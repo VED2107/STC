@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { LogIn, LogOut, Mail, MapPin, Phone } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,8 +58,17 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
       <header className="fixed top-0 z-50 w-full stitch-glass border-b border-black/[0.05]">
         <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-6 px-6 py-5 md:px-12">
           <Reveal variant="fade">
-            <Link href="/" className="font-heading text-3xl italic tracking-tight text-foreground">
-              STC Academy
+            <Link href="/" className="inline-flex items-center leading-none" aria-label="STC Academy">
+              <span className="relative block h-10 w-[180px] overflow-hidden md:h-11 md:w-[195px]">
+                <Image
+                  src="/logo.png"
+                  alt="STC Academy"
+                  fill
+                  quality={100}
+                  priority
+                  className="object-cover object-center [image-rendering:auto]"
+                />
+              </span>
             </Link>
           </Reveal>
 
@@ -122,8 +132,8 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
             <Reveal variant="fade-up" className="space-y-5">
               <div className="font-heading text-3xl italic text-foreground">STC Academy</div>
               <p className="max-w-lg text-base leading-8 text-muted-foreground">
-                Built around the Modern Scholar brief: calm surfaces, editorial rhythm,
-                and live curriculum paths for Gujarat families.
+                Dedicated to quality education with strong study materials, expert mentorship,
+                and reliable academic support for Gujarat families.
               </p>
               <div className="flex flex-wrap gap-3">
                 <span className="stitch-pill bg-accent text-accent-foreground">NCERT</span>
@@ -185,7 +195,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
             </Reveal>
             <Reveal delay={80} variant="fade" className="flex flex-wrap gap-5">
               <span>Mon-Sat | 8:00 AM - 8:00 PM</span>
-              <span>Editorial learning atmosphere, live admissions desk</span>
+              <span>Focused learning environment with active admissions support</span>
             </Reveal>
           </div>
         </div>

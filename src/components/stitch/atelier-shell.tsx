@@ -27,6 +27,7 @@ interface AtelierShellProps {
 }
 
 const adminLinks = [
+  { href: "/", label: "Home", icon: House },
   { href: "/admin", label: "Dashboard", icon: LayoutGrid },
   { href: "/admin/students", label: "Institutional Registry", icon: Users },
   { href: "/admin/teachers", label: "Faculty", icon: GraduationCap },

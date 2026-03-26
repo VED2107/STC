@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Brain, Building2, Flame, GraduationCap, Microscope, Sparkles } from "lucide-react";
 import { Reveal } from "@/components/stitch/reveal";
+import { HeroMedia } from "@/components/stitch/hero-media";
 
 const stats = [
   { value: "98%", label: "Placement Rate" },
@@ -89,7 +90,7 @@ export default function HomePage() {
   return (
     <div className="overflow-x-hidden">
       <section className="relative overflow-hidden bg-muted">
-        <div className="absolute inset-y-0 right-0 hidden w-[32%] bg-[radial-gradient(circle_at_40%_40%,rgba(19,78,108,0.2),rgba(19,78,108,0.02)_68%)] lg:block" />
+        <HeroMedia />
         <div className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
           <div className="max-w-5xl md:pl-[8%]">
             <Reveal variant="fade">
@@ -111,14 +112,14 @@ export default function HomePage() {
 
             <Reveal delay={200}>
               <p className="mt-8 max-w-2xl text-xl font-light leading-relaxed text-muted-foreground md:text-2xl">
-                A boutique educational experience designed for clarity, depth, and
-                the pursuit of excellence across Gujarat&apos;s most important learning milestones.
+                High-quality teaching, trusted study materials, and strong conceptual learning
+                for students across Gujarat&apos;s most important academic milestones.
               </p>
             </Reveal>
 
             <Reveal delay={280} variant="soft-zoom">
               <div className="mt-12 flex flex-col gap-5 sm:flex-row">
-                <Link href="/login" className="rounded-xl bg-primary px-10 py-5 text-center text-lg font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105">
+                <Link href="/about-us" className="rounded-xl bg-primary px-10 py-5 text-center text-lg font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105">
                   Begin Your Inquiry
                 </Link>
                 <Link href="/courses" className="rounded-xl bg-accent px-10 py-5 text-center text-lg font-semibold text-accent-foreground transition hover:-translate-y-0.5 hover:brightness-105">
@@ -150,7 +151,8 @@ export default function HomePage() {
               Academic departments for the <span className="italic text-secondary">Modern Scholar</span>
             </h2>
             <p className="mt-5 text-lg leading-8 text-muted-foreground">
-              The new STC brief favors editorial pacing over dense dashboards, so each academic path gets a calm, readable focal point.
+              Each academic path is designed to build clear concepts, strong practice habits,
+              and confident exam performance.
             </p>
           </Reveal>
           <Reveal delay={120} variant="fade">
@@ -161,7 +163,7 @@ export default function HomePage() {
           </Reveal>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:auto-rows-[260px]">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:auto-rows-[minmax(320px,auto)]">
           {departments.map((item, index) => {
             const Icon = item.icon;
 

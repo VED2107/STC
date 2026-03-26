@@ -24,13 +24,13 @@ export default async function PublicSyllabusPage() {
         Live syllabus mapped by class and board.
       </h1>
       <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">
-        This view reflects syllabus records created from the admin workspace.
+        This page shows the latest syllabus prepared by our teaching team.
       </p>
 
       {rows.length === 0 ? (
         <div className="stitch-panel mt-12 p-10 text-center">
           <h2 className="text-4xl text-primary">No Syllabus Published Yet</h2>
-          <p className="mt-4 text-muted-foreground">Admin-published syllabus entries will appear here.</p>
+          <p className="mt-4 text-muted-foreground">Updated syllabus topics will appear here soon.</p>
         </div>
       ) : (
         <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">

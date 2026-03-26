@@ -274,7 +274,7 @@ export default function CourseDetailPage() {
           <GraduationCap className="mx-auto h-12 w-12 text-primary" />
           <h1 className="mt-6 text-5xl italic text-primary">Course Not Found</h1>
           <p className="mt-4 text-muted-foreground">
-            The requested curriculum could not be found in the atelier.
+            The requested course could not be found.
           </p>
           <Link href="/courses" className={cn(stitchButtonClass, "mt-8")}>
             Back to Catalog
@@ -320,7 +320,7 @@ export default function CourseDetailPage() {
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground">
                 {course.teacher?.bio ||
-                  `${course.teacher?.qualification ?? "Master Faculty"} guiding this atelier through disciplined pedagogy and conceptual clarity.`}
+                  `${course.teacher?.qualification ?? "Master Faculty"} guiding students through disciplined teaching and conceptual clarity.`}
               </p>
               <div className="mt-8 rounded-[22px] bg-muted p-5">
                 <p className="text-sm font-medium text-foreground/80">
@@ -369,13 +369,12 @@ export default function CourseDetailPage() {
 
           <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className={stitchPanelClass}>
-              <p className="stitch-kicker">Interactive Digital Atelier</p>
+              <p className="stitch-kicker">Interactive Learning Resources</p>
               <h3 className="mt-4 text-4xl italic text-primary">Study Materials</h3>
               <div className="mt-6 space-y-3">
                 {materials.length === 0 ? (
                   <div className={cn(stitchPanelSoftClass, "text-muted-foreground")}>
-                    Materials will appear here once the curriculum desk
-                    publishes them.
+                    Materials will appear here once new lessons are published.
                   </div>
                 ) : (
                   materials.map((material) => (
