@@ -86,6 +86,7 @@ export default function CourseDetailPage() {
   const [course, setCourse] = useState<CourseWithRelations | null>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isStudentUser, setIsStudentUser] = useState(false);
   const [isOnlineStudent, setIsOnlineStudent] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
@@ -119,6 +120,8 @@ export default function CourseDetailPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      setIsAuthenticated(Boolean(user));
+
       if (user) {
         const [{ data: profile }, { data: student }] = await Promise.all([
           supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
@@ -429,7 +432,7 @@ export default function CourseDetailPage() {
           <div className={cn(stitchPanelClass, "sticky top-28")}>
             <p className="stitch-kicker">Course Fee</p>
             <p className="mt-4 font-heading text-5xl text-primary">{formatInr(Number(course.fee_inr ?? 0))}</p>
-            {!isStudentUser ? (
+            {!isAuthenticated ? (
               <Link href="/login" className={cn(stitchButtonClass, "mt-7 w-full")}>
                 Login to Buy
               </Link>
@@ -437,7 +440,11 @@ export default function CourseDetailPage() {
               <Link href="/dashboard/materials" className={cn(stitchButtonClass, "mt-7 w-full")}>
                 Open Materials
               </Link>
-            ) : isOnlineStudent ? (
+            ) : isStudentUser && !isOnlineStudent ? (
+              <p className="mt-7 text-sm text-muted-foreground">
+                Tuition students already get class access from admin assignment.
+              </p>
+            ) : (
               <button
                 type="button"
                 className={cn(stitchButtonClass, "mt-7 w-full")}
@@ -450,10 +457,6 @@ export default function CourseDetailPage() {
                     ? "Buy With Razorpay"
                     : "Enroll Free"}
               </button>
-            ) : (
-              <p className="mt-7 text-sm text-muted-foreground">
-                Tuition students already get class access from admin assignment.
-              </p>
             )}
             {purchaseError ? <p className="mt-3 text-xs text-destructive">{purchaseError}</p> : null}
             <p className="mt-4 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">

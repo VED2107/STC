@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 const navLinks = [
   { href: "/courses", label: "Curriculum" },
   { href: "/faculty", label: "Faculty" },
-  { href: "/login", label: "Admissions" },
+  { href: "/admissions", label: "Admissions" },
   { href: "/", label: "Academy" },
 ];
 
@@ -118,7 +118,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
                   Login
                 </Link>
                 <Link
-                  href="/login"
+                  href="/enroll"
                   className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground transition hover:brightness-105"
                 >
                   Enroll Now
@@ -205,7 +205,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
                           Login
                         </Link>
                         <Link
-                          href="/login"
+                          href="/enroll"
                           onClick={() => setMenuOpen(false)}
                           className={cn(buttonVariants(), "w-full rounded-xl")}
                         >
