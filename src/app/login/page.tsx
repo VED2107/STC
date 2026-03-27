@@ -98,6 +98,28 @@ function LoginPageInner() {
 
     const bootstrapAuth = async () => {
       const supabase = createClient();
+      const authCode = searchParams.get("code");
+
+      if (authCode) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
+
+        if (!active) {
+          return;
+        }
+
+        if (exchangeError) {
+          setError(exchangeError.message);
+          setBootstrapping(false);
+          return;
+        }
+
+        if (typeof window !== "undefined") {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("code");
+          window.history.replaceState({}, "", cleanUrl.toString());
+        }
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
