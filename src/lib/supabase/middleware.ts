@@ -50,10 +50,7 @@ export async function updateSession(request: NextRequest) {
 
     if (isLoginRoute) {
       const url = request.nextUrl.clone();
-      url.pathname =
-        profile?.role === "admin" || profile?.role === "teacher"
-          ? "/admin"
-          : "/dashboard";
+      url.pathname = "/";
       url.search = "";
       return NextResponse.redirect(url);
     }

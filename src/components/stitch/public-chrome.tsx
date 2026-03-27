@@ -141,6 +141,24 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
     };
   }, [role, user]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    const hasAuthCode = currentUrl.searchParams.has("code");
+    const hasAuthError = currentUrl.searchParams.has("error");
+
+    if (!hasAuthCode && !hasAuthError) {
+      return;
+    }
+
+    currentUrl.searchParams.delete("code");
+    currentUrl.searchParams.delete("error");
+    window.history.replaceState({}, "", currentUrl.toString());
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="fixed top-0 z-50 w-full stitch-glass border-b border-black/[0.05]">

@@ -129,13 +129,14 @@ function LoginPageInner() {
       }
 
       if (user) {
-        const role = await resolveUserRole(user.id);
+        await resolveUserRole(user.id);
 
         if (!active) {
           return;
         }
 
-        router.replace(role === "admin" || role === "teacher" ? "/admin" : "/dashboard");
+        const redirectedFrom = searchParams.get("redirectedFrom");
+        router.replace(redirectedFrom && redirectedFrom.startsWith("/") ? redirectedFrom : "/");
         router.refresh();
         return;
       }
@@ -187,8 +188,9 @@ function LoginPageInner() {
       return;
     }
 
-    const role = await resolveUserRole(user.id);
-    router.replace(role === "admin" || role === "teacher" ? "/admin" : "/dashboard");
+    await resolveUserRole(user.id);
+    const redirectedFrom = searchParams.get("redirectedFrom");
+    router.replace(redirectedFrom && redirectedFrom.startsWith("/") ? redirectedFrom : "/");
     router.refresh();
     setLoading(false);
   }
@@ -200,7 +202,7 @@ function LoginPageInner() {
 
     try {
       const supabase = createClient();
-      const redirectTarget = new URL("/login", window.location.origin);
+      const redirectTarget = new URL("/auth/callback", window.location.origin);
       const redirectedFrom = searchParams.get("redirectedFrom");
 
       if (redirectedFrom) {
@@ -306,7 +308,7 @@ function LoginPageInner() {
       return;
     }
 
-    router.replace("/dashboard");
+    router.replace("/");
     router.refresh();
     setLoading(false);
   }
