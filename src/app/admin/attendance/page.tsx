@@ -1,7 +1,7 @@
 ﻿"use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -67,7 +67,10 @@ export default function AdminAttendancePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [editingSaved, setEditingSaved] = useState(true);
+  const studentCacheRef = useRef<Record<string, StudentForAttendance[]>>({});
+  const requestSequenceRef = useRef(0);
 
   useEffect(() => {
     if (role === "student") {
@@ -148,23 +151,22 @@ export default function AdminAttendancePage() {
   }, [selectableClasses, selectedClassId]);
 
   const fetchStudents = useCallback(async () => {
-    if (!selectedClassId) return;
+    if (!selectedClassId) {
+      setStudents([]);
+      setRecords([]);
+      setLoading(false);
+      return;
+    }
+
+    const requestId = ++requestSequenceRef.current;
     setLoading(true);
     setSaved(false);
     setSaveError("");
+    setActionError("");
     setEditingSaved(true);
     const supabase = createClient();
 
-    const { data: studentData } = await supabase
-      .from("students")
-      .select("id, profile:profiles(full_name)")
-      .eq("class_id", selectedClassId)
-      .eq("is_active", true)
-      .order("id");
-
-    const fetchedStudents =
-      (studentData || []) as unknown as StudentForAttendance[];
-    setStudents(fetchedStudents);
+    const cachedStudents = studentCacheRef.current[selectedClassId];
 
     let attendanceQuery = supabase
       .from("attendance")
@@ -176,7 +178,27 @@ export default function AdminAttendancePage() {
       attendanceQuery = attendanceQuery.eq("course_id", selectedCourseId);
     }
 
-    const { data: existing } = await attendanceQuery;
+    const studentPromise = cachedStudents
+      ? Promise.resolve({ data: cachedStudents })
+      : supabase
+          .from("students")
+          .select("id, profile:profiles(full_name)")
+          .eq("class_id", selectedClassId)
+          .eq("is_active", true)
+          .order("id");
+
+    const [{ data: studentData }, { data: existing }] = await Promise.all([
+      studentPromise,
+      attendanceQuery,
+    ]);
+
+    if (requestId !== requestSequenceRef.current) {
+      return;
+    }
+
+    const fetchedStudents = ((studentData || []) as unknown as StudentForAttendance[]) ?? [];
+    studentCacheRef.current[selectedClassId] = fetchedStudents;
+    setStudents(fetchedStudents);
     const existingMap = new Map(
       ((existing as AttendanceRecord[] | null) ?? []).map((entry) => [
         entry.student_id,
@@ -214,9 +236,66 @@ export default function AdminAttendancePage() {
     );
   }
 
+  function handleMarkAllPresent() {
+    if (!selectedClassId || records.length === 0) {
+      setActionError("Select a batch with available students before marking attendance.");
+      return;
+    }
+
+    if (!editingSaved) {
+      setActionError("Click Edit Saved Attendance before changing saved records.");
+      return;
+    }
+
+    setActionError("");
+    setRecords((previous) =>
+      previous.map((record) => ({
+        ...record,
+        status: "present",
+      }))
+    );
+  }
+
+  function handleMarkAllAbsent() {
+    if (!selectedClassId || records.length === 0) {
+      setActionError("Select a batch with available students before marking attendance.");
+      return;
+    }
+
+    if (!editingSaved) {
+      setActionError("Click Edit Saved Attendance before changing saved records.");
+      return;
+    }
+
+    setActionError("");
+    setRecords((previous) =>
+      previous.map((record) => ({
+        ...record,
+        status: "absent",
+        late_minutes: null,
+      }))
+    );
+  }
+
+  function handleClearCourse() {
+    if (!selectedCourseId) {
+      setActionError("Choose a course first before clearing it.");
+      return;
+    }
+
+    if (!editingSaved) {
+      setActionError("Click Edit Saved Attendance before changing the course selection.");
+      return;
+    }
+
+    setActionError("");
+    setSelectedCourseId("");
+  }
+
   async function handleSave() {
     if (!selectedClassId || !user?.id || records.length === 0) return;
     setSaveError("");
+    setActionError("");
     setSaving(true);
     const supabase = createClient();
 
@@ -348,28 +427,16 @@ export default function AdminAttendancePage() {
               <button
                 type="button"
                 className={stitchButtonClass}
-                onClick={() =>
-                  setRecords((previous) =>
-                    previous.map((record) => ({ ...record, status: "present" }))
-                  )
-                }
-                disabled={!editingSaved}
+                onClick={handleMarkAllPresent}
+                disabled={!editingSaved || !selectedClassId || records.length === 0}
               >
                 Mark All Present
               </button>
               <button
                 type="button"
                 className={stitchSecondaryButtonClass}
-                onClick={() =>
-                  setRecords((previous) =>
-                    previous.map((record) => ({
-                      ...record,
-                      status: "absent",
-                      late_minutes: null,
-                    }))
-                  )
-                }
-                disabled={!editingSaved}
+                onClick={handleMarkAllAbsent}
+                disabled={!editingSaved || !selectedClassId || records.length === 0}
               >
                 Mark All Absent
               </button>
@@ -393,8 +460,8 @@ export default function AdminAttendancePage() {
                 <button
                   type="button"
                   className={stitchSecondaryButtonClass}
-                  onClick={() => setSelectedCourseId("")}
-                  disabled={!editingSaved}
+                  onClick={handleClearCourse}
+                  disabled={!editingSaved || !selectedCourseId}
                 >
                   Clear Course
                 </button>
@@ -404,6 +471,7 @@ export default function AdminAttendancePage() {
                 Tip: choose a course to track subject-wise attendance.
               </p>
             )}
+            {actionError ? <p className="mt-4 text-sm text-destructive">{actionError}</p> : null}
           </div>
 
           <div className="grid gap-4">

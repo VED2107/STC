@@ -65,7 +65,7 @@ export function StudentFormDialog({
   const selectedClass = classes.find((item) => item.id === classId) ?? null;
   const selectedProfile = availableProfiles.find((item) => item.id === selectedProfileId) ?? null;
   const filteredProfiles = availableProfiles.filter((profile) => {
-    const haystack = `${profile.full_name} ${profile.phone}`.toLowerCase();
+    const haystack = `${profile.full_name} ${profile.phone} ${profile.email}`.toLowerCase();
     return haystack.includes(profileSearch.trim().toLowerCase());
   });
 
@@ -207,7 +207,7 @@ export function StudentFormDialog({
               <Input
                 value={profileSearch}
                 onChange={(event) => setProfileSearch(event.target.value)}
-                placeholder="Search signed-up students by name or phone"
+                placeholder="Search signed-up students by name, phone, or email"
               />
               <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg border border-input p-2">
                 {filteredProfiles.map((profile) => {
@@ -228,7 +228,7 @@ export function StudentFormDialog({
                         {profile.full_name || "Unnamed student"}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {profile.phone || profile.id}
+                        {[profile.phone, profile.email].filter(Boolean).join(" • ") || profile.id}
                       </div>
                     </button>
                   );

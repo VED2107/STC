@@ -48,6 +48,7 @@ export function HeroMedia() {
           alt="STC learning environment"
           fill
           priority
+          sizes="32vw"
           className="object-cover object-center"
         />
       </div>

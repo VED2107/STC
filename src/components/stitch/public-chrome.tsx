@@ -9,6 +9,7 @@ import { Reveal } from "@/components/stitch/reveal";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import type { StudentType } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
 
 const publicNavLinks = [
@@ -81,7 +82,8 @@ const contactDetails = [
 export function PublicChrome({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, role, loading, signOut } = useAuth();
-  const [studentType, setStudentType] = useState<"tuition" | "online" | null>(null);
+  const [studentType, setStudentType] = useState<StudentType | null>(null);
+  const isRoleResolved = !user || !!role;
   const dashboardHref = role === "admin" || role === "teacher" ? "/admin" : "/dashboard";
   const dashboardLabel =
     role === "admin"
@@ -127,7 +129,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
 
       if (!cancelled) {
         setStudentType(
-          ((data as { student_type?: "tuition" | "online" } | null)?.student_type ?? "tuition"),
+          ((data as { student_type?: StudentType } | null)?.student_type ?? "tuition"),
         );
       }
     }
@@ -152,6 +154,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
                   fill
                   quality={100}
                   priority
+                  sizes="(max-width: 640px) 155px, (max-width: 768px) 180px, 195px"
                   className="object-cover object-center [image-rendering:auto]"
                 />
               </span>
@@ -173,7 +176,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
           </Reveal>
 
           <Reveal delay={120} variant="fade" className="hidden shrink-0 sm:block">
-            {loading ? (
+            {loading || !isRoleResolved ? (
               <div className="h-11 w-[168px] rounded-xl bg-white/70 stitch-ghost-border" />
             ) : user ? (
               <div className="flex items-center gap-3">
@@ -209,10 +212,10 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
           </Reveal>
 
           <div className="flex items-center gap-2 sm:hidden">
-            {!loading ? (
+            {!loading && isRoleResolved ? (
               user ? (
                 <Link href={dashboardHref} className={cn(buttonVariants({ size: "sm" }), "h-10 rounded-xl px-3")}>
-                  Dashboard
+                  {role === "admin" ? "Admin" : role === "teacher" ? "Teacher" : "Student"}
                 </Link>
               ) : (
                 <Link

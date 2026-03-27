@@ -43,6 +43,7 @@ function AdminSyllabusPageInner() {
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSyllabus, setEditingSyllabus] = useState<Syllabus | null>(null);
+  const [actionError, setActionError] = useState("");
   const [formClassId, setFormClassId] = useState("");
   const [formSubject, setFormSubject] = useState("");
   const [formUnits, setFormUnits] = useState<SyllabusUnit[]>([{ title: "", topics: [""] }]);
@@ -120,6 +121,7 @@ function AdminSyllabusPageInner() {
   }, [role, searchParams, dialogOpen, router, pathname]);
 
   function openCreate() {
+    setActionError("");
     setEditingSyllabus(null);
     setFormClassId("");
     setFormSubject("");
@@ -128,6 +130,7 @@ function AdminSyllabusPageInner() {
   }
 
   function openEdit(item: Syllabus) {
+    setActionError("");
     setEditingSyllabus(item);
     setFormClassId(item.class_id);
     setFormSubject(item.subject);
@@ -138,6 +141,16 @@ function AdminSyllabusPageInner() {
 
   function addUnit() {
     setFormUnits((previous) => [...previous, { title: "", topics: [""] }]);
+  }
+
+  function handlePreviewStructure() {
+    if (syllabi.length === 0) {
+      setActionError("Add at least one syllabus entry before previewing the published structure.");
+      return;
+    }
+
+    setActionError("");
+    window.open("/syllabus", "_blank", "noopener,noreferrer");
   }
 
   function removeUnit(index: number) {
@@ -187,6 +200,7 @@ function AdminSyllabusPageInner() {
       await supabase.from("syllabus").insert(payload);
     }
 
+    setActionError("");
     setSaving(false);
     setDialogOpen(false);
     void fetchData();
@@ -207,7 +221,12 @@ function AdminSyllabusPageInner() {
         description="Publish subject structures, unit maps, and topic progressions in the same editorial system as the Stitch editor."
         action={
           <>
-            <button type="button" className={stitchSecondaryButtonClass}>
+            <button
+              type="button"
+              className={stitchSecondaryButtonClass}
+              onClick={handlePreviewStructure}
+              disabled={syllabi.length === 0}
+            >
               Preview Structure
             </button>
             <button type="button" className={stitchButtonClass} onClick={openCreate}>
@@ -216,6 +235,12 @@ function AdminSyllabusPageInner() {
           </>
         }
       />
+
+      {actionError ? (
+        <div className="mt-6 rounded-[18px] border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {actionError}
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">

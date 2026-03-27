@@ -16,6 +16,7 @@ export interface Profile {
   role: UserRole;
   avatar_url: string | null;
   parent_phone: string | null;
+  profile_reviewed_at: string | null;
   created_at: string;
 }
 

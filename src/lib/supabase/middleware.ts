@@ -44,7 +44,7 @@ export async function updateSession(request: NextRequest) {
   if (user && (isLoginRoute || pathname.startsWith("/admin"))) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, profile_reviewed_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -61,6 +61,25 @@ export async function updateSession(request: NextRequest) {
     if (profile?.role !== "admin" && profile?.role !== "teacher") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  if (
+    user &&
+    pathname.startsWith("/dashboard") &&
+    pathname !== "/dashboard/settings"
+  ) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, profile_reviewed_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.role === "student" && !profile.profile_reviewed_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard/settings";
+      url.searchParams.set("onboarding", "1");
       return NextResponse.redirect(url);
     }
   }

@@ -22,6 +22,33 @@ interface PendingSignupState {
   password: string;
 }
 
+function GoogleLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={className}
+    >
+      <path
+        d="M21.805 10.023H12.24v3.955h5.48c-.236 1.273-.945 2.352-2.009 3.08v2.558h3.254c1.904-1.754 3-4.337 3-7.393 0-.728-.065-1.427-.16-2.2Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12.24 22c2.73 0 5.02-.903 6.694-2.444l-3.254-2.558c-.903.604-2.058.962-3.44.962-2.645 0-4.887-1.785-5.685-4.187H3.196v2.638A10.109 10.109 0 0 0 12.24 22Z"
+        fill="#34A853"
+      />
+      <path
+        d="M6.555 13.773a6.083 6.083 0 0 1 0-3.876V7.26H3.196a10.109 10.109 0 0 0 0 9.151l3.359-2.638Z"
+        fill="#FBBC04"
+      />
+      <path
+        d="M12.24 5.71c1.484 0 2.816.51 3.865 1.51l2.9-2.9C17.256 2.692 14.966 2 12.24 2A10.109 10.109 0 0 0 3.196 7.26l3.359 2.637C7.353 7.495 9.595 5.71 12.24 5.71Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
 async function resolveUserRole(userId: string): Promise<UserRole> {
   const supabase = createClient();
 
@@ -59,6 +86,7 @@ function LoginPageInner() {
   const [signupStep, setSignupStep] = useState<SignupStep>("form");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -141,6 +169,45 @@ function LoginPageInner() {
     router.replace(role === "admin" || role === "teacher" ? "/admin" : "/dashboard");
     router.refresh();
     setLoading(false);
+  }
+
+  async function handleGoogleLogin() {
+    setGoogleLoading(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const supabase = createClient();
+      const redirectTarget = new URL("/login", window.location.origin);
+      const redirectedFrom = searchParams.get("redirectedFrom");
+
+      if (redirectedFrom) {
+        redirectTarget.searchParams.set("redirectedFrom", redirectedFrom);
+      }
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: redirectTarget.toString(),
+        },
+      });
+
+      if (oauthError) {
+        throw oauthError;
+      }
+
+      if (!data.url) {
+        throw new Error("Google sign-in could not be started.");
+      }
+    } catch (oauthError) {
+      const message =
+        oauthError && typeof oauthError === "object" && "message" in oauthError
+          ? String((oauthError as { message: string }).message)
+          : "Google sign-in failed. Please try again.";
+
+      setError(message);
+      setGoogleLoading(false);
+    }
   }
 
   async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
@@ -286,7 +353,7 @@ function LoginPageInner() {
             STC Academy
           </Link>
           <p className="mt-3 text-xs uppercase tracking-[0.28em] text-muted-foreground">
-            Modern Scholar Portal
+            Academy Portal Access
           </p>
         </div>
 
@@ -330,6 +397,28 @@ function LoginPageInner() {
 
           {mode === "login" ? (
             <form onSubmit={handleLogin} className="mt-7 space-y-5">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-black/[0.08] bg-white text-base font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={loading || googleLoading}
+              >
+                {googleLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <GoogleLogo className="h-5 w-5" />
+                )}
+                <span>Continue with Google</span>
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-black/[0.08]" />
+                <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  or
+                </span>
+                <div className="h-px flex-1 bg-black/[0.08]" />
+              </div>
+
               <label className="block">
                 <span className="mb-2 block text-sm text-muted-foreground">Email Address</span>
                 <input
@@ -370,12 +459,12 @@ function LoginPageInner() {
               <button
                 type="submit"
                 className={cn(stitchButtonClass, "h-14 w-full text-base")}
-                disabled={loading}
+                disabled={loading || googleLoading}
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Sign In to Student Portal"
+                  "Sign In"
                 )}
               </button>
             </form>

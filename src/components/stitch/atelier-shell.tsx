@@ -148,7 +148,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
                   ? { label: "+ Add Material", href: "/admin/materials?create=1" }
                   : pathname.startsWith("/admin/syllabus")
                     ? { label: "+ Add Syllabus", href: "/admin/syllabus?create=1" }
-                    : { label: "+ New Record", href: "/admin" }
+                    : { label: "+ New Record", href: "/admin/students?create=1" }
       : pathname.startsWith("/dashboard/attendance")
         ? { label: "View Dashboard", href: "/dashboard" }
         : pathname.startsWith("/dashboard/materials")
@@ -160,6 +160,10 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
               : isOnlineStudent
                 ? { label: "Open Library", href: "/dashboard/materials" }
                 : { label: "Profile Settings", href: "/dashboard/settings" };
+  const supportHref =
+    area === "admin"
+      ? "mailto:info@stctuition.com?subject=STC%20Admin%20Support"
+      : "mailto:info@stctuition.com?subject=STC%20Student%20Support";
 
   const sidebar = (
     <>
@@ -225,13 +229,13 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
           {contextualAction.label}
         </Link>
         <div className="grid gap-1">
-          <Link
-            href={area === "admin" ? "/admin" : "/dashboard/settings"}
+          <a
+            href={supportHref}
             className="stitch-sidebar-link w-full text-left"
           >
             <ShieldQuestion className="h-4 w-4" />
             <span>Support</span>
-          </Link>
+          </a>
           <button
             type="button"
             className="stitch-sidebar-link w-full text-left"

@@ -32,7 +32,14 @@ export function Header() {
   const { user, role, loading, signOut } = useAuth();
 
   const isLoggedIn = !!user;
+  const isRoleResolved = !user || !!role;
   const dashboardHref = role === "admin" || role === "teacher" ? "/admin" : "/dashboard";
+  const dashboardLabel =
+    role === "admin"
+      ? "Admin Dashboard"
+      : role === "teacher"
+        ? "Teacher Dashboard"
+        : "Dashboard";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[rgba(108,92,231,0.12)] bg-[#0a0a1a]/80 backdrop-blur-xl">
@@ -62,13 +69,13 @@ export function Header() {
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-2">
-          {!loading && (
+          {!loading && isRoleResolved && (
             <>
               {isLoggedIn ? (
                 <>
                   <Link href={dashboardHref} className={cn(buttonVariants({ size: "sm" }), "gap-1.5 bg-[#7c6cf0] hover:bg-[#6c5ce7] text-white shadow-[0_0_15px_rgba(108,92,231,0.3)]")}>
                     <LayoutDashboard className="h-4 w-4" />
-                    Dashboard
+                    {dashboardLabel}
                   </Link>
                   <button
                     type="button"
@@ -95,14 +102,14 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
-          {!loading && (
+          {!loading && isRoleResolved && (
             <>
               {isLoggedIn ? (
                 <>
                   <Link
                     href={dashboardHref}
                     className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-[#9994c0] hover:text-white")}
-                    aria-label="Dashboard"
+                    aria-label={dashboardLabel}
                   >
                     <LayoutDashboard className="h-5 w-5" />
                   </Link>
@@ -164,13 +171,13 @@ export function Header() {
               })}
             </nav>
             <div className="mt-8 flex flex-col gap-2">
-              {!loading && (
+              {!loading && isRoleResolved && (
                 <>
                   {isLoggedIn ? (
                     <>
                       <Link href={dashboardHref} onClick={() => setOpen(false)} className={cn(buttonVariants(), "bg-[#7c6cf0] hover:bg-[#6c5ce7] text-white")}>
                         <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Dashboard
+                        {dashboardLabel}
                       </Link>
                       <button
                         type="button"

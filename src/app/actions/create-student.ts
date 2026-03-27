@@ -19,6 +19,7 @@ export interface AvailableStudentProfile {
   id: string;
   full_name: string;
   phone: string;
+  email: string;
 }
 
 export async function getAvailableStudentProfiles(): Promise<AvailableStudentProfile[]> {
@@ -47,13 +48,31 @@ export async function getAvailableStudentProfiles(): Promise<AvailableStudentPro
     return [];
   }
 
+  const {
+    data: { users },
+    error: usersError,
+  } = await admin.auth.admin.listUsers();
+
+  if (usersError) {
+    return [];
+  }
+
   const enrolledProfileIds = new Set(
     ((studentsData as Array<{ profile_id: string }> | null) ?? []).map((student) => student.profile_id),
   );
 
-  return ((profilesData as AvailableStudentProfile[] | null) ?? []).filter(
-    (profile) => !enrolledProfileIds.has(profile.id),
+  const emailByUserId = new Map(
+    (users ?? []).map((user) => [user.id, user.email ?? ""]),
   );
+
+  const normalizedProfiles = (((profilesData as AvailableStudentProfile[] | null) ?? []).map(
+    (profile) => ({
+      ...profile,
+      email: emailByUserId.get(profile.id) ?? "",
+    }),
+  ));
+
+  return normalizedProfiles.filter((profile) => !enrolledProfileIds.has(profile.id));
 }
 
 export async function createStudent(

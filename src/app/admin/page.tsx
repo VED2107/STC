@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  StitchMetricCard,
   stitchButtonClass,
   stitchPanelClass,
   stitchPanelSoftClass,
@@ -122,7 +121,11 @@ export default function AdminDashboard() {
           )
           .order("enrollment_date", { ascending: false })
           .limit(5),
-        supabase.from("teachers").select("id, name, subject, qualification").order("created_at", { ascending: false }).limit(4),
+        supabase
+          .from("teachers")
+          .select("id, name, subject, qualification")
+          .order("created_at", { ascending: false })
+          .limit(4),
         supabase
           .from("courses")
           .select("id, title, subject, class:classes(name, level)")
@@ -168,6 +171,15 @@ export default function AdminDashboard() {
     );
   }
 
+  const summaryCardClass = cn(
+    stitchPanelSoftClass,
+    "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+  );
+  const linkedPanelClass = cn(
+    stitchPanelSoftClass,
+    "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.18)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.24)]"
+  );
+
   return (
     <div className="px-6 py-8 md:px-10">
       <div className="flex flex-col gap-5 border-b border-black/[0.06] pb-6 lg:flex-row lg:items-start lg:justify-between">
@@ -188,10 +200,38 @@ export default function AdminDashboard() {
       </div>
 
       <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <StitchMetricCard label="Students" value={String(stats.students)} change="Live" />
-        <StitchMetricCard label="Teachers" value={String(stats.teachers)} change="Live" />
-        <StitchMetricCard label="Courses" value={String(stats.courses)} change="Live" />
-        <StitchMetricCard label="Attendance Records" value={String(stats.attendance)} change="Live" />
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <p className="stitch-kicker">Students</p>
+          <p className="mt-5 font-heading text-5xl text-foreground">{stats.students}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            Live registry count
+          </p>
+        </div>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <p className="stitch-kicker">Teachers</p>
+          <p className="mt-5 font-heading text-5xl text-foreground">{stats.teachers}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            Active faculty records
+          </p>
+        </div>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <p className="stitch-kicker">Courses</p>
+          <p className="mt-5 font-heading text-5xl text-foreground">{stats.courses}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            Published curriculum units
+          </p>
+        </div>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <p className="stitch-kicker">Attendance Records</p>
+          <p className="mt-5 font-heading text-5xl text-foreground">{stats.attendance}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            Total saved sessions
+          </p>
+        </div>
       </div>
 
       <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
@@ -270,35 +310,35 @@ export default function AdminDashboard() {
           <div className={stitchPanelClass}>
             <p className="stitch-kicker">What You Added</p>
             <div className="mt-5 grid gap-3">
-              <Link href="/admin/teachers" className={cn(stitchPanelSoftClass, "flex items-center justify-between")}>
+              <Link href="/admin/teachers" className={cn(linkedPanelClass, "flex items-center justify-between")}>
                 <span className="flex items-center gap-3 text-foreground">
                   <GraduationCap className="h-4 w-4 text-primary" />
                   Teachers
                 </span>
                 <span className="text-sm font-semibold text-primary">{stats.teachers}</span>
               </Link>
-              <Link href="/admin/classes" className={cn(stitchPanelSoftClass, "flex items-center justify-between")}>
+              <Link href="/admin/classes" className={cn(linkedPanelClass, "flex items-center justify-between")}>
                 <span className="flex items-center gap-3 text-foreground">
                   <LibraryBig className="h-4 w-4 text-primary" />
                   Classes
                 </span>
                 <span className="text-sm font-semibold text-primary">{stats.classes}</span>
               </Link>
-              <Link href="/admin/courses" className={cn(stitchPanelSoftClass, "flex items-center justify-between")}>
+              <Link href="/admin/courses" className={cn(linkedPanelClass, "flex items-center justify-between")}>
                 <span className="flex items-center gap-3 text-foreground">
                   <BookOpen className="h-4 w-4 text-primary" />
                   Courses
                 </span>
                 <span className="text-sm font-semibold text-primary">{stats.courses}</span>
               </Link>
-              <Link href="/admin/materials" className={cn(stitchPanelSoftClass, "flex items-center justify-between")}>
+              <Link href="/admin/materials" className={cn(linkedPanelClass, "flex items-center justify-between")}>
                 <span className="flex items-center gap-3 text-foreground">
                   <FileText className="h-4 w-4 text-primary" />
                   Materials
                 </span>
                 <span className="text-sm font-semibold text-primary">{stats.materials}</span>
               </Link>
-              <Link href="/admin/attendance" className={cn(stitchPanelSoftClass, "flex items-center justify-between")}>
+              <Link href="/admin/attendance" className={cn(linkedPanelClass, "flex items-center justify-between")}>
                 <span className="flex items-center gap-3 text-foreground">
                   <ClipboardList className="h-4 w-4 text-primary" />
                   Attendance

@@ -45,6 +45,7 @@ function AdminMaterialsPageInner() {
   const [fileUrl, setFileUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [draggingMaterialId, setDraggingMaterialId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
   const selectedClass =
@@ -140,6 +141,27 @@ function AdminMaterialsPageInner() {
     void fetchMaterials();
   }, [fetchMaterials]);
 
+  function openPublishDialog() {
+    if (!selectedClassId || !selectedCourseId) {
+      setActionError("Select a class and course before publishing materials.");
+      return;
+    }
+
+    setActionError("");
+    setUploadError("");
+    setDialogOpen(true);
+  }
+
+  function handlePreviewCourse() {
+    if (!selectedCourseId) {
+      setActionError("Select a course to preview first.");
+      return;
+    }
+
+    setActionError("");
+    window.open(`/courses/${selectedCourseId}`, "_blank", "noopener,noreferrer");
+  }
+
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -181,6 +203,7 @@ function AdminMaterialsPageInner() {
       setUploadError(error.message);
       return;
     }
+    setActionError("");
     setDialogOpen(false);
     setTitle("");
     setFileUrl("");
@@ -244,10 +267,20 @@ function AdminMaterialsPageInner() {
         description="Refine the intellectual journey of your students. Manage core instructional texts, pedagogical assets, and research materials within the digital workshop."
         action={
           <>
-            <button type="button" className={stitchSecondaryButtonClass}>
+            <button
+              type="button"
+              className={stitchSecondaryButtonClass}
+              onClick={handlePreviewCourse}
+              disabled={!selectedCourseId}
+            >
               Preview Course
             </button>
-            <button type="button" className={stitchButtonClass} onClick={() => setDialogOpen(true)}>
+            <button
+              type="button"
+              className={stitchButtonClass}
+              onClick={openPublishDialog}
+              disabled={!selectedClassId || !selectedCourseId}
+            >
               Publish Changes
             </button>
           </>
@@ -300,12 +333,17 @@ function AdminMaterialsPageInner() {
               Use the editor panel to publish PDFs, lecture notes, and seminar
               recordings while keeping the course material stack synchronized.
             </div>
+            {actionError ? (
+              <div className="mt-4 rounded-[18px] border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {actionError}
+              </div>
+            ) : null}
           </div>
 
           <div className={stitchPanelClass}>
             <div className="flex items-center justify-between">
               <h2 className="text-4xl text-foreground">Required Reading Materials</h2>
-              <button type="button" className={stitchSecondaryButtonClass} onClick={() => setDialogOpen(true)}>
+              <button type="button" className={stitchSecondaryButtonClass} onClick={openPublishDialog}>
                 Add External Link
               </button>
             </div>
@@ -380,7 +418,7 @@ function AdminMaterialsPageInner() {
             <p className="mt-3 text-sm leading-7 text-muted-foreground">
               Drag and drop PDFs, EPUBs, or high-res workshop diagrams here.
             </p>
-            <button type="button" className={cn(stitchSecondaryButtonClass, "mt-8")} onClick={() => setDialogOpen(true)}>
+            <button type="button" className={cn(stitchSecondaryButtonClass, "mt-8")} onClick={openPublishDialog}>
               Browse Files
             </button>
           </div>
