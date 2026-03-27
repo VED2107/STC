@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bell, Loader2, UserCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -24,7 +24,7 @@ interface StudentSettingsData {
   studentType: "tuition" | "online" | null;
 }
 
-export default function StudentSettingsPage() {
+function StudentSettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -231,5 +231,19 @@ export default function StudentSettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StudentSettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <StudentSettingsPageInner />
+    </Suspense>
   );
 }
