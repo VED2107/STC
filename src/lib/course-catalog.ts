@@ -36,6 +36,10 @@ export function getCourseLevelKey(course: PublicCourseRow): Exclude<CatalogLevel
   const className = normalizeText(course.class?.name);
   const numericLevel = getNumericLevel(classLevel);
 
+  if (numericLevel !== null && numericLevel >= 11) {
+    return "hsc";
+  }
+
   if (numericLevel !== null) {
     if (numericLevel <= 5) {
       return "primary";

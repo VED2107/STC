@@ -1,12 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowRight, ImageOff, Search } from "lucide-react";
-import {
-  stitchInputClass,
-} from "@/components/stitch/primitives";
+import { stitchInputClass } from "@/components/stitch/primitives";
 import {
   type CatalogLevelKey,
   type CatalogTrackKey,
@@ -163,11 +162,13 @@ export function PublicCourseCatalog({
           {featured ? (
             <Link href={`/courses/${featured.id}`} className="group md:col-span-8">
               <article className="stitch-panel flex h-full flex-col overflow-hidden md:flex-row">
-                <div className="relative h-72 md:w-1/2 md:h-auto">
+                <div className="relative h-72 md:h-auto md:w-1/2">
                   {featured.thumbnail_url ? (
-                    <img
+                    <Image
                       src={featured.thumbnail_url}
                       alt={featured.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
                       className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
                     />
                   ) : (
@@ -199,7 +200,7 @@ export function PublicCourseCatalog({
                   </p>
                   <div className="mt-8 flex items-center justify-between border-t border-black/[0.06] pt-6">
                     <div className="text-sm text-muted-foreground">
-                      {featured.subject} · {featured.teacher?.name ?? "STC Faculty"}
+                      {[featured.subject, featured.teacher?.name ?? "STC Faculty"].join(" - ")}
                     </div>
                     <span className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
                       View Course
@@ -211,7 +212,7 @@ export function PublicCourseCatalog({
             </Link>
           ) : null}
 
-          {remaining.map((course, index) => (
+          {remaining.map((course) => (
             <Link key={course.id} href={`/courses/${course.id}`} className="group md:col-span-4">
               <article className="stitch-panel h-full p-8 transition group-hover:-translate-y-1">
                 <div className="flex items-start justify-between">
@@ -229,12 +230,12 @@ export function PublicCourseCatalog({
                   <p className="mt-4 text-sm leading-7 text-muted-foreground">{course.description}</p>
                 </div>
                 <div className="mt-8 border-t border-black/[0.06] pt-6 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  {course.class?.name ?? levelLabel(course)} · {course.subject}
+                  {[course.class?.name ?? levelLabel(course), course.subject].join(" - ")}
                 </div>
-                {index % 2 === 0 && matchesCatalogTrack(course, "jee") ? (
+                {matchesCatalogTrack(course, "jee") ? (
                   <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">JEE track</div>
                 ) : null}
-                {index % 2 !== 0 && matchesCatalogTrack(course, "neet") ? (
+                {matchesCatalogTrack(course, "neet") ? (
                   <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">NEET track</div>
                 ) : null}
               </article>

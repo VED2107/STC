@@ -77,17 +77,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /** Sign out and redirect to home */
   const signOut = useCallback(async () => {
     try {
-      const { error } = await supabase.auth.signOut({ scope: "global" });
-      if (error) {
-        throw error;
+      const [{ error: clientError }, logoutResponse] = await Promise.all([
+        supabase.auth.signOut({ scope: "global" }),
+        fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      ]);
+
+      if (clientError) {
+        throw clientError;
       }
+
+      if (!logoutResponse.ok) {
+        const body = (await logoutResponse.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to clear server session");
+      }
+
       setUser(null);
       setProfile(null);
       setSession(null);
       router.replace("/login");
       router.refresh();
       if (typeof window !== "undefined") {
-        window.location.assign("/login");
+        window.location.replace("/login");
       }
     } catch (err) {
       console.error("Sign out error:", err);

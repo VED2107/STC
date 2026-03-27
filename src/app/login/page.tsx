@@ -196,26 +196,19 @@ function LoginPageInner() {
       success?: boolean;
       error?: string;
       email?: string;
-      password?: string;
+      autoSignIn?: boolean;
     };
 
-    if (!response.ok || !result.success || !result.email || !result.password) {
+    if (!response.ok || !result.success) {
       setError(result.error ?? "Failed to verify OTP.");
       setLoading(false);
       return;
     }
 
-    const supabase = createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.signInWithPassword({
-      email: result.email,
-      password: result.password,
-    });
-
-    if (authError || !user) {
-      setError(authError?.message ?? "Account verified, but automatic sign-in failed.");
+    // The server performed sign-in and set session cookies.
+    // If autoSignIn is explicitly false, the server could not sign in
+    // automatically — ask the user to sign in manually.
+    if (result.autoSignIn === false) {
       setMode("login");
       setSignupStep("form");
       setPendingSignup(null);

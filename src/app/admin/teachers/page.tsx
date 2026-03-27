@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { ImageOff, Search, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -25,6 +26,7 @@ function AdminTeachersPageInner() {
   const { role } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>();
 
@@ -69,6 +71,11 @@ function AdminTeachersPageInner() {
     void fetchTeachers();
   }
 
+  const filtered = teachers.filter((teacher) => {
+    const haystack = `${teacher.name} ${teacher.subject} ${teacher.qualification}`.toLowerCase();
+    return haystack.includes(search.toLowerCase());
+  });
+
   return (
     <div className="px-6 py-8 md:px-10">
       <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
@@ -80,7 +87,12 @@ function AdminTeachersPageInner() {
         <div className="flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           <div className="relative w-full sm:max-w-sm">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input className={cn(stitchInputClass, "pl-11")} placeholder="Search faculty..." />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className={cn(stitchInputClass, "pl-11")}
+              placeholder="Search faculty..."
+            />
           </div>
           <button
             type="button"
@@ -99,7 +111,7 @@ function AdminTeachersPageInner() {
         <div className="flex min-h-[40vh] items-center justify-center">
           <Users className="h-10 w-10 animate-pulse text-primary" />
         </div>
-      ) : teachers.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="mt-10">
           <StitchEmptyState
             icon={Users}
@@ -121,13 +133,15 @@ function AdminTeachersPageInner() {
         </div>
       ) : (
         <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {teachers.map((teacher) => (
+          {filtered.map((teacher) => (
             <article key={teacher.id} className={cn(stitchPanelClass, "overflow-hidden p-0")}>
               <div className="relative">
                 {teacher.photo_url ? (
-                  <img
+                  <Image
                     src={teacher.photo_url}
                     alt={teacher.name}
+                    width={400}
+                    height={440}
                     className="aspect-[1.1] w-full object-cover"
                   />
                 ) : (

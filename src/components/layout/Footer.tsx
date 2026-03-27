@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap, Phone, Mail, MapPin } from "lucide-react";
+import { GraduationCap, Mail, MapPin, Phone } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const quickLinks = [
@@ -11,8 +11,8 @@ const quickLinks = [
 ];
 
 const classLinks = [
-  { href: "/courses?level=1-5", label: "Class 1–5" },
-  { href: "/courses?level=6-9", label: "Class 6–9" },
+  { href: "/courses?level=1-5", label: "Class 1-5" },
+  { href: "/courses?level=6-9", label: "Class 6-9" },
   { href: "/courses?level=SSC", label: "SSC" },
   { href: "/courses?level=HSC", label: "HSC" },
 ];
@@ -22,21 +22,18 @@ export function Footer() {
     <footer className="border-t border-[rgba(108,92,231,0.12)] bg-[#08081a]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#7c6cf0] to-[#00d2d3] text-white shadow-[0_0_15px_rgba(108,92,231,0.25)]">
                 <GraduationCap className="h-5 w-5" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-transparent">STC</span>
+              <span className="bg-gradient-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-xl font-bold text-transparent">STC</span>
             </Link>
-            <p className="text-sm text-[#9994c0] leading-relaxed">
-              Shaping tomorrow&apos;s leaders through quality education. 
-              Coaching classes for Class 1 to HSC — GSEB &amp; NCERT board.
+            <p className="text-sm leading-relaxed text-[#9994c0]">
+              Shaping tomorrow&apos;s leaders through quality education. Coaching classes for Class 1 to HSC - GSEB &amp; NCERT board.
             </p>
           </div>
 
-          {/* Quick Links */}
           <div>
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[#c8c4e0]">
               Quick Links
@@ -55,7 +52,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Classes */}
           <div>
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[#c8c4e0]">
               Classes
@@ -74,7 +70,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
           <div>
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[#c8c4e0]">
               Contact Us

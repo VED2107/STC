@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { BookOpen, ImageOff, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -133,9 +134,11 @@ function AdminCoursesPageInner() {
             <article key={course.id} className={stitchPanelClass}>
               <div className="overflow-hidden rounded-[22px] border border-border">
                 {course.thumbnail_url ? (
-                  <img
+                  <Image
                     src={course.thumbnail_url}
                     alt={course.title}
+                    width={400}
+                    height={472}
                     className="aspect-[1.18] w-full object-cover"
                   />
                 ) : (

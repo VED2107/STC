@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   BookCopy,
   BookOpen,
@@ -21,6 +22,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { buttonVariants } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 type ShellArea = "admin" | "student";
@@ -44,6 +46,7 @@ const adminLinks = [
 
 const teacherLinks = [
   { href: "/", label: "Home", icon: House },
+  { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/attendance", label: "Attendance", icon: ClipboardList },
   { href: "/admin/syllabus", label: "Syllabus", icon: BookCopy },
   { href: "/admin/materials", label: "Assets", icon: FolderOpen },
@@ -59,12 +62,60 @@ const studentLinks = [
   { href: "/dashboard/settings", label: "Settings", icon: BookCopy },
 ];
 
+const onlineStudentLinks = [
+  { href: "/", label: "Home", icon: House },
+  { href: "/dashboard", label: "Dashboard", icon: Sparkles },
+  { href: "/dashboard/class", label: "Class Details", icon: GraduationCap },
+  { href: "/dashboard/syllabus", label: "Curriculum", icon: BookOpen },
+  { href: "/dashboard/materials", label: "Library", icon: FolderOpen },
+  { href: "/dashboard/settings", label: "Settings", icon: BookCopy },
+];
+
 export function AtelierShell({ area, children }: AtelierShellProps) {
   const pathname = usePathname();
   const { user, profile, signOut } = useAuth();
   const isTeacherArea = area === "admin" && profile?.role === "teacher";
+  const [studentType, setStudentType] = useState<"tuition" | "online" | null>(null);
+  const isOnlineStudent = area === "student" && studentType === "online";
 
-  const links = area === "admin" ? (isTeacherArea ? teacherLinks : adminLinks) : studentLinks;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStudentType() {
+      if (area !== "student" || profile?.role !== "student" || !user?.id) {
+        setStudentType(null);
+        return;
+      }
+
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("students")
+        .select("student_type")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+
+      if (!cancelled) {
+        setStudentType(
+          ((data as { student_type?: "tuition" | "online" } | null)?.student_type ?? null),
+        );
+      }
+    }
+
+    void loadStudentType();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [area, profile?.role, user?.id]);
+
+  const links =
+    area === "admin"
+      ? isTeacherArea
+        ? teacherLinks
+        : adminLinks
+      : isOnlineStudent
+        ? onlineStudentLinks
+        : studentLinks;
   const rootHref = area === "admin" ? (isTeacherArea ? "/admin/attendance" : "/admin") : "/dashboard";
   const fullName: string =
     profile?.full_name ||
@@ -106,7 +157,9 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
             ? { label: "Open Library", href: "/dashboard/materials" }
             : pathname.startsWith("/dashboard/settings")
               ? { label: "Class Details", href: "/dashboard/class" }
-              : { label: "Profile Settings", href: "/dashboard/settings" };
+              : isOnlineStudent
+                ? { label: "Open Library", href: "/dashboard/materials" }
+                : { label: "Profile Settings", href: "/dashboard/settings" };
 
   const sidebar = (
     <>

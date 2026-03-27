@@ -2,19 +2,50 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LogIn, LogOut, Mail, MapPin, Menu, Phone } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Reveal } from "@/components/stitch/reveal";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { buttonVariants } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
+const publicNavLinks = [
   { href: "/courses", label: "Curriculum" },
   { href: "/faculty", label: "Faculty" },
   { href: "/admissions", label: "Admissions" },
   { href: "/", label: "Academy" },
+];
+
+const studentNavLinks = [
+  { href: "/dashboard/class", label: "Class" },
+  { href: "/dashboard/syllabus", label: "Syllabus" },
+  { href: "/dashboard/materials", label: "Materials" },
+  { href: "/dashboard/attendance", label: "Attendance" },
+];
+
+const onlineStudentNavLinks = [
+  { href: "/dashboard/class", label: "My Courses" },
+  { href: "/dashboard/syllabus", label: "Syllabus" },
+  { href: "/dashboard/materials", label: "Materials" },
+  { href: "/dashboard/settings", label: "Settings" },
+];
+
+const adminNavLinks = [
+  { href: "/admin/students", label: "Students" },
+  { href: "/admin/teachers", label: "Teachers" },
+  { href: "/admin/courses", label: "Courses" },
+  { href: "/admin/classes", label: "Classes" },
+  { href: "/admin/materials", label: "Materials" },
+  { href: "/admin/attendance", label: "Attendance" },
+];
+
+const teacherNavLinks = [
+  { href: "/admin/students", label: "Students" },
+  { href: "/admin/attendance", label: "Attendance" },
+  { href: "/admin/syllabus", label: "Syllabus" },
+  { href: "/admin/materials", label: "Materials" },
 ];
 
 const footerLinks = [
@@ -50,6 +81,7 @@ const contactDetails = [
 export function PublicChrome({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, role, loading, signOut } = useAuth();
+  const [studentType, setStudentType] = useState<"tuition" | "online" | null>(null);
   const dashboardHref = role === "admin" || role === "teacher" ? "/admin" : "/dashboard";
   const dashboardLabel =
     role === "admin"
@@ -57,6 +89,55 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
       : role === "teacher"
         ? "Teacher Dashboard"
         : "Student Dashboard";
+  const navLinks = useMemo(() => {
+    if (!user || !role) {
+      return publicNavLinks;
+    }
+
+    if (role === "admin") {
+      return adminNavLinks;
+    }
+
+    if (role === "teacher") {
+      return teacherNavLinks;
+    }
+
+    if (studentType === "online") {
+      return onlineStudentNavLinks;
+    }
+
+    return studentNavLinks;
+  }, [role, studentType, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStudentType() {
+      if (!user || role !== "student") {
+        setStudentType(null);
+        return;
+      }
+
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("students")
+        .select("student_type")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+
+      if (!cancelled) {
+        setStudentType(
+          ((data as { student_type?: "tuition" | "online" } | null)?.student_type ?? "tuition"),
+        );
+      }
+    }
+
+    void loadStudentType();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [role, user]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

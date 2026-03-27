@@ -46,7 +46,7 @@ const departments = [
   {
     title: "JEE / NEET",
     description: "Focused preparation pathways layered into HSC study with precision mentoring.",
-    href: "/courses?level=hsc&track=jee",
+    href: "/courses?level=hsc",
     icon: Brain,
     accent: "bg-[#f1edff] text-[#6a4bc4]",
     className: "md:col-span-4",

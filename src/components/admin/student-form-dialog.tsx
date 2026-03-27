@@ -1,12 +1,14 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { createStudent } from "@/app/actions/create-student";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import {
+  createStudent,
+  getAvailableStudentProfiles,
+  type AvailableStudentProfile,
+} from "@/app/actions/create-student";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -22,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import type { Class, StudentType } from "@/lib/types/database";
 
 interface EditableStudent {
@@ -49,43 +53,85 @@ export function StudentFormDialog({
 }: StudentFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<AvailableStudentProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState("");
+  const [profileSearch, setProfileSearch] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [classId, setClassId] = useState("");
   const [studentType, setStudentType] = useState<StudentType>("tuition");
   const [isActive, setIsActive] = useState<"active" | "inactive">("active");
-  const selectedClass = classes.find((item) => item.id === classId) ?? null;
   const isEditMode = Boolean(editStudent);
+  const selectedClass = classes.find((item) => item.id === classId) ?? null;
+  const selectedProfile = availableProfiles.find((item) => item.id === selectedProfileId) ?? null;
+  const filteredProfiles = availableProfiles.filter((profile) => {
+    const haystack = `${profile.full_name} ${profile.phone}`.toLowerCase();
+    return haystack.includes(profileSearch.trim().toLowerCase());
+  });
 
   useEffect(() => {
-    if (open) {
-      const supabase = createClient();
-      supabase
-        .from("classes")
-        .select("*")
-        .order("sort_order")
-        .then((res: { data: unknown }) => {
-          if (res.data) setClasses(res.data as Class[]);
-        });
-
-      if (editStudent) {
-        setFullName(editStudent.profile?.full_name ?? "");
-        setPhone(editStudent.profile?.phone ?? "");
-        setEmail("");
-        setClassId(editStudent.class_id);
-        setStudentType(editStudent.student_type);
-        setIsActive(editStudent.is_active ? "active" : "inactive");
-      } else {
-        setFullName("");
-        setPhone("");
-        setEmail("");
-        setClassId("");
-        setStudentType("tuition");
-        setIsActive("active");
-      }
+    if (!open) {
+      return;
     }
+
+    const supabase = createClient();
+
+    void supabase
+      .from("classes")
+      .select("*")
+      .order("sort_order")
+      .then((res: { data: unknown }) => {
+        if (res.data) setClasses(res.data as Class[]);
+      });
+
+    if (editStudent) {
+      setAvailableProfiles([]);
+      setSelectedProfileId("");
+      setProfileSearch("");
+      setFullName(editStudent.profile?.full_name ?? "");
+      setPhone(editStudent.profile?.phone ?? "");
+      setClassId(editStudent.class_id);
+      setStudentType(editStudent.student_type);
+      setIsActive(editStudent.is_active ? "active" : "inactive");
+      return;
+    }
+
+    setSelectedProfileId("");
+    setProfileSearch("");
+    setFullName("");
+    setPhone("");
+    setClassId("");
+    setStudentType("tuition");
+    setIsActive("active");
+
+    void (async () => {
+      const eligibleProfiles = await getAvailableStudentProfiles();
+      setAvailableProfiles(eligibleProfiles);
+    })();
   }, [open, editStudent]);
+
+  useEffect(() => {
+    if (!isEditMode && selectedProfile) {
+      setFullName(selectedProfile.full_name ?? "");
+      setPhone(selectedProfile.phone ?? "");
+    }
+  }, [isEditMode, selectedProfile]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      return;
+    }
+
+    const normalizedSearch = profileSearch.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return;
+    }
+
+    if (filteredProfiles.length === 1 && filteredProfiles[0]?.id !== selectedProfileId) {
+      setSelectedProfileId(filteredProfiles[0].id);
+    }
+  }, [filteredProfiles, isEditMode, profileSearch, selectedProfileId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -125,31 +171,16 @@ export function StudentFormDialog({
     }
 
     const result = await createStudent({
-      fullName,
-      email,
-      phone,
+      profileId: selectedProfileId,
       classId,
       studentType,
+      isActive: isActive === "active",
     });
 
     if (!result.success) {
       setLoading(false);
-      alert(result.error || "Failed to create student account");
+      alert(result.error || "Failed to enroll student");
       return;
-    }
-
-    try {
-      await fetch("/api/send-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          name: fullName,
-          confirmUrl: `${window.location.origin}/login`,
-        }),
-      });
-    } catch {
-      // Non-blocking: signup succeeds even if email fails.
     }
 
     setLoading(false);
@@ -161,37 +192,71 @@ export function StudentFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? "Edit Student" : "Add Student"}</DialogTitle>
+          <DialogTitle>{isEditMode ? "Edit Student" : "Enroll Signed-Up Student"}</DialogTitle>
           <DialogDescription>
             {isEditMode
               ? "Update student profile, class mapping, and access mode."
-              : "Create a new student account. They will receive a verification email."}
+              : "Only existing signed-up student accounts can be added to the student registry."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!isEditMode ? (
+            <div className="space-y-2">
+              <Label>Student Account</Label>
+              <Input
+                value={profileSearch}
+                onChange={(event) => setProfileSearch(event.target.value)}
+                placeholder="Search signed-up students by name or phone"
+              />
+              <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg border border-input p-2">
+                {filteredProfiles.map((profile) => {
+                  const isSelected = profile.id === selectedProfileId;
+
+                  return (
+                    <button
+                      key={profile.id}
+                      type="button"
+                      onClick={() => setSelectedProfileId(profile.id)}
+                      className={`w-full rounded-md px-3 py-2 text-left transition ${
+                        isSelected
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-muted"
+                      }`}
+                    >
+                      <div className="text-sm font-medium">
+                        {profile.full_name || "Unnamed student"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {profile.phone || profile.id}
+                      </div>
+                    </button>
+                  );
+                })}
+                {filteredProfiles.length === 0 && availableProfiles.length > 0 ? (
+                  <p className="px-1 py-2 text-sm text-muted-foreground">
+                    No students match your search.
+                  </p>
+                ) : null}
+              </div>
+              {availableProfiles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No signed-up student profiles are available to enroll yet.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <Label htmlFor="sf-name">Full Name</Label>
             <Input
               id="sf-name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              readOnly={!isEditMode}
               required
             />
           </div>
-
-          {!isEditMode ? (
-            <div className="space-y-2">
-              <Label htmlFor="sf-email">Email</Label>
-              <Input
-                id="sf-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="sf-phone">Phone</Label>
@@ -200,6 +265,7 @@ export function StudentFormDialog({
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              readOnly={!isEditMode}
               required
             />
           </div>
@@ -208,8 +274,8 @@ export function StudentFormDialog({
             <Label>Student Type</Label>
             <Select
               value={studentType}
-              onValueChange={(v) =>
-                setStudentType((v as StudentType) ?? "tuition")
+              onValueChange={(value) =>
+                setStudentType((value as StudentType) ?? "tuition")
               }
             >
               <SelectTrigger>
@@ -226,8 +292,8 @@ export function StudentFormDialog({
             <Label>Status</Label>
             <Select
               value={isActive}
-              onValueChange={(v) =>
-                setIsActive((v as "active" | "inactive") ?? "active")
+              onValueChange={(value) =>
+                setIsActive((value as "active" | "inactive") ?? "active")
               }
             >
               <SelectTrigger>
@@ -242,7 +308,7 @@ export function StudentFormDialog({
 
           <div className="space-y-2">
             <Label>Class</Label>
-            <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
+            <Select value={classId} onValueChange={(value) => value && setClassId(value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select class">
                   {selectedClass
@@ -251,9 +317,9 @@ export function StudentFormDialog({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name} ({c.board})
+                {classes.map((classItem) => (
+                  <SelectItem key={classItem.id} value={classItem.id}>
+                    {classItem.name} ({classItem.board})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -268,9 +334,15 @@ export function StudentFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="submit"
+              disabled={
+                loading ||
+                (!isEditMode && (!selectedProfileId || availableProfiles.length === 0))
+              }
+            >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditMode ? "Update Student" : "Add Student"}
+              {isEditMode ? "Update Student" : "Enroll Student"}
             </Button>
           </DialogFooter>
         </form>

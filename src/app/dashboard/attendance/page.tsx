@@ -38,12 +38,18 @@ interface SubjectStat {
   percent: number;
 }
 
+interface StudentAccessRow {
+  id: string;
+  student_type: "tuition" | "online";
+}
+
 export default function StudentAttendancePage() {
   const router = useRouter();
   const supabase = createClient();
   const [records, setRecords] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0 });
+  const [studentType, setStudentType] = useState<"tuition" | "online" | null>(null);
 
   const fetchAttendance = useCallback(async () => {
     setLoading(true);
@@ -58,11 +64,21 @@ export default function StudentAttendancePage() {
 
     const { data: student } = await supabase
       .from("students")
-      .select("id")
+      .select("id, student_type")
       .eq("profile_id", user.id)
       .single();
 
     if (!student) {
+      setLoading(false);
+      return;
+    }
+
+    const typedStudent = student as StudentAccessRow;
+    setStudentType(typedStudent.student_type);
+
+    if (typedStudent.student_type === "online") {
+      setRecords([]);
+      setStats({ total: 0, present: 0, absent: 0 });
       setLoading(false);
       return;
     }
@@ -72,7 +88,7 @@ export default function StudentAttendancePage() {
       .select(
         "id, date, status, late_minutes, remarks, class:classes(name), course:courses(title, subject)"
       )
-      .eq("student_id", student.id)
+      .eq("student_id", typedStudent.id)
       .order("date", { ascending: false })
       .limit(365);
 
@@ -139,6 +155,18 @@ export default function StudentAttendancePage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (studentType === "online") {
+    return (
+      <div className="px-6 py-8 md:px-10">
+        <StitchEmptyState
+          icon={CalendarCheck}
+          title="Attendance Not Available"
+          description="Online students can access class context, syllabus, and purchased course materials. Attendance tracking is available only for tuition students."
+        />
       </div>
     );
   }

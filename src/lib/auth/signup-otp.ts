@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt, timingSafeEqual } from "crypto";
 
 const SIGNUP_OTP_COOKIE = "stc_signup_otp";
 const OTP_EXPIRY_MINUTES = 10;
@@ -23,7 +23,7 @@ function getSecret() {
 }
 
 export function createOtpCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(randomInt(100000, 1000000));
 }
 
 export function encryptPendingSignup(payload: PendingSignupPayload) {

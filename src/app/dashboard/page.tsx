@@ -66,6 +66,7 @@ export default function StudentDashboard() {
   const [recentAttendance, setRecentAttendance] = useState<AttendanceRow[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<CourseRow[]>([]);
   const [recentMaterials, setRecentMaterials] = useState<MaterialRow[]>([]);
+  const isOnlineStudent = studentRecord?.student_type === "online";
 
   useEffect(() => {
     let cancelled = false;
@@ -166,20 +167,23 @@ export default function StudentDashboard() {
         recentMaterials = (recentMaterialsRes.data as MaterialRow[] | null) ?? [];
       }
 
-      const { count: totalAtt } = await supabase
-        .from("attendance")
-        .select("id", { count: "exact", head: true })
-        .eq("student_id", typedStudent.id);
-      const { count: presentAtt } = await supabase
-        .from("attendance")
-        .select("id", { count: "exact", head: true })
-        .eq("student_id", typedStudent.id)
-        .eq("status", "present");
+      let rate = 0;
+      if (typedStudent.student_type === "tuition") {
+        const { count: totalAtt } = await supabase
+          .from("attendance")
+          .select("id", { count: "exact", head: true })
+          .eq("student_id", typedStudent.id);
+        const { count: presentAtt } = await supabase
+          .from("attendance")
+          .select("id", { count: "exact", head: true })
+          .eq("student_id", typedStudent.id)
+          .eq("status", "present");
 
-      const rate =
-        totalAtt && totalAtt > 0
-          ? Math.round(((presentAtt ?? 0) / totalAtt) * 100)
-          : 0;
+        rate =
+          totalAtt && totalAtt > 0
+            ? Math.round(((presentAtt ?? 0) / totalAtt) * 100)
+            : 0;
+      }
 
       const courses = (coursesRes.data ?? [])
         .map((entry: { course: unknown }) => entry.course as unknown as CourseRow | null)
@@ -241,10 +245,14 @@ export default function StudentDashboard() {
       <StitchSectionHeader
         eyebrow="Student Dashboard"
         title={`Welcome back,\n${userName.split(" ")[0]}.`}
-        description="Track your class details, attendance, syllabus, and published study materials from one place."
+        description={
+          isOnlineStudent
+            ? "Track your purchased class access, syllabus, and published study materials from one place."
+            : "Track your class details, attendance, syllabus, and published study materials from one place."
+        }
       />
 
-      <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className={`mt-8 grid gap-6 md:grid-cols-2 ${isOnlineStudent ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
         <Link href="/dashboard/class" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
           <p className="stitch-kicker">Class Details</p>
           <h2 className="mt-5 text-3xl text-foreground">
@@ -255,13 +263,15 @@ export default function StudentDashboard() {
             {studentRecord?.class?.level ?? "-"}
           </p>
         </Link>
-        <Link href="/dashboard/attendance" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
-          <p className="stitch-kicker">Attendance</p>
-          <p className="mt-5 font-heading text-5xl text-primary">
-            {stats.attendanceRate}%
-          </p>
-          <p className="mt-3 text-sm text-muted-foreground">View your attendance archive</p>
-        </Link>
+        {isOnlineStudent ? null : (
+          <Link href="/dashboard/attendance" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
+            <p className="stitch-kicker">Attendance</p>
+            <p className="mt-5 font-heading text-5xl text-primary">
+              {stats.attendanceRate}%
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">View your attendance archive</p>
+          </Link>
+        )}
         <Link href="/dashboard/materials" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
           <p className="stitch-kicker">Materials</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.materials}</p>
@@ -297,16 +307,18 @@ export default function StudentDashboard() {
         <div className={stitchPanelClass}>
           <p className="stitch-kicker">Quick Access</p>
           <div className="mt-6 grid gap-3">
-            <Link
-              href="/dashboard/attendance"
-              className={cn(stitchPanelSoftClass, "flex items-center justify-between transition hover:border-primary/12")}
-            >
-              <span className="flex items-center gap-3 text-foreground">
-                <CalendarCheck className="h-4 w-4 text-primary" />
-                Attendance History
-              </span>
-              <ChevronRight className="h-4 w-4 text-primary" />
-            </Link>
+            {isOnlineStudent ? null : (
+              <Link
+                href="/dashboard/attendance"
+                className={cn(stitchPanelSoftClass, "flex items-center justify-between transition hover:border-primary/12")}
+              >
+                <span className="flex items-center gap-3 text-foreground">
+                  <CalendarCheck className="h-4 w-4 text-primary" />
+                  Attendance History
+                </span>
+                <ChevronRight className="h-4 w-4 text-primary" />
+              </Link>
+            )}
             <Link
               href="/dashboard/materials"
               className={cn(stitchPanelSoftClass, "flex items-center justify-between transition hover:border-primary/12")}
@@ -341,7 +353,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className={`mt-8 grid gap-6 ${isOnlineStudent ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,1fr)_380px]"}`}>
         <div className={stitchPanelClass}>
           <div className="flex items-center justify-between">
             <h3 className="text-3xl text-foreground">Recent Materials</h3>
@@ -356,7 +368,9 @@ export default function StudentDashboard() {
             {recentMaterials.length === 0 ? (
               <div className={stitchPanelSoftClass}>
                 <p className="text-sm text-muted-foreground">
-                  No published materials yet for your class.
+                  {isOnlineStudent
+                    ? "No published materials are available for your purchased courses yet."
+                    : "No published materials yet for your class."}
                 </p>
               </div>
             ) : (
@@ -387,60 +401,62 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <div className={stitchPanelClass}>
-          <div className="flex items-center justify-between">
-            <h3 className="text-3xl text-foreground">Recent Attendance</h3>
-            <Link
-              href="/dashboard/attendance"
-              className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground"
-            >
-              View Full Log
-            </Link>
-          </div>
-          <div className="mt-6 space-y-3">
-            {recentAttendance.length === 0 ? (
-              <div className={stitchPanelSoftClass}>
-                <p className="text-sm text-muted-foreground">
-                  No attendance records are available yet.
-                </p>
-              </div>
-            ) : (
-              recentAttendance.map((entry) => (
-                <div
-                  key={entry.id}
-                  className={cn(stitchPanelSoftClass, "flex items-center justify-between")}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03] text-primary">
-                      <GraduationCap className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-foreground">
-                        {entry.class?.name ?? "Class Session"}
-                      </p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                        {new Date(entry.date).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
-                      entry.status === "present"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-destructive/10 text-destructive"
-                    }`}
-                  >
-                    {entry.status}
-                  </span>
+        {isOnlineStudent ? null : (
+          <div className={stitchPanelClass}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-3xl text-foreground">Recent Attendance</h3>
+              <Link
+                href="/dashboard/attendance"
+                className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground"
+              >
+                View Full Log
+              </Link>
+            </div>
+            <div className="mt-6 space-y-3">
+              {recentAttendance.length === 0 ? (
+                <div className={stitchPanelSoftClass}>
+                  <p className="text-sm text-muted-foreground">
+                    No attendance records are available yet.
+                  </p>
                 </div>
-              ))
-            )}
+              ) : (
+                recentAttendance.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className={cn(stitchPanelSoftClass, "flex items-center justify-between")}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03] text-primary">
+                        <GraduationCap className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-foreground">
+                          {entry.class?.name ?? "Class Session"}
+                        </p>
+                        <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                          {new Date(entry.date).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
+                        entry.status === "present"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-destructive/10 text-destructive"
+                      }`}
+                    >
+                      {entry.status}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

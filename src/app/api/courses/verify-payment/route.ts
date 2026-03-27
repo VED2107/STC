@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
@@ -38,12 +38,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
     }
 
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(`${orderId}|${paymentId}`)
-      .digest("hex");
+    const expectedBuffer = Buffer.from(
+      createHmac("sha256", secret)
+        .update(`${orderId}|${paymentId}`)
+        .digest("hex"),
+    );
+    const signatureBuffer = Buffer.from(signature);
 
-    if (expected !== signature) {
+    if (
+      expectedBuffer.length !== signatureBuffer.length ||
+      !timingSafeEqual(expectedBuffer, signatureBuffer)
+    ) {
       return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
     }
 

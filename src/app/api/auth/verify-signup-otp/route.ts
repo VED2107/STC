@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createClient as createAdminClient, createClient as createSignInClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 import {
   SIGNUP_OTP_COOKIE,
   decryptPendingSignup,
@@ -48,9 +49,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
       return NextResponse.json(
         { error: "Server misconfigured for signup verification." },
         { status: 500 },
@@ -86,12 +88,49 @@ export async function POST(request: NextRequest) {
       role: "student",
     });
 
-    const response = NextResponse.json({
+    // Sign in server-side to establish session cookies without exposing
+    // the password in the response body.
+    let response = NextResponse.json({
       success: true,
+      email: pendingSignup.email,
+    });
+    response.cookies.set(SIGNUP_OTP_COOKIE, "", getSignupOtpCookieOptions(0));
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          response = NextResponse.json({
+            success: true,
+            email: pendingSignup.email,
+          });
+          response.cookies.set(SIGNUP_OTP_COOKIE, "", getSignupOtpCookieOptions(0));
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
+        },
+      },
+    });
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: pendingSignup.email,
       password: pendingSignup.password,
     });
-    response.cookies.set(SIGNUP_OTP_COOKIE, "", getSignupOtpCookieOptions(0));
+
+    if (signInError) {
+      // Account was created but auto sign-in failed; the user can still
+      // sign in manually from the login page.
+      return NextResponse.json({
+        success: true,
+        email: pendingSignup.email,
+        autoSignIn: false,
+      });
+    }
 
     return response;
   } catch (error) {

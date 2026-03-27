@@ -1,13 +1,13 @@
 "use server";
 
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import type { StudentType } from "@/lib/types/database";
 
 interface CreateStudentInput {
-  fullName: string;
-  email: string;
-  phone: string;
+  profileId: string;
   classId: string;
-  studentType: "tuition" | "online";
+  studentType: StudentType;
+  isActive: boolean;
 }
 
 interface CreateStudentResult {
@@ -15,19 +15,63 @@ interface CreateStudentResult {
   error?: string;
 }
 
-/**
- * Server action: creates a student auth user via the admin API
- * so the calling admin's session is never affected.
- */
+export interface AvailableStudentProfile {
+  id: string;
+  full_name: string;
+  phone: string;
+}
+
+export async function getAvailableStudentProfiles(): Promise<AvailableStudentProfile[]> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return [];
+  }
+
+  const admin = createAdminClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const [{ data: profilesData, error: profilesError }, { data: studentsData, error: studentsError }] =
+    await Promise.all([
+      admin
+        .from("profiles")
+        .select("id, full_name, phone")
+        .eq("role", "student")
+        .order("full_name"),
+      admin.from("students").select("profile_id"),
+    ]);
+
+  if (profilesError || studentsError) {
+    return [];
+  }
+
+  const enrolledProfileIds = new Set(
+    ((studentsData as Array<{ profile_id: string }> | null) ?? []).map((student) => student.profile_id),
+  );
+
+  return ((profilesData as AvailableStudentProfile[] | null) ?? []).filter(
+    (profile) => !enrolledProfileIds.has(profile.id),
+  );
+}
+
 export async function createStudent(
   input: CreateStudentInput
 ): Promise<CreateStudentResult> {
-  const { fullName, email, phone, classId, studentType } = input;
+  const { profileId, classId, studentType, isActive } = input;
+
+  if (!profileId) {
+    return {
+      success: false,
+      error: "Select a signed-up student profile first.",
+    };
+  }
 
   if (!classId) {
     return {
       success: false,
-      error: "Class is required to create a student.",
+      error: "Class is required to enroll a student.",
     };
   }
 
@@ -37,7 +81,7 @@ export async function createStudent(
   if (!supabaseUrl || !serviceRoleKey) {
     return {
       success: false,
-      error: "Server misconfigured — missing SUPABASE_SERVICE_ROLE_KEY",
+      error: "Server misconfigured - missing SUPABASE_SERVICE_ROLE_KEY",
     };
   }
 
@@ -45,42 +89,59 @@ export async function createStudent(
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // 1. Create auth user via admin API (does NOT touch calling session)
-  const { data: authData, error: authError } =
-    await admin.auth.admin.createUser({
-      email,
-      password: "Student@123",
-      email_confirm: true, // auto-confirm so student can log in immediately
-      user_metadata: { full_name: fullName, phone },
-    });
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("id, role")
+    .eq("id", profileId)
+    .single();
 
-  if (authError || !authData.user) {
-    return { success: false, error: authError?.message ?? "Failed to create auth user" };
+  if (profileError || !profile) {
+    return {
+      success: false,
+      error: profileError?.message ?? "Student profile not found.",
+    };
   }
 
-  // 2. Create profile row
-  const { error: profileError } = await admin.from("profiles").upsert({
-    id: authData.user.id,
-    full_name: fullName,
-    phone,
-    role: "student",
-  });
-
-  if (profileError) {
-    return { success: false, error: "User created but profile insert failed: " + profileError.message };
+  if (profile.role !== "student") {
+    return {
+      success: false,
+      error: "Only student profiles can be enrolled.",
+    };
   }
 
-  // 3. Create student row
+  const { data: existingStudent, error: existingStudentError } = await admin
+    .from("students")
+    .select("id")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+
+  if (existingStudentError) {
+    return {
+      success: false,
+      error: existingStudentError.message,
+    };
+  }
+
+  if (existingStudent) {
+    return {
+      success: false,
+      error: "This student profile is already enrolled.",
+    };
+  }
+
   const { error: studentError } = await admin.from("students").insert({
-    profile_id: authData.user.id,
+    profile_id: profileId,
     class_id: classId,
     student_type: studentType,
     enrollment_date: new Date().toISOString().split("T")[0],
-    is_active: true,
+    is_active: isActive,
   });
 
   if (studentError) {
-    return { success: false, error: "Profile created but student insert failed: " + studentError.message };
+    return {
+      success: false,
+      error: studentError.message,
+    };
   }
 
   return { success: true };

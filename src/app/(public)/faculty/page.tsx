@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { ImageOff } from "lucide-react";
 
@@ -41,9 +42,11 @@ export default async function FacultyPage() {
             <article key={teacher.id} className="stitch-panel overflow-hidden p-8">
               <div className="overflow-hidden rounded-[20px] stitch-ghost-border">
                 {teacher.photo_url ? (
-                  <img
+                  <Image
                     src={teacher.photo_url}
                     alt={teacher.name}
+                    width={400}
+                    height={440}
                     className="aspect-[1.1] w-full object-cover"
                   />
                 ) : (
