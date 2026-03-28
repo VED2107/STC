@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     const { data: existingStudent, error: studentFetchError } = await admin
       .from("students")
-      .select("id, student_type, is_active")
+      .select("id, student_type, class_id, is_active")
       .eq("profile_id", user.id)
       .maybeSingle();
 
@@ -106,10 +106,10 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      if (!existingStudent.is_active) {
+      if (!existingStudent.is_active || existingStudent.class_id !== courseRes.data.class_id) {
         const { error: activateError } = await admin
           .from("students")
-          .update({ is_active: true })
+          .update({ is_active: true, class_id: courseRes.data.class_id })
           .eq("id", existingStudent.id);
         if (activateError) {
           return NextResponse.json({ error: activateError.message }, { status: 500 });
@@ -181,4 +181,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

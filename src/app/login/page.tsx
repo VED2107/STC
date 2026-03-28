@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { getCachedRole, setCachedProfile } from "@/lib/auth/client-cache";
 import { createClient } from "@/lib/supabase/client";
 import {
   stitchButtonClass,
@@ -14,6 +15,7 @@ import type { UserRole } from "@/lib/types/database";
 
 type AuthMode = "login" | "signup";
 type SignupStep = "form" | "otp";
+type LoginMethod = "password" | "otp";
 
 interface PendingSignupState {
   fullName: string;
@@ -50,6 +52,11 @@ function GoogleLogo({ className }: { className?: string }) {
 }
 
 async function resolveUserRole(userId: string): Promise<UserRole> {
+  const cachedRole = getCachedRole(userId);
+  if (cachedRole) {
+    return cachedRole;
+  }
+
   const supabase = createClient();
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -79,10 +86,53 @@ async function resolveUserRole(userId: string): Promise<UserRole> {
   return "student";
 }
 
+function getRoleHome(role: UserRole): string {
+  if (role === "admin") return "/admin";
+  if (role === "teacher") return "/admin/attendance";
+  return "/dashboard";
+}
+
+async function resolvePostLoginPath(userId: string, fallbackRole?: UserRole): Promise<string> {
+  const supabase = createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profile) {
+    setCachedProfile(profile);
+  }
+
+  const resolvedRole =
+    profile?.role === "admin" || profile?.role === "teacher" || profile?.role === "student"
+      ? profile.role
+      : fallbackRole ?? "student";
+
+  if (resolvedRole === "student") {
+    const hasFullName = Boolean(profile?.full_name?.trim());
+    const hasPhone = Boolean(profile?.phone?.trim());
+
+    if (!hasFullName || !hasPhone) {
+      return "/dashboard/settings?onboarding=1";
+    }
+  }
+
+  return getRoleHome(resolvedRole);
+}
+
+async function ensureStudentAccess() {
+  await fetch("/api/auth/ensure-student-access", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  }).catch(() => null);
+}
+
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<AuthMode>("login");
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("password");
   const [signupStep, setSignupStep] = useState<SignupStep>("form");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -90,6 +140,10 @@ function LoginPageInner() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginOtp, setLoginOtp] = useState("");
+  const [loginOtpSent, setLoginOtpSent] = useState(false);
+  const [devOtpHint, setDevOtpHint] = useState("");
   const [otp, setOtp] = useState("");
   const [pendingSignup, setPendingSignup] = useState<PendingSignupState | null>(null);
 
@@ -129,14 +183,20 @@ function LoginPageInner() {
       }
 
       if (user) {
-        await resolveUserRole(user.id);
+        await ensureStudentAccess();
+        const role = await resolveUserRole(user.id);
+        const defaultPath = await resolvePostLoginPath(user.id, role);
 
         if (!active) {
           return;
         }
 
         const redirectedFrom = searchParams.get("redirectedFrom");
-        router.replace(redirectedFrom && redirectedFrom.startsWith("/") ? redirectedFrom : "/");
+        router.replace(
+          redirectedFrom && redirectedFrom.startsWith("/")
+            ? redirectedFrom
+            : defaultPath,
+        );
         router.refresh();
         return;
       }
@@ -157,7 +217,7 @@ function LoginPageInner() {
     };
   }, [router, searchParams]);
 
-  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+  async function handlePasswordLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -188,10 +248,145 @@ function LoginPageInner() {
       return;
     }
 
-    await resolveUserRole(user.id);
+    await ensureStudentAccess();
+    const role = await resolveUserRole(user.id);
+    const defaultPath = await resolvePostLoginPath(user.id, role);
     const redirectedFrom = searchParams.get("redirectedFrom");
-    router.replace(redirectedFrom && redirectedFrom.startsWith("/") ? redirectedFrom : "/");
+    router.replace(
+      redirectedFrom && redirectedFrom.startsWith("/")
+        ? redirectedFrom
+        : defaultPath,
+    );
     router.refresh();
+    setLoading(false);
+  }
+
+  async function handleSendLoginOtp(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setNotice("");
+
+    const normalizedEmail = loginEmail.trim().toLowerCase();
+
+    const response = await fetch("/api/auth/send-login-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail }),
+    });
+
+    const result = (await response.json()) as {
+      error?: string;
+      expiresInMinutes?: number;
+      devOtp?: string;
+      notice?: string;
+    };
+
+    if (!response.ok) {
+      setError(result.error ?? "Failed to send login OTP.");
+      setLoading(false);
+      return;
+    }
+
+    setLoginEmail(normalizedEmail);
+    setLoginOtp("");
+    setLoginOtpSent(true);
+    setDevOtpHint(
+      result.devOtp
+        ? `${result.notice ?? "Development OTP"} Code: ${result.devOtp}`
+        : "",
+    );
+    setNotice(
+      result.devOtp
+        ? `Development mode is active. Use the code below for ${normalizedEmail}.`
+        : `We sent a login code to ${normalizedEmail}. Enter it below within ${result.expiresInMinutes ?? 10} minutes.`,
+    );
+    setLoading(false);
+  }
+
+  async function handleVerifyLoginOtp(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setNotice("");
+
+    const response = await fetch("/api/auth/verify-login-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ otp: loginOtp }),
+    });
+
+    const result = (await response.json()) as { success?: boolean; error?: string };
+
+    if (!response.ok || !result.success) {
+      setError(result.error ?? "Failed to verify login OTP.");
+      setLoading(false);
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setError("Login succeeded but session was not available. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    await ensureStudentAccess();
+    const role = await resolveUserRole(user.id);
+    const defaultPath = await resolvePostLoginPath(user.id, role);
+    const redirectedFrom = searchParams.get("redirectedFrom");
+    router.replace(
+      redirectedFrom && redirectedFrom.startsWith("/")
+        ? redirectedFrom
+        : defaultPath,
+    );
+    router.refresh();
+    setLoading(false);
+  }
+
+  async function handleResendLoginOtp() {
+    if (!loginEmail) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setNotice("");
+
+    const response = await fetch("/api/auth/send-login-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: loginEmail }),
+    });
+
+    const result = (await response.json()) as {
+      error?: string;
+      expiresInMinutes?: number;
+      devOtp?: string;
+      notice?: string;
+    };
+
+    if (!response.ok) {
+      setError(result.error ?? "Failed to resend login OTP.");
+      setLoading(false);
+      return;
+    }
+
+    setDevOtpHint(
+      result.devOtp
+        ? `${result.notice ?? "Development OTP"} Code: ${result.devOtp}`
+        : "",
+    );
+    setNotice(
+      result.devOtp
+        ? `Development mode is active. Use the refreshed code below for ${loginEmail}.`
+        : `A fresh login code was sent to ${loginEmail}. It expires in ${result.expiresInMinutes ?? 10} minutes.`,
+    );
     setLoading(false);
   }
 
@@ -254,7 +449,12 @@ function LoginPageInner() {
       body: JSON.stringify(signupData),
     });
 
-    const result = (await response.json()) as { error?: string; expiresInMinutes?: number };
+    const result = (await response.json()) as {
+      error?: string;
+      expiresInMinutes?: number;
+      devOtp?: string;
+      notice?: string;
+    };
 
     if (!response.ok) {
       setError(result.error ?? "Failed to send signup OTP.");
@@ -265,8 +465,15 @@ function LoginPageInner() {
     setPendingSignup(signupData);
     setSignupStep("otp");
     setOtp("");
+    setDevOtpHint(
+      result.devOtp
+        ? `${result.notice ?? "Development OTP"} Code: ${result.devOtp}`
+        : "",
+    );
     setNotice(
-      `We sent a verification code to ${signupData.email}. Enter it below within ${result.expiresInMinutes ?? 10} minutes.`,
+      result.devOtp
+        ? `Development mode is active. Use the code below to finish signup for ${signupData.email}.`
+        : `We sent a verification code to ${signupData.email}. Enter it below within ${result.expiresInMinutes ?? 10} minutes.`,
     );
     setLoading(false);
   }
@@ -308,7 +515,7 @@ function LoginPageInner() {
       return;
     }
 
-    router.replace("/");
+    router.replace("/dashboard");
     router.refresh();
     setLoading(false);
   }
@@ -330,7 +537,12 @@ function LoginPageInner() {
       body: JSON.stringify(pendingSignup),
     });
 
-    const result = (await response.json()) as { error?: string; expiresInMinutes?: number };
+    const result = (await response.json()) as {
+      error?: string;
+      expiresInMinutes?: number;
+      devOtp?: string;
+      notice?: string;
+    };
 
     if (!response.ok) {
       setError(result.error ?? "Failed to resend signup OTP.");
@@ -338,8 +550,15 @@ function LoginPageInner() {
       return;
     }
 
+    setDevOtpHint(
+      result.devOtp
+        ? `${result.notice ?? "Development OTP"} Code: ${result.devOtp}`
+        : "",
+    );
     setNotice(
-      `A fresh verification code was sent to ${pendingSignup.email}. It expires in ${result.expiresInMinutes ?? 10} minutes.`,
+      result.devOtp
+        ? `Development mode is active. Use the refreshed code below for ${pendingSignup.email}.`
+        : `A fresh verification code was sent to ${pendingSignup.email}. It expires in ${result.expiresInMinutes ?? 10} minutes.`,
     );
     setLoading(false);
   }
@@ -353,7 +572,14 @@ function LoginPageInner() {
     if (nextMode === "signup") {
       setSignupStep("form");
       setOtp("");
+      setDevOtpHint("");
+      return;
     }
+
+    setLoginMethod("password");
+    setLoginOtp("");
+    setLoginOtpSent(false);
+    setDevOtpHint("");
   }
 
   if (bootstrapping) {
@@ -413,6 +639,12 @@ function LoginPageInner() {
             </div>
           ) : null}
 
+          {devOtpHint ? (
+            <div className="mt-6 rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {devOtpHint}
+            </div>
+          ) : null}
+
           {error ? (
             <div className="mt-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
@@ -420,7 +652,211 @@ function LoginPageInner() {
           ) : null}
 
           {mode === "login" ? (
-            <form onSubmit={handleLogin} className="mt-7 space-y-5">
+            <div className="mt-7 space-y-5">
+              <div className="grid grid-cols-2 rounded-full border border-black/[0.08] bg-muted/60 p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMethod("password");
+                    setLoginOtp("");
+                    setLoginOtpSent(false);
+                    setError("");
+                    setNotice("");
+                  }}
+                  className={cn(
+                    "rounded-full px-4 py-3 text-sm font-medium transition",
+                    loginMethod === "password"
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMethod("otp");
+                    setError("");
+                    setNotice("");
+                  }}
+                  className={cn(
+                    "rounded-full px-4 py-3 text-sm font-medium transition",
+                    loginMethod === "otp"
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Email OTP
+                </button>
+              </div>
+
+              {loginMethod === "password" ? (
+                <form onSubmit={handlePasswordLogin} className="space-y-5">
+                  <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-black/[0.08] bg-white text-base font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={loading || googleLoading}
+                  >
+                    {googleLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <GoogleLogo className="h-5 w-5" />
+                    )}
+                    <span>Continue with Google</span>
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-black/[0.08]" />
+                    <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      or
+                    </span>
+                    <div className="h-px flex-1 bg-black/[0.08]" />
+                  </div>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm text-muted-foreground">Email Address</span>
+                    <input
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      placeholder="julian.voss@academy.edu"
+                      className={stitchInputClass}
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm text-muted-foreground">Password</span>
+                    <div className="relative">
+                      <input
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        required
+                        placeholder="........"
+                        className={cn(stitchInputClass, "pr-12")}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((value) => !value)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </label>
+
+                  <button
+                    type="submit"
+                    className={cn(stitchButtonClass, "h-14 w-full text-base")}
+                    disabled={loading || googleLoading}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Sign In"
+                    )}
+                  </button>
+                </form>
+              ) : !loginOtpSent ? (
+                <form onSubmit={handleSendLoginOtp} className="space-y-5">
+                  <label className="block">
+                    <span className="mb-2 block text-sm text-muted-foreground">Email Address</span>
+                    <input
+                      name="login_otp_email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      placeholder="julian.voss@academy.edu"
+                      value={loginEmail}
+                      onChange={(event) => setLoginEmail(event.target.value)}
+                      className={stitchInputClass}
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className={cn(stitchButtonClass, "h-14 w-full text-base")}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Send Login OTP"
+                    )}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyLoginOtp} className="space-y-5">
+                  <div className="rounded-2xl border border-black/[0.06] bg-muted px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                      OTP Login
+                    </p>
+                    <p className="mt-2 text-sm text-foreground/70">{loginEmail}</p>
+                  </div>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm text-muted-foreground">6-digit OTP</span>
+                    <input
+                      name="login_otp"
+                      value={loginOtp}
+                      onChange={(event) =>
+                        setLoginOtp(event.target.value.replace(/\D/g, "").slice(0, 8))
+                      }
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]{6,8}"
+                      required
+                      placeholder="12345678"
+                      className={cn(stitchInputClass, "text-center text-lg tracking-[0.35em]")}
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className={cn(stitchButtonClass, "h-14 w-full text-base")}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Verify OTP and Sign In"
+                    )}
+                  </button>
+
+                  <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
+                    <button
+                      type="button"
+                    onClick={() => {
+                      setLoginOtpSent(false);
+                      setLoginOtp("");
+                      setError("");
+                      setNotice("");
+                      setDevOtpHint("");
+                    }}
+                    className="transition-colors hover:text-foreground"
+                  >
+                      Change email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResendLoginOtp}
+                      className="transition-colors hover:text-primary"
+                      disabled={loading}
+                    >
+                      Resend OTP
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ) : signupStep === "form" ? (
+            <form onSubmit={handleSignup} className="mt-7 space-y-5">
               <button
                 type="button"
                 onClick={handleGoogleLogin}
@@ -432,7 +868,7 @@ function LoginPageInner() {
                 ) : (
                   <GoogleLogo className="h-5 w-5" />
                 )}
-                <span>Continue with Google</span>
+                <span>Sign Up with Google</span>
               </button>
 
               <div className="flex items-center gap-3">
@@ -443,57 +879,6 @@ function LoginPageInner() {
                 <div className="h-px flex-1 bg-black/[0.08]" />
               </div>
 
-              <label className="block">
-                <span className="mb-2 block text-sm text-muted-foreground">Email Address</span>
-                <input
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  placeholder="julian.voss@academy.edu"
-                  className={stitchInputClass}
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm text-muted-foreground">Password</span>
-                <div className="relative">
-                  <input
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    required
-                    placeholder="........"
-                    className={cn(stitchInputClass, "pr-12")}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </label>
-
-              <button
-                type="submit"
-                className={cn(stitchButtonClass, "h-14 w-full text-base")}
-                disabled={loading || googleLoading}
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Sign In"
-                )}
-              </button>
-            </form>
-          ) : signupStep === "form" ? (
-            <form onSubmit={handleSignup} className="mt-7 space-y-5">
               <label className="block">
                 <span className="mb-2 block text-sm text-muted-foreground">Full Name</span>
                 <input
@@ -596,6 +981,7 @@ function LoginPageInner() {
                     setOtp("");
                     setError("");
                     setNotice("");
+                    setDevOtpHint("");
                   }}
                   className="transition-colors hover:text-foreground"
                 >

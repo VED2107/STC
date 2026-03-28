@@ -12,6 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import {
   stitchButtonClass,
   stitchPanelClass,
@@ -31,10 +32,15 @@ interface DashboardStats {
 
 interface RegistryRow {
   id: string;
+  profile_id: string;
   enrollment_date: string;
+  created_at?: string;
   is_active: boolean;
   profile: { full_name: string; phone: string } | null;
   class: { name: string; board: string } | null;
+  student_type?: "tuition" | "online";
+  enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
+  authUser?: { email: string; full_name: string; phone: string } | null;
 }
 
 interface TeacherRow {
@@ -60,6 +66,7 @@ interface ClassRow {
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const { user, role, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [registry, setRegistry] = useState<RegistryRow[]>([]);
   const [teachers, setTeachers] = useState<TeacherRow[]>([]);
@@ -71,27 +78,21 @@ export default function AdminDashboard() {
     const supabase = createClient();
 
     async function loadDashboard() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      if (authLoading) {
+        return;
+      }
 
       if (!user) {
         router.push("/login");
         return;
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (profile?.role === "teacher") {
+      if (role === "teacher") {
         router.push("/admin/attendance");
         return;
       }
 
-      if (profile?.role !== "admin") {
+      if (role !== "admin") {
         router.push("/dashboard");
         return;
       }
@@ -107,6 +108,7 @@ export default function AdminDashboard() {
         teachersRes,
         coursesRes,
         classesRes,
+        authUsersRes,
       ] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("courses").select("id", { count: "exact", head: true }),
@@ -117,8 +119,9 @@ export default function AdminDashboard() {
         supabase
           .from("students")
           .select(
-            "id, enrollment_date, is_active, profile:profiles(full_name, phone), class:classes(name, board)",
+            "id, profile_id, enrollment_date, created_at, is_active, student_type, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
           )
+          .order("created_at", { ascending: false })
           .order("enrollment_date", { ascending: false })
           .limit(5),
         supabase
@@ -136,11 +139,27 @@ export default function AdminDashboard() {
           .select("id, name, board, level")
           .order("created_at", { ascending: false })
           .limit(4),
+        fetch("/api/admin/auth-users", { cache: "no-store" }).then(async (response) =>
+          response.ok ? response.json() : { users: [] },
+        ),
       ]);
 
       if (cancelled) {
         return;
       }
+
+      const authFallbackById = new Map(
+        (((authUsersRes as { users?: Array<{ id: string; email: string; full_name: string; phone: string }> }).users) ?? []).map(
+          (entry) => [
+            entry.id,
+            {
+              email: entry.email,
+              full_name: entry.full_name,
+              phone: entry.phone,
+            },
+          ],
+        ),
+      );
 
       setStats({
         students: studentCount.count ?? 0,
@@ -150,7 +169,12 @@ export default function AdminDashboard() {
         classes: classCount.count ?? 0,
         attendance: attendanceCount.count ?? 0,
       });
-      setRegistry((registryRes.data as RegistryRow[] | null) ?? []);
+      setRegistry(
+        (((registryRes.data as RegistryRow[] | null) ?? []).map((row) => ({
+          ...row,
+          authUser: authFallbackById.get(row.profile_id) ?? null,
+        }))),
+      );
       setTeachers((teachersRes.data as TeacherRow[] | null) ?? []);
       setCourses((coursesRes.data as CourseRow[] | null) ?? []);
       setClasses((classesRes.data as ClassRow[] | null) ?? []);
@@ -161,7 +185,7 @@ export default function AdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [authLoading, role, router, user]);
 
   if (!stats) {
     return (
@@ -259,6 +283,7 @@ export default function AdminDashboard() {
                 <tr>
                   <th className="pb-4 font-medium">Participant</th>
                   <th className="pb-4 font-medium">Class</th>
+                  <th className="pb-4 font-medium">Course Access</th>
                   <th className="pb-4 font-medium">Status</th>
                   <th className="pb-4 font-medium">Enrolled</th>
                 </tr>
@@ -275,15 +300,24 @@ export default function AdminDashboard() {
                     <tr key={row.id}>
                       <td className="py-4">
                         <p className="text-base text-foreground">
-                          {row.profile?.full_name ?? "Unnamed Scholar"}
+                          {row.profile?.full_name || row.authUser?.full_name || row.authUser?.email || "Unnamed Scholar"}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {row.profile?.phone ?? "No contact"}
+                          {row.profile?.phone || row.authUser?.phone || row.authUser?.email || "No contact"}
                         </p>
                       </td>
                       <td className="py-4 text-sm text-muted-foreground">
                         {row.class?.name ?? "Independent Study"}
                         <div className="mt-1 text-xs text-muted-foreground">{row.class?.board ?? "STC"}</div>
+                      </td>
+                      <td className="py-4 text-sm text-muted-foreground">
+                        {row.student_type === "online"
+                          ? (row.enrollments ?? [])
+                              .filter((entry) => entry.status === "active")
+                              .map((entry) => entry.course?.title)
+                              .filter((value): value is string => Boolean(value))
+                              .join(", ") || "No purchased course"
+                          : "Class resources"}
                       </td>
                       <td className="py-4">
                         <span

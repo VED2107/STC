@@ -1,9 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { ensureOnlineStudentAccess } from "@/lib/auth/self-signup";
 
 function isSafeRedirect(value: string | null) {
   return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
+}
+
+function resolveDashboardPath(role: string | null | undefined) {
+  if (role === "admin") return "/admin";
+  if (role === "teacher") return "/admin/attendance";
+  return "/dashboard";
 }
 
 export async function GET(request: Request) {
@@ -48,13 +55,34 @@ export async function GET(request: Request) {
       } = await supabase.auth.getUser();
 
       if (user) {
+        await ensureOnlineStudentAccess({
+          userId: user.id,
+          fullName:
+            typeof user.user_metadata?.full_name === "string"
+              ? user.user_metadata.full_name
+              : typeof user.user_metadata?.name === "string"
+                ? user.user_metadata.name
+                : user.email?.split("@")[0] ?? "",
+          phone:
+            typeof user.user_metadata?.phone === "string"
+              ? user.user_metadata.phone
+              : "",
+        });
+
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, full_name, phone")
           .eq("id", user.id)
           .maybeSingle();
 
-        redirectPath = "/";
+        if (
+          profile?.role === "student" &&
+          (!profile.full_name?.trim() || !profile.phone?.trim())
+        ) {
+          redirectPath = "/dashboard/settings?onboarding=1";
+        } else {
+          redirectPath = resolveDashboardPath(profile?.role);
+        }
       }
     }
   }

@@ -50,6 +50,18 @@ function AdminSyllabusPageInner() {
   const selectedClass =
     classes.find((item) => item.id === formClassId) ?? null;
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    setDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      setEditingSyllabus(null);
+      setActionError("");
+      if (searchParams?.get("create") === "1") {
+        router.replace(pathname, { scroll: false });
+      }
+    }
+  }
+
   const fetchData = useCallback(async () => {
     if (role === "student") {
       router.push("/dashboard");
@@ -109,6 +121,11 @@ function AdminSyllabusPageInner() {
   }, [fetchData]);
 
   useEffect(() => {
+    if (formClassId || classes.length === 0) return;
+    setFormClassId(classes[0]?.id ?? "");
+  }, [classes, formClassId]);
+
+  useEffect(() => {
     if (role !== "admin" && role !== "teacher") return;
     if (searchParams?.get("create") === "1" && !dialogOpen) {
       setEditingSyllabus(null);
@@ -150,7 +167,10 @@ function AdminSyllabusPageInner() {
     }
 
     setActionError("");
-    window.open("/syllabus", "_blank", "noopener,noreferrer");
+    document.getElementById("published-syllabus-list")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   }
 
   function removeUnit(index: number) {
@@ -255,7 +275,7 @@ function AdminSyllabusPageInner() {
           />
         </div>
       ) : (
-        <div className="mt-10 grid gap-6 xl:grid-cols-2">
+        <div id="published-syllabus-list" className="mt-10 grid gap-6 xl:grid-cols-2">
           {syllabi.map((item) => {
             const content = item.content as { units?: SyllabusUnit[] };
             return (
@@ -299,7 +319,7 @@ function AdminSyllabusPageInner() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingSyllabus ? "Edit Syllabus" : "New Syllabus"}</DialogTitle>

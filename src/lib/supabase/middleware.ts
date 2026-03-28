@@ -62,24 +62,5 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  if (
-    user &&
-    pathname.startsWith("/dashboard") &&
-    pathname !== "/dashboard/settings"
-  ) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, profile_reviewed_at")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profile?.role === "student" && !profile.profile_reviewed_at) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard/settings";
-      url.searchParams.set("onboarding", "1");
-      return NextResponse.redirect(url);
-    }
-  }
-
   return supabaseResponse;
 }

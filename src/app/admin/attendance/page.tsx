@@ -126,6 +126,11 @@ export default function AdminAttendancePage() {
     void loadBaseData();
   }, [role, router, user?.id]);
 
+  useEffect(() => {
+    if (selectedClassId || classes.length === 0) return;
+    setSelectedClassId(classes[0]?.id ?? "");
+  }, [classes, selectedClassId]);
+
   const selectableClasses = useMemo(() => {
     if (!selectedCourseId) {
       return classes;

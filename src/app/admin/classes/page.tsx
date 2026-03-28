@@ -61,6 +61,18 @@ function AdminClassesPageInner() {
   const [draggingClassId, setDraggingClassId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    setDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      setEditingClass(null);
+      setFormError("");
+      if (searchParams?.get("create") === "1") {
+        router.replace(pathname, { scroll: false });
+      }
+    }
+  }
+
   function normalizeClasses(rawClasses: Class[] | null) {
     return (rawClasses ?? []).map((item) => ({
       ...item,
@@ -509,7 +521,7 @@ function AdminClassesPageInner() {
         </>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingClass ? "Edit Class" : "Add New Class"}</DialogTitle>
@@ -568,7 +580,7 @@ function AdminClassesPageInner() {
             </div>
             {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>
                 Cancel
               </Button>
               <Button onClick={handleSave} disabled={saving || !formName.trim()} className="gap-1.5">

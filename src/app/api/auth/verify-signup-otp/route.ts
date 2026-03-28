@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createAdminClient, createClient as createSignInClient } from "@supabase/supabase-js";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import {
   SIGNUP_OTP_COOKIE,
@@ -8,6 +8,7 @@ import {
   isOtpExpired,
   otpMatches,
 } from "@/lib/auth/signup-otp";
+import { ensureOnlineStudentAccess } from "@/lib/auth/self-signup";
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,11 +82,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await admin.from("profiles").upsert({
-      id: authData.user.id,
-      full_name: pendingSignup.fullName,
+    await ensureOnlineStudentAccess({
+      userId: authData.user.id,
+      fullName: pendingSignup.fullName,
       phone: pendingSignup.phone,
-      role: "student",
     });
 
     // Sign in server-side to establish session cookies without exposing

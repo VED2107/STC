@@ -7,6 +7,10 @@ import {
   encryptPendingSignup,
   getSignupOtpCookieOptions,
 } from "@/lib/auth/signup-otp";
+import {
+  canBypassResendInDevelopment,
+  isResendTestingRestriction,
+} from "@/lib/auth/resend";
 
 function buildSignupOtpEmail({
   name,
@@ -160,15 +164,25 @@ Your signup verification code is: ${pendingSignup.otp}
 This code expires in ${OTP_EXPIRY_MINUTES} minutes.`,
     });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
     const response = NextResponse.json({
       success: true,
       email: pendingSignup.email,
       expiresInMinutes: OTP_EXPIRY_MINUTES,
+      ...(error && canBypassResendInDevelopment() && isResendTestingRestriction(error.message)
+        ? {
+            deliveryMode: "development",
+            devOtp: pendingSignup.otp,
+            notice:
+              "Resend sandbox blocked external delivery, so the OTP is shown here for local development.",
+          }
+        : {}),
     });
+
+    if (error && !(
+      canBypassResendInDevelopment() && isResendTestingRestriction(error.message)
+    )) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     response.cookies.set(
       SIGNUP_OTP_COOKIE,

@@ -30,6 +30,17 @@ function AdminTeachersPageInner() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>();
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    setDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      setEditingTeacher(undefined);
+      if (searchParams?.get("create") === "1") {
+        router.replace(pathname, { scroll: false });
+      }
+    }
+  }
+
   const fetchTeachers = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
@@ -219,7 +230,7 @@ function AdminTeachersPageInner() {
 
       <TeacherFormDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleDialogOpenChange}
         onSuccess={fetchTeachers}
         editTeacher={editingTeacher}
       />

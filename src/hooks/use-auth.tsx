@@ -10,6 +10,12 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import {
+  clearCachedProfile,
+  clearCachedStudentType,
+  getCachedProfile,
+  setCachedProfile,
+} from "@/lib/auth/client-cache";
 import type { Profile, UserRole } from "@/lib/types/database";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 
@@ -57,7 +63,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.error("Failed to fetch profile:", error.message);
           return null;
         }
-        return data as Profile;
+        const profile = data as Profile;
+        setCachedProfile(profile);
+        return profile;
       } catch (err) {
         console.error("Profile fetch error:", err);
         return null;
@@ -77,23 +85,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /** Sign out and redirect to home */
   const signOut = useCallback(async () => {
     try {
-      const [{ error: clientError }, logoutResponse] = await Promise.all([
-        supabase.auth.signOut({ scope: "global" }),
-        fetch("/api/auth/logout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }),
-      ]);
+      // Clear the server session first, then clear the browser session.
+      // Running them in parallel can race and make one side think the
+      // session already disappeared.
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }).catch(() => null);
+
+      const { error: clientError } = await supabase.auth.signOut({ scope: "local" });
 
       if (clientError) {
-        throw clientError;
+        console.error("Client sign out error:", clientError.message);
       }
 
-      if (!logoutResponse.ok) {
-        const body = (await logoutResponse.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to clear server session");
+      if (user?.id) {
+        clearCachedProfile(user.id);
+        clearCachedStudentType(user.id);
       }
 
       setUser(null);
@@ -101,13 +111,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setSession(null);
       router.replace("/login");
       router.refresh();
-      if (typeof window !== "undefined") {
-        window.location.replace("/login");
-      }
     } catch (err) {
       console.error("Sign out error:", err);
+      router.replace("/login");
+      router.refresh();
     }
-  }, [supabase, router]);
+  }, [supabase, router, user?.id]);
 
   useEffect(() => {
     /** Get initial session */
@@ -121,6 +130,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
+          const cachedProfile = getCachedProfile(currentSession.user.id);
+
+          if (cachedProfile) {
+            setProfile(cachedProfile);
+            setLoading(false);
+          }
+
           const p = await fetchProfile(currentSession.user.id);
           setProfile(p);
         }
@@ -141,19 +157,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(newSession?.user ?? null);
 
       if (event === "SIGNED_IN" && newSession?.user) {
+        const cachedProfile = getCachedProfile(newSession.user.id);
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
         const p = await fetchProfile(newSession.user.id);
         setProfile(p);
+        setLoading(false);
       }
 
       if (event === "SIGNED_OUT") {
+        if (user?.id) {
+          clearCachedProfile(user.id);
+          clearCachedStudentType(user.id);
+        }
         setProfile(null);
+        setLoading(false);
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, fetchProfile]);
+  }, [supabase, fetchProfile, user?.id]);
 
   const role = profile?.role ?? null;
 

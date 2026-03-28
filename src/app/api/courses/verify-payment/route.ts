@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
     const { data: paymentRow, error: paymentLookupError } = await admin
       .from("course_payments")
-      .select("id, student_id, course_id, status")
+      .select("id, student_id, course_id, status, course:courses(class_id)")
       .eq("gateway_order_id", orderId)
       .eq("course_id", courseId)
       .eq("student_id", student.id)
@@ -89,6 +89,20 @@ export async function POST(request: Request) {
 
     if (enrollmentError) {
       return NextResponse.json({ error: enrollmentError.message }, { status: 500 });
+    }
+
+    const purchasedClassId =
+      (paymentRow.course as { class_id?: string } | null)?.class_id ?? null;
+
+    if (purchasedClassId) {
+      const { error: classUpdateError } = await admin
+        .from("students")
+        .update({ class_id: purchasedClassId, is_active: true })
+        .eq("id", student.id);
+
+      if (classUpdateError) {
+        return NextResponse.json({ error: classUpdateError.message }, { status: 500 });
+      }
     }
 
     const { error: paymentUpdateError } = await admin
@@ -114,4 +128,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

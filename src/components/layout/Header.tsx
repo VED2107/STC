@@ -33,7 +33,8 @@ export function Header() {
 
   const isLoggedIn = !!user;
   const isRoleResolved = !user || !!role;
-  const dashboardHref = role === "admin" || role === "teacher" ? "/admin" : "/dashboard";
+  const dashboardHref =
+    role === "admin" ? "/admin" : role === "teacher" ? "/admin/attendance" : "/dashboard";
   const dashboardLabel =
     role === "admin"
       ? "Admin Dashboard"

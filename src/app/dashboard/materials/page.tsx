@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, FileText, FolderOpen, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -29,6 +30,7 @@ interface StudentAccessRow {
 
 export default function StudentMaterialsPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [materials, setMaterials] = useState<MaterialRow[]>([]);
   const [className, setClassName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -36,9 +38,9 @@ export default function StudentMaterialsPage() {
   const fetchMaterials = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (authLoading) {
+      return;
+    }
     if (!user) {
       router.push("/login");
       return;
@@ -89,7 +91,7 @@ export default function StudentMaterialsPage() {
 
     setMaterials(data ?? []);
     setLoading(false);
-  }, [router]);
+  }, [authLoading, router, user]);
 
   useEffect(() => {
     void fetchMaterials();

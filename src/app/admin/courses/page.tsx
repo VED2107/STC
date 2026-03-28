@@ -36,6 +36,17 @@ function AdminCoursesPageInner() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<CourseRow | undefined>();
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    setDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      setEditingCourse(undefined);
+      if (searchParams?.get("create") === "1") {
+        router.replace(pathname, { scroll: false });
+      }
+    }
+  }
+
   const fetchCourses = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
@@ -191,7 +202,7 @@ function AdminCoursesPageInner() {
 
       <CourseFormDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleDialogOpenChange}
         onSuccess={fetchCourses}
         editCourse={editingCourse as (Partial<Course> & { id?: string }) | undefined}
       />

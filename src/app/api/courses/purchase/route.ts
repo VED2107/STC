@@ -96,10 +96,10 @@ export async function POST(request: Request) {
         );
       }
 
-      if (!existingStudent.is_active) {
+      if (!existingStudent.is_active || existingStudent.class_id !== course.class_id) {
         const { error: activateError } = await admin
           .from("students")
-          .update({ is_active: true })
+          .update({ is_active: true, class_id: course.class_id })
           .eq("id", existingStudent.id);
         if (activateError) {
           return NextResponse.json({ error: activateError.message }, { status: 500 });
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: enrollmentError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, classId: course.class_id, courseId: course.id });
   } catch (error) {
     const message =
       error && typeof error === "object" && "message" in error

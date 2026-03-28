@@ -24,10 +24,13 @@ interface StudentRow {
   profile_id: string;
   class_id: string;
   enrollment_date: string;
+  created_at?: string;
   is_active: boolean;
   student_type: "tuition" | "online";
   profile: { full_name: string; phone: string } | null;
   class: { name: string; board: string } | null;
+  enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
+  authUser?: { email: string; full_name: string; phone: string } | null;
 }
 
 function AdminStudentsPageInner() {
@@ -41,9 +44,53 @@ function AdminStudentsPageInner() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentRow | null>(null);
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    setDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      setEditingStudent(null);
+      if (searchParams?.get("create") === "1") {
+        router.replace(pathname, { scroll: false });
+      }
+    }
+  }
+
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
+
+    const buildAuthFallbackMap = async () => {
+      const response = await fetch("/api/admin/auth-users", { cache: "no-store" });
+
+      if (!response.ok) {
+        return new Map<string, { email: string; full_name: string; phone: string }>();
+      }
+
+      const result = (await response.json()) as {
+        users?: Array<{ id: string; email: string; full_name: string; phone: string }>;
+      };
+
+      return new Map(
+        (result.users ?? []).map((entry) => [
+          entry.id,
+          {
+            email: entry.email,
+            full_name: entry.full_name,
+            phone: entry.phone,
+          },
+        ]),
+      );
+    };
+
+    const mergeRows = async (rows: StudentRow[] | null) => {
+      const authFallbackById = await buildAuthFallbackMap();
+
+      return ((rows ?? []).map((student) => ({
+        ...student,
+        authUser: authFallbackById.get(student.profile_id) ?? null,
+      })));
+    };
+
     if (role === "teacher" && user?.id) {
       const { data: accessRows } = await supabase
         .from("teacher_class_access")
@@ -63,12 +110,13 @@ function AdminStudentsPageInner() {
       const { data } = await supabase
         .from("students")
         .select(
-          "id, profile_id, class_id, enrollment_date, is_active, student_type, profile:profiles(full_name, phone), class:classes(name, board)"
+          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))"
         )
         .in("class_id", classIds)
+        .order("created_at", { ascending: false })
         .order("enrollment_date", { ascending: false });
 
-      setStudents((data as StudentRow[] | null) ?? []);
+      setStudents(await mergeRows((data as StudentRow[] | null) ?? []));
       setLoading(false);
       return;
     }
@@ -76,10 +124,11 @@ function AdminStudentsPageInner() {
     const { data } = await supabase
       .from("students")
       .select(
-        "id, profile_id, class_id, enrollment_date, is_active, student_type, profile:profiles(full_name, phone), class:classes(name, board)"
+        "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))"
       )
+      .order("created_at", { ascending: false })
       .order("enrollment_date", { ascending: false });
-    setStudents((data as StudentRow[] | null) ?? []);
+    setStudents(await mergeRows((data as StudentRow[] | null) ?? []));
     setLoading(false);
   }, [role, user]);
 
@@ -105,7 +154,10 @@ function AdminStudentsPageInner() {
   }, [role, searchParams, router, pathname]);
 
   const filtered = students.filter((student) => {
-    const haystack = `${student.profile?.full_name ?? ""} ${student.class?.name ?? ""}`.toLowerCase();
+    const courseTitles = (student.enrollments ?? [])
+      .map((entry) => entry.course?.title ?? "")
+      .join(" ");
+    const haystack = `${student.profile?.full_name ?? ""} ${student.class?.name ?? ""} ${courseTitles}`.toLowerCase();
     return haystack.includes(search.toLowerCase());
   });
 
@@ -153,8 +205,13 @@ function AdminStudentsPageInner() {
                 placeholder="Filter by name or ID..."
               />
             </div>
-            <button type="button" className={stitchSecondaryButtonClass}>
-              Refine
+            <button
+              type="button"
+              className={stitchSecondaryButtonClass}
+              onClick={() => setSearch("")}
+              disabled={!search.trim()}
+            >
+              Clear
             </button>
           </div>
         </div>
@@ -226,6 +283,7 @@ function AdminStudentsPageInner() {
                   <th className="pb-4 font-medium">Student ID</th>
                   <th className="pb-4 font-medium">Class Level</th>
                   <th className="pb-4 font-medium">Academic Board</th>
+                  <th className="pb-4 font-medium">Course Access</th>
                   <th className="pb-4 font-medium">Access Type</th>
                   <th className="pb-4 font-medium">Status</th>
                   <th className="pb-4 font-medium">Actions</th>
@@ -236,10 +294,10 @@ function AdminStudentsPageInner() {
                   <tr key={student.id}>
                     <td className="py-4">
                       <p className="text-base text-foreground">
-                        {student.profile?.full_name ?? "Unnamed Scholar"}
+                        {student.profile?.full_name || student.authUser?.full_name || student.authUser?.email || "Unnamed Scholar"}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {student.profile?.phone ?? "No phone"}
+                        {student.profile?.phone || student.authUser?.phone || student.authUser?.email || "No phone"}
                       </p>
                     </td>
                     <td className="py-4 text-sm text-primary">
@@ -250,6 +308,15 @@ function AdminStudentsPageInner() {
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
                       {student.class?.board ?? "Global Curriculum Board"}
+                    </td>
+                    <td className="py-4 text-sm text-muted-foreground">
+                      {student.student_type === "online"
+                        ? (student.enrollments ?? [])
+                            .filter((entry) => entry.status === "active")
+                            .map((entry) => entry.course?.title)
+                            .filter((value): value is string => Boolean(value))
+                            .join(", ") || "No purchased course"
+                        : "Class resources"}
                     </td>
                     <td className="py-4">
                       <span
@@ -308,7 +375,11 @@ function AdminStudentsPageInner() {
                   : "Your current enrollment aligns with 94% institutional policy. Review pending status updates to maintain accreditation."}
               </p>
               {isTeacherView ? null : (
-                <button type="button" className={cn(stitchButtonClass, "mt-8")}>
+                <button
+                  type="button"
+                  className={cn(stitchButtonClass, "mt-8")}
+                  onClick={() => router.push("/admin/classes")}
+                >
                   View Compliance Report
                 </button>
               )}
@@ -323,7 +394,11 @@ function AdminStudentsPageInner() {
                   : "Student level distributions are trending toward advanced cohorts. Consider expanding atelier capacity for the upcoming semester."}
               </p>
               {isTeacherView ? null : (
-                <button type="button" className={cn(stitchSecondaryButtonClass, "mt-8")}>
+                <button
+                  type="button"
+                  className={cn(stitchSecondaryButtonClass, "mt-8")}
+                  onClick={() => router.push("/admin/attendance")}
+                >
                   Analyze Academic Trends
                 </button>
               )}
@@ -335,10 +410,7 @@ function AdminStudentsPageInner() {
       {isTeacherView ? null : (
         <StudentFormDialog
           open={dialogOpen}
-          onOpenChange={(nextOpen) => {
-            setDialogOpen(nextOpen);
-            if (!nextOpen) setEditingStudent(null);
-          }}
+          onOpenChange={handleDialogOpenChange}
           onSuccess={fetchStudents}
           editStudent={editingStudent}
         />

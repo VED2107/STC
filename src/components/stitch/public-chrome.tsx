@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { LogIn, LogOut, Mail, MapPin, Menu, Phone } from "lucide-react";
+import { getCachedStudentType, setCachedStudentType } from "@/lib/auth/client-cache";
 import { useAuth } from "@/hooks/use-auth";
 import { Reveal } from "@/components/stitch/reveal";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -84,7 +85,8 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
   const { user, role, loading, signOut } = useAuth();
   const [studentType, setStudentType] = useState<StudentType | null>(null);
   const isRoleResolved = !user || !!role;
-  const dashboardHref = role === "admin" || role === "teacher" ? "/admin" : "/dashboard";
+  const dashboardHref =
+    role === "admin" ? "/admin" : role === "teacher" ? "/admin/attendance" : "/dashboard";
   const dashboardLabel =
     role === "admin"
       ? "Admin Dashboard"
@@ -120,17 +122,33 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      const cachedStudentType = getCachedStudentType(user.id);
+      if (cachedStudentType) {
+        setStudentType(cachedStudentType);
+      }
+
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("students")
         .select("student_type")
         .eq("profile_id", user.id)
         .maybeSingle();
 
+      if (error) {
+        console.error("Failed to load student type:", error.message);
+
+        if (!cancelled) {
+          setStudentType(null);
+        }
+
+        return;
+      }
+
       if (!cancelled) {
-        setStudentType(
-          ((data as { student_type?: StudentType } | null)?.student_type ?? "tuition"),
-        );
+        const resolvedStudentType =
+          ((data as { student_type?: StudentType } | null)?.student_type ?? "tuition");
+        setCachedStudentType(user.id, resolvedStudentType);
+        setStudentType(resolvedStudentType);
       }
     }
 
@@ -156,6 +174,8 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
 
     currentUrl.searchParams.delete("code");
     currentUrl.searchParams.delete("error");
+    currentUrl.searchParams.delete("error_code");
+    currentUrl.searchParams.delete("error_description");
     window.history.replaceState({}, "", currentUrl.toString());
   }, []);
 
@@ -193,7 +213,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
             </nav>
           </Reveal>
 
-          <Reveal delay={120} variant="fade" className="hidden shrink-0 sm:block">
+          <Reveal delay={120} variant="fade" className="hidden shrink-0 lg:block">
             {loading || !isRoleResolved ? (
               <div className="h-11 w-[168px] rounded-xl bg-white/70 stitch-ghost-border" />
             ) : user ? (
@@ -229,7 +249,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
             )}
           </Reveal>
 
-          <div className="flex items-center gap-2 sm:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
             {!loading && isRoleResolved ? (
               user ? (
                 <Link href={dashboardHref} className={cn(buttonVariants({ size: "sm" }), "h-10 rounded-xl px-3")}>

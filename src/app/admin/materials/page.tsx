@@ -53,6 +53,18 @@ function AdminMaterialsPageInner() {
   const selectedCourse =
     courses.find((course) => course.id === selectedCourseId) ?? null;
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    setDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      setUploadError("");
+      setActionError("");
+      if (searchParams?.get("create") === "1") {
+        router.replace(pathname, { scroll: false });
+      }
+    }
+  }
+
   useEffect(() => {
     if (role === "student") {
       router.push("/dashboard");
@@ -106,6 +118,11 @@ function AdminMaterialsPageInner() {
   }, [role, searchParams, router, pathname]);
 
   useEffect(() => {
+    if (selectedClassId || classes.length === 0) return;
+    setSelectedClassId(classes[0]?.id ?? "");
+  }, [classes, selectedClassId]);
+
+  useEffect(() => {
     if (!selectedClassId) {
       setCourses([]);
       setSelectedCourseId("");
@@ -117,8 +134,15 @@ function AdminMaterialsPageInner() {
       .select("*")
       .eq("class_id", selectedClassId)
       .order("title")
-      .then((res: { data: unknown }) => setCourses((res.data as Course[] | null) ?? []));
-    setSelectedCourseId("");
+      .then((res: { data: unknown }) => {
+        const nextCourses = (res.data as Course[] | null) ?? [];
+        setCourses(nextCourses);
+        setSelectedCourseId((current) =>
+          current && nextCourses.some((course) => course.id === current)
+            ? current
+            : (nextCourses[0]?.id ?? "")
+        );
+      });
   }, [selectedClassId]);
 
   const fetchMaterials = useCallback(async () => {
@@ -451,7 +475,7 @@ function AdminMaterialsPageInner() {
         </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Upload Material</DialogTitle>
@@ -506,7 +530,7 @@ function AdminMaterialsPageInner() {
               </div>
             )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={!fileUrl || uploading}>

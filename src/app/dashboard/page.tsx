@@ -52,7 +52,7 @@ interface StudentRecord {
 export default function StudentDashboard() {
   const router = useRouter();
   const supabase = createClient();
-  const { role } = useAuth();
+  const { user, profile, role, loading: authLoading } = useAuth();
 
   const [userName, setUserName] = useState("Scholar");
   const [loading, setLoading] = useState(true);
@@ -73,17 +73,13 @@ export default function StudentDashboard() {
 
     const run = async () => {
       setLoading(true);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (cancelled) return;
+      if (authLoading || cancelled) return;
       if (!user) {
         router.push("/login");
         return;
       }
 
-      setUserName(user.user_metadata?.full_name || user.email || "Scholar");
+      setUserName(profile?.full_name || user.user_metadata?.full_name || user.email || "Scholar");
 
       if (role === "admin" || role === "teacher") {
         setLoading(false);
@@ -208,7 +204,7 @@ export default function StudentDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [supabase, router, role]);
+  }, [authLoading, profile?.full_name, role, router, supabase, user]);
 
   if (loading) {
     return (

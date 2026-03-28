@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, ChevronRight, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -34,15 +35,16 @@ interface StudentAccessRow {
 export default function StudentSyllabusPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { user, loading: authLoading } = useAuth();
   const [syllabi, setSyllabi] = useState<SyllabusRow[]>([]);
   const [className, setClassName] = useState("");
   const [loading, setLoading] = useState(true);
 
   const fetchSyllabi = useCallback(async () => {
     setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (authLoading) {
+      return;
+    }
     if (!user) {
       router.push("/login");
       return;
@@ -101,7 +103,7 @@ export default function StudentSyllabusPage() {
     setSyllabi(rows);
     setClassName(rows[0]?.class?.name ?? "");
     setLoading(false);
-  }, [router, supabase]);
+  }, [authLoading, router, supabase, user]);
 
   useEffect(() => {
     void fetchSyllabi();

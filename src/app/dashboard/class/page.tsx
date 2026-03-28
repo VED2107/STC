@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpen, GraduationCap, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -30,16 +31,16 @@ interface CourseRow {
 export default function StudentClassPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [classRecord, setClassRecord] = useState<StudentClassRecord | null>(null);
   const [courses, setCourses] = useState<CourseRow[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    if (authLoading) {
+      return;
+    }
     if (!user) {
       router.push("/login");
       return;
@@ -79,7 +80,7 @@ export default function StudentClassPage() {
     }
 
     setLoading(false);
-  }, [router, supabase]);
+  }, [authLoading, router, supabase, user]);
 
   useEffect(() => {
     void fetchData();
@@ -169,7 +170,11 @@ export default function StudentClassPage() {
           <div className="mt-5 space-y-3 text-sm text-muted-foreground">
             <p>Review the latest syllabus for your class.</p>
             <p>Open materials published for your subjects.</p>
-            <p>Track attendance regularly to stay updated.</p>
+            <p>
+              {classRecord.student_type === "online"
+                ? "Track newly unlocked course content from your dashboard."
+                : "Track attendance regularly to stay updated."}
+            </p>
           </div>
         </div>
       </div>

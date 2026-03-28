@@ -19,6 +19,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { getCachedStudentType, setCachedStudentType } from "@/lib/auth/client-cache";
 import { useAuth } from "@/hooks/use-auth";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { buttonVariants } from "@/components/ui/button";
@@ -46,6 +47,7 @@ const adminLinks = [
 
 const teacherLinks = [
   { href: "/", label: "Home", icon: House },
+  { href: "/admin/attendance", label: "Dashboard", icon: LayoutGrid },
   { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/attendance", label: "Attendance", icon: ClipboardList },
   { href: "/admin/syllabus", label: "Syllabus", icon: BookCopy },
@@ -75,7 +77,9 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
   const pathname = usePathname();
   const { user, profile, signOut } = useAuth();
   const isTeacherArea = area === "admin" && profile?.role === "teacher";
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [studentType, setStudentType] = useState<"tuition" | "online" | null>(null);
+  const [studentTypeLoaded, setStudentTypeLoaded] = useState(area !== "student");
   const isOnlineStudent = area === "student" && studentType === "online";
 
   useEffect(() => {
@@ -84,6 +88,16 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
     async function loadStudentType() {
       if (area !== "student" || profile?.role !== "student" || !user?.id) {
         setStudentType(null);
+        setStudentTypeLoaded(true);
+        return;
+      }
+
+      setStudentTypeLoaded(false);
+
+      const cachedStudentType = getCachedStudentType(user.id);
+      if (cachedStudentType) {
+        setStudentType(cachedStudentType);
+        setStudentTypeLoaded(true);
         return;
       }
 
@@ -95,9 +109,13 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
         .maybeSingle();
 
       if (!cancelled) {
-        setStudentType(
-          ((data as { student_type?: "tuition" | "online" } | null)?.student_type ?? null),
-        );
+        const resolvedStudentType =
+          ((data as { student_type?: "tuition" | "online" } | null)?.student_type ?? null);
+        if (resolvedStudentType) {
+          setCachedStudentType(user.id, resolvedStudentType);
+        }
+        setStudentType(resolvedStudentType);
+        setStudentTypeLoaded(true);
       }
     }
 
@@ -113,7 +131,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
       ? isTeacherArea
         ? teacherLinks
         : adminLinks
-      : isOnlineStudent
+      : !studentTypeLoaded || isOnlineStudent
         ? onlineStudentLinks
         : studentLinks;
   const rootHref = area === "admin" ? (isTeacherArea ? "/admin/attendance" : "/admin") : "/dashboard";
@@ -151,15 +169,15 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
                     : { label: "+ New Record", href: "/admin/students?create=1" }
       : pathname.startsWith("/dashboard/attendance")
         ? { label: "View Dashboard", href: "/dashboard" }
-        : pathname.startsWith("/dashboard/materials")
-          ? { label: "View Curriculum", href: "/dashboard/syllabus" }
-          : pathname.startsWith("/dashboard/syllabus")
-            ? { label: "Open Library", href: "/dashboard/materials" }
-            : pathname.startsWith("/dashboard/settings")
-              ? { label: "Class Details", href: "/dashboard/class" }
-              : isOnlineStudent
-                ? { label: "Open Library", href: "/dashboard/materials" }
-                : { label: "Profile Settings", href: "/dashboard/settings" };
+      : pathname.startsWith("/dashboard/materials")
+        ? { label: "View Curriculum", href: "/dashboard/syllabus" }
+      : pathname.startsWith("/dashboard/syllabus")
+        ? { label: "Open Library", href: "/dashboard/materials" }
+      : pathname.startsWith("/dashboard/settings")
+        ? { label: "Class Details", href: "/dashboard/class" }
+      : isOnlineStudent
+        ? { label: "Open My Courses", href: "/dashboard/class" }
+        : { label: "Open Class Details", href: "/dashboard/class" };
   const supportHref =
     area === "admin"
       ? "mailto:info@stctuition.com?subject=STC%20Admin%20Support"
@@ -168,7 +186,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
   const sidebar = (
     <>
       <div className="flex items-center justify-between px-5 py-5 lg:block">
-        <Link href={area === "admin" ? "/admin" : "/dashboard"} className="font-heading text-3xl italic text-foreground">
+        <Link href={rootHref} className="font-heading text-3xl italic text-foreground">
           STC Academy
         </Link>
         <span className="rounded-full border border-black/[0.06] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground lg:hidden">
@@ -207,6 +225,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
             <Link
               key={item.href + item.label}
               href={item.href}
+              onClick={() => setMobileMenuOpen(false)}
               className="stitch-sidebar-link"
               data-active={isActive}
             >
@@ -220,6 +239,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
       <div className="border-t border-black/[0.05] px-3 py-5">
         <Link
           href={contextualAction.href}
+          onClick={() => setMobileMenuOpen(false)}
           className={`mb-5 flex w-full items-center justify-center rounded-2xl border px-4 py-3 text-sm font-medium transition ${
             area === "admin"
               ? "border-primary/10 bg-primary text-white hover:brightness-105"
@@ -252,10 +272,10 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
   return (
     <div className="stitch-app-surface min-h-screen bg-muted text-foreground lg:grid lg:grid-cols-[252px_minmax(0,1fr)]">
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-black/[0.06] bg-[#f3f3f5]/95 px-4 py-3 backdrop-blur lg:hidden">
-        <Link href={area === "admin" ? "/admin" : "/dashboard"} className="font-heading text-2xl italic text-foreground">
+        <Link href={rootHref} className="font-heading text-2xl italic text-foreground">
           STC Academy
         </Link>
-        <Sheet>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
           <SheetTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-10 w-10 rounded-xl")}>
             <Menu className="h-5 w-5" />
             <span className="sr-only">Open workspace menu</span>

@@ -28,7 +28,7 @@ function StudentSettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<StudentSettingsData | null>(null);
   const [form, setForm] = useState({ fullName: "", phone: "", parentPhone: "" });
@@ -39,10 +39,9 @@ function StudentSettingsPageInner() {
 
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    if (authLoading) {
+      return;
+    }
     if (!user) {
       router.push("/login");
       return;
@@ -89,16 +88,12 @@ function StudentSettingsPageInner() {
 
     await refreshProfile();
     if (!options?.silent) setLoading(false);
-  }, [refreshProfile, router, supabase]);
+  }, [authLoading, refreshProfile, router, supabase, user]);
 
   const saveProfile = useCallback(async () => {
     setSaving(true);
     setError(null);
     setSuccess(null);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
     if (!user) {
       router.push("/login");
@@ -124,8 +119,14 @@ function StudentSettingsPageInner() {
     setSuccess("Saved changes.");
     await refreshProfile();
     await fetchData({ silent: true });
+    if (searchParams.get("onboarding") === "1") {
+      setSaving(false);
+      router.replace("/dashboard");
+      router.refresh();
+      return;
+    }
     setSaving(false);
-  }, [data?.phone, fetchData, form.fullName, form.parentPhone, form.phone, isTuitionStudent, refreshProfile, router, supabase]);
+  }, [data?.phone, fetchData, form.fullName, form.parentPhone, form.phone, isTuitionStudent, refreshProfile, router, searchParams, supabase, user]);
 
   useEffect(() => {
     void fetchData();
