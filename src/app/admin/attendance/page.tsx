@@ -1,5 +1,4 @@
 ﻿"use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -82,54 +81,79 @@ export default function AdminAttendancePage() {
     const supabase = createClient();
 
     async function loadBaseData() {
-      if (role === "teacher" && user?.id) {
-        const { data: accessRows } = await supabase
-          .from("teacher_class_access")
-          .select("class_id")
-          .eq("teacher_profile_id", user.id);
+      try {
+        if (role === "teacher" && user?.id) {
+          const { data: accessRows, error: accessError } = await supabase
+            .from("teacher_class_access")
+            .select("class_id")
+            .eq("teacher_profile_id", user.id);
 
-        const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map(
-          (row) => row.class_id,
-        );
+          if (accessError) {
+            throw accessError;
+          }
 
-        if (classIds.length === 0) {
-          setClasses([]);
-          setCourses([]);
+          const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map(
+            (row) => row.class_id,
+          );
+
+          if (classIds.length === 0) {
+            setClasses([]);
+            setCourses([]);
+            return;
+          }
+
+          const [classesRes, coursesRes] = await Promise.all([
+            supabase.from("classes").select("*").in("id", classIds).order("sort_order"),
+            supabase
+              .from("courses")
+              .select("id, title, subject, class_id")
+              .in("class_id", classIds)
+              .order("title"),
+          ]);
+
+          if (classesRes.error) {
+            throw classesRes.error;
+          }
+
+          if (coursesRes.error) {
+            throw coursesRes.error;
+          }
+
+          setClasses((classesRes.data as Class[] | null) ?? []);
+          setCourses((coursesRes.data as CourseForAttendance[] | null) ?? []);
           return;
         }
 
         const [classesRes, coursesRes] = await Promise.all([
-          supabase.from("classes").select("*").in("id", classIds).order("sort_order"),
+          supabase.from("classes").select("*").order("sort_order"),
           supabase
             .from("courses")
             .select("id, title, subject, class_id")
-            .in("class_id", classIds)
             .order("title"),
         ]);
 
+        if (classesRes.error) {
+          throw classesRes.error;
+        }
+
+        if (coursesRes.error) {
+          throw coursesRes.error;
+        }
+
         setClasses((classesRes.data as Class[] | null) ?? []);
         setCourses((coursesRes.data as CourseForAttendance[] | null) ?? []);
-        return;
+      } catch (error) {
+        console.error("Failed to load attendance base data:", error);
+        setClasses([]);
+        setCourses([]);
+        setStudents([]);
+        setRecords([]);
+        setActionError("Unable to load classes and courses right now.");
       }
-
-      const [classesRes, coursesRes] = await Promise.all([
-        supabase.from("classes").select("*").order("sort_order"),
-        supabase
-          .from("courses")
-          .select("id, title, subject, class_id")
-          .order("title"),
-      ]);
-      setClasses((classesRes.data as Class[] | null) ?? []);
-      setCourses((coursesRes.data as CourseForAttendance[] | null) ?? []);
     }
 
     void loadBaseData();
   }, [role, router, user?.id]);
-
-  useEffect(() => {
-    if (selectedClassId || classes.length === 0) return;
-    setSelectedClassId(classes[0]?.id ?? "");
-  }, [classes, selectedClassId]);
 
   const selectableClasses = useMemo(() => {
     if (!selectedCourseId) {
@@ -146,12 +170,24 @@ export default function AdminAttendancePage() {
   }, [classes, courses, selectedCourseId]);
 
   useEffect(() => {
-    if (!selectedClassId) return;
+    const nextClassId = selectableClasses[0]?.id ?? "";
     const stillValid = selectableClasses.some((item) => item.id === selectedClassId);
+
+    if (!selectedClassId) {
+      setSelectedClassId(nextClassId);
+      if (!nextClassId) {
+        setStudents([]);
+        setRecords([]);
+      }
+      return;
+    }
+
     if (!stillValid) {
-      setSelectedClassId("");
-      setStudents([]);
-      setRecords([]);
+      setSelectedClassId(nextClassId);
+      if (!nextClassId) {
+        setStudents([]);
+        setRecords([]);
+      }
     }
   }, [selectableClasses, selectedClassId]);
 
@@ -171,62 +207,82 @@ export default function AdminAttendancePage() {
     setEditingSaved(true);
     const supabase = createClient();
 
-    const cachedStudents = studentCacheRef.current[selectedClassId];
+    try {
+      const cachedStudents = studentCacheRef.current[selectedClassId];
 
-    let attendanceQuery = supabase
-      .from("attendance")
-      .select("student_id, status, late_minutes, remarks")
-      .eq("class_id", selectedClassId)
-      .eq("date", date);
+      let attendanceQuery = supabase
+        .from("attendance")
+        .select("student_id, status, late_minutes, remarks")
+        .eq("class_id", selectedClassId)
+        .eq("date", date);
 
-    if (selectedCourseId) {
-      attendanceQuery = attendanceQuery.eq("course_id", selectedCourseId);
+      if (selectedCourseId) {
+        attendanceQuery = attendanceQuery.eq("course_id", selectedCourseId);
+      }
+
+      const studentPromise = cachedStudents
+        ? Promise.resolve({ data: cachedStudents, error: null })
+        : supabase
+            .from("students")
+            .select("id, profile:profiles(full_name)")
+            .eq("class_id", selectedClassId)
+            .eq("is_active", true)
+            .order("id");
+
+      const [
+        { data: studentData, error: studentError },
+        { data: existing, error: attendanceError },
+      ] = await Promise.all([studentPromise, attendanceQuery]);
+
+      if (requestId !== requestSequenceRef.current) {
+        return;
+      }
+
+      if (studentError) {
+        throw studentError;
+      }
+
+      if (attendanceError) {
+        throw attendanceError;
+      }
+
+      const fetchedStudents = ((studentData || []) as unknown as StudentForAttendance[]) ?? [];
+      studentCacheRef.current[selectedClassId] = fetchedStudents;
+      setStudents(fetchedStudents);
+      const existingMap = new Map(
+        ((existing as AttendanceRecord[] | null) ?? []).map((entry) => [
+          entry.student_id,
+          entry,
+        ]),
+      );
+
+      const normalizedRecords = fetchedStudents.map((student) => {
+        const found = existingMap.get(student.id);
+        const fallback: AttendanceRecord = {
+          student_id: student.id,
+          status: "present",
+          late_minutes: null,
+          remarks: null,
+        };
+        return found ?? fallback;
+      });
+
+      setRecords(normalizedRecords);
+      if (((existing as AttendanceRecord[] | null) ?? []).length > 0) {
+        setEditingSaved(false);
+      }
+    } catch (error) {
+      console.error("Failed to load attendance students:", error);
+      if (requestId === requestSequenceRef.current) {
+        setStudents([]);
+        setRecords([]);
+        setActionError("Unable to load attendance for the selected batch.");
+      }
+    } finally {
+      if (requestId === requestSequenceRef.current) {
+        setLoading(false);
+      }
     }
-
-    const studentPromise = cachedStudents
-      ? Promise.resolve({ data: cachedStudents })
-      : supabase
-          .from("students")
-          .select("id, profile:profiles(full_name)")
-          .eq("class_id", selectedClassId)
-          .eq("is_active", true)
-          .order("id");
-
-    const [{ data: studentData }, { data: existing }] = await Promise.all([
-      studentPromise,
-      attendanceQuery,
-    ]);
-
-    if (requestId !== requestSequenceRef.current) {
-      return;
-    }
-
-    const fetchedStudents = ((studentData || []) as unknown as StudentForAttendance[]) ?? [];
-    studentCacheRef.current[selectedClassId] = fetchedStudents;
-    setStudents(fetchedStudents);
-    const existingMap = new Map(
-      ((existing as AttendanceRecord[] | null) ?? []).map((entry) => [
-        entry.student_id,
-        entry,
-      ])
-    );
-
-    const normalizedRecords = fetchedStudents.map((student) => {
-      const found = existingMap.get(student.id);
-      const fallback: AttendanceRecord = {
-        student_id: student.id,
-        status: "present",
-        late_minutes: null,
-        remarks: null,
-      };
-      return found ?? fallback;
-    });
-
-    setRecords(normalizedRecords);
-    if (((existing as AttendanceRecord[] | null) ?? []).length > 0) {
-      setEditingSaved(false);
-    }
-    setLoading(false);
   }, [selectedClassId, date, selectedCourseId]);
 
   useEffect(() => {
