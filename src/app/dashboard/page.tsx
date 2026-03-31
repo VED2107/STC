@@ -165,15 +165,17 @@ export default function StudentDashboard() {
 
       let rate = 0;
       if (typedStudent.student_type === "tuition") {
-        const { count: totalAtt } = await supabase
-          .from("attendance")
-          .select("id", { count: "exact", head: true })
-          .eq("student_id", typedStudent.id);
-        const { count: presentAtt } = await supabase
-          .from("attendance")
-          .select("id", { count: "exact", head: true })
-          .eq("student_id", typedStudent.id)
-          .eq("status", "present");
+        const [{ count: totalAtt }, { count: presentAtt }] = await Promise.all([
+          supabase
+            .from("attendance")
+            .select("id", { count: "exact", head: true })
+            .eq("student_id", typedStudent.id),
+          supabase
+            .from("attendance")
+            .select("id", { count: "exact", head: true })
+            .eq("student_id", typedStudent.id)
+            .eq("status", "present"),
+        ]);
 
         rate =
           totalAtt && totalAtt > 0

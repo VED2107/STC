@@ -190,7 +190,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
                   src="/logo.png"
                   alt="STC Academy"
                   fill
-                  quality={100}
+                  quality={75}
                   priority
                   sizes="(max-width: 640px) 155px, (max-width: 768px) 180px, 195px"
                   className="object-cover object-center [image-rendering:auto]"

@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
 type RevealVariant = "fade-up" | "fade" | "mask-up" | "soft-zoom";
@@ -22,48 +22,49 @@ export function Reveal({
   variant = "fade-up",
 }: RevealProps) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [visible, setVisible] = useState(false);
+
+  // Use a callback ref pattern to apply visibility via DOM mutation
+  // instead of useState (avoids React re-render per element).
+  const handleIntersection = useCallback((entries: IntersectionObserverEntry[], obs: IntersectionObserver) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        (entry.target as HTMLElement).dataset.visible = "true";
+        obs.unobserve(entry.target);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const element = ref.current;
+    if (!element) return;
 
-    if (!element) {
+    // Respect reduced motion
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      element.dataset.visible = "true";
       return;
     }
 
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    if (mediaQuery.matches) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.unobserve(entry.target);
-        }
-      },
-      {
-        rootMargin: "0px 0px -12% 0px",
-        threshold,
-      },
-    );
+    const observer = new IntersectionObserver(handleIntersection, {
+      rootMargin: "0px 0px -12% 0px",
+      threshold,
+    });
 
     observer.observe(element);
-
     return () => observer.disconnect();
-  }, [threshold]);
+  }, [threshold, handleIntersection]);
 
   return (
     <div
       ref={ref}
       data-reveal={variant}
-      data-visible={visible ? "true" : "false"}
+      data-visible="false"
       className={cn("stitch-reveal", className)}
       style={
         {
           "--reveal-delay": `${delay}ms`,
+          // GPU-promote this element so transitions use compositor thread
+          willChange: "transform, opacity",
+          contain: "layout style",
         } as CSSProperties
       }
     >

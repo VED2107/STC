@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, Brain, Building2, Flame, GraduationCap, Microscope, Sparkles } from "lucide-react";
 import { Reveal } from "@/components/stitch/reveal";
 import { HeroMedia } from "@/components/stitch/hero-media";
+import { AnnouncementBadge } from "@/components/stitch/announcement-badge";
 
 const stats = [
   { value: "98%", label: "Placement Rate" },
@@ -94,12 +95,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
           <div className="max-w-5xl md:pl-[8%] xl:pr-[32%]">
             <Reveal variant="fade">
-              <div className="inline-flex items-center rounded-full border border-black/[0.08] bg-white/80 px-4 py-1.5 backdrop-blur-sm">
-                <span className="mr-3 h-2 w-2 rounded-full bg-secondary" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                  Autumn Enrollment Open
-                </span>
-              </div>
+              <AnnouncementBadge />
             </Reveal>
 
             <Reveal delay={100} variant="mask-up">

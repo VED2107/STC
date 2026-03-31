@@ -1,25 +1,35 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 
 export function HeroMedia() {
-  const [offsetY, setOffsetY] = useState(0);
-  const [allowMotion, setAllowMotion] = useState(true);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef(0);
+  const allowMotionRef = useRef(true);
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    allowMotionRef.current = !mediaQuery.matches;
 
-    const applyMotionPreference = () => setAllowMotion(!mediaQuery.matches);
-    applyMotionPreference();
+    const applyMotionPreference = () => {
+      allowMotionRef.current = !mediaQuery.matches;
+      if (!allowMotionRef.current && el) {
+        el.style.transform = "translate3d(0,0,0) scale(1)";
+      }
+    };
 
-    let raf = 0;
     const onScroll = () => {
-      if (!allowMotion) return;
-      if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const next = Math.min(window.scrollY * 0.08, 48);
-        setOffsetY(next);
+      if (!allowMotionRef.current) return;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        const offset = Math.min(window.scrollY * 0.08, 48);
+        if (el) {
+          el.style.transform = `translate3d(0,${offset}px,0) scale(1.04)`;
+        }
       });
     };
 
@@ -27,21 +37,22 @@ export function HeroMedia() {
     mediaQuery.addEventListener("change", applyMotionPreference);
 
     return () => {
-      if (raf) cancelAnimationFrame(raf);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       window.removeEventListener("scroll", onScroll);
       mediaQuery.removeEventListener("change", applyMotionPreference);
     };
-  }, [allowMotion]);
-
-  const transform = allowMotion
-    ? `translate3d(0, ${offsetY}px, 0) scale(1.04)`
-    : "translate3d(0, 0, 0) scale(1)";
+  }, []);
 
   return (
     <div className="absolute inset-y-0 right-0 hidden w-[32%] overflow-hidden xl:block">
       <div
-        className="absolute inset-0 transition-transform duration-300 ease-out"
-        style={{ transform, transformOrigin: "center center" }}
+        ref={containerRef}
+        className="absolute inset-0"
+        style={{
+          transformOrigin: "center center",
+          willChange: "transform",
+          contain: "layout style paint",
+        }}
       >
         <Image
           src="/hero.png"
