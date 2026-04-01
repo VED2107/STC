@@ -23,6 +23,9 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 
+/** Stable singleton — never changes between renders */
+const supabase = createClient();
+
 interface AttendanceRow {
   id: string;
   date: string;
@@ -51,7 +54,6 @@ interface StudentRecord {
 
 export default function StudentDashboard() {
   const router = useRouter();
-  const supabase = createClient();
   const { user, profile, role, loading: authLoading } = useAuth();
 
   const [userName, setUserName] = useState("Scholar");
@@ -206,7 +208,7 @@ export default function StudentDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, profile?.full_name, role, router, supabase, user]);
+  }, [authLoading, profile?.full_name, role, router, user]);
 
   if (loading) {
     return (
@@ -424,7 +426,7 @@ export default function StudentDashboard() {
                     className={cn(stitchPanelSoftClass, "flex items-center justify-between")}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03] text-primary">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/3 text-primary">
                         <GraduationCap className="h-5 w-5" />
                       </div>
                       <div>

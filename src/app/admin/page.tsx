@@ -206,7 +206,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="px-6 py-8 md:px-10">
-      <div className="flex flex-col gap-5 border-b border-black/[0.06] pb-6 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-5 border-b border-black/6 pb-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="font-heading text-3xl italic text-primary">Admin Command Center</p>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -225,7 +225,7 @@ export default function AdminDashboard() {
 
       <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Students</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.students}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Teachers</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.teachers}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
@@ -241,7 +241,7 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Courses</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.courses}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
@@ -249,7 +249,7 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Attendance Records</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.attendance}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
@@ -260,7 +260,7 @@ export default function AdminDashboard() {
 
       <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
         <div className={stitchPanelClass}>
-          <div className="flex flex-col gap-4 border-b border-black/[0.06] pb-5 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-4 border-b border-black/6 pb-5 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-5xl italic text-primary">Recently Added Students</h2>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
                   <th className="pb-4 font-medium">Enrolled</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.06]">
+              <tbody className="divide-y divide-black/6">
                 {registry.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="py-8 text-sm text-muted-foreground">

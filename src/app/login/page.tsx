@@ -11,7 +11,7 @@ import {
   stitchInputClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
-import type { UserRole } from "@/lib/types/database";
+import type { Profile, UserRole } from "@/lib/types/database";
 
 type AuthMode = "login" | "signup";
 type SignupStep = "form" | "otp";
@@ -51,54 +51,40 @@ function GoogleLogo({ className }: { className?: string }) {
   );
 }
 
-async function resolveUserRole(userId: string): Promise<UserRole> {
-  const cachedRole = getCachedRole(userId);
-  if (cachedRole) {
-    return cachedRole;
-  }
-
-  const supabase = createClient();
-
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!error && profile?.role === "admin") {
-      return "admin";
-    }
-
-    if (!error && profile?.role === "teacher") {
-      return "teacher";
-    }
-
-    if (!error && profile?.role === "student") {
-      return "student";
-    }
-
-    if (attempt < 3) {
-      await new Promise((resolve) => window.setTimeout(resolve, 250));
-    }
-  }
-
-  return "student";
-}
-
 function getRoleHome(role: UserRole): string {
   if (role === "admin") return "/admin";
   if (role === "teacher") return "/admin/attendance";
   return "/dashboard";
 }
 
-async function resolvePostLoginPath(userId: string, fallbackRole?: UserRole): Promise<string> {
+/**
+ * Fetch the user's profile (with retries for eventual-consistency),
+ * cache it, and return the correct post-login redirect path.
+ */
+async function resolvePostLoginPath(userId: string): Promise<string> {
+  const cachedRole = getCachedRole(userId);
   const supabase = createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", userId)
-    .maybeSingle();
+
+  // The profile is usually created by a DB trigger; retry a few times
+  // in case it hasn't been committed yet.
+  let profile: Profile | null = null;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!error && data) {
+      profile = data as Profile;
+      break;
+    }
+
+    if (attempt < 3) {
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+    }
+  }
 
   if (profile) {
     setCachedProfile(profile);
@@ -107,7 +93,7 @@ async function resolvePostLoginPath(userId: string, fallbackRole?: UserRole): Pr
   const resolvedRole =
     profile?.role === "admin" || profile?.role === "teacher" || profile?.role === "student"
       ? profile.role
-      : fallbackRole ?? "student";
+      : cachedRole ?? "student";
 
   if (resolvedRole === "student") {
     const hasFullName = Boolean(profile?.full_name?.trim());
@@ -184,8 +170,7 @@ function LoginPageInner() {
 
       if (user) {
         await ensureStudentAccess();
-        const role = await resolveUserRole(user.id);
-        const defaultPath = await resolvePostLoginPath(user.id, role);
+        const defaultPath = await resolvePostLoginPath(user.id);
 
         if (!active) {
           return;
@@ -249,8 +234,7 @@ function LoginPageInner() {
     }
 
     await ensureStudentAccess();
-    const role = await resolveUserRole(user.id);
-    const defaultPath = await resolvePostLoginPath(user.id, role);
+    const defaultPath = await resolvePostLoginPath(user.id);
     const redirectedFrom = searchParams.get("redirectedFrom");
     router.replace(
       redirectedFrom && redirectedFrom.startsWith("/")
@@ -336,8 +320,7 @@ function LoginPageInner() {
     }
 
     await ensureStudentAccess();
-    const role = await resolveUserRole(user.id);
-    const defaultPath = await resolvePostLoginPath(user.id, role);
+    const defaultPath = await resolvePostLoginPath(user.id);
     const redirectedFrom = searchParams.get("redirectedFrom");
     router.replace(
       redirectedFrom && redirectedFrom.startsWith("/")
@@ -607,8 +590,8 @@ function LoginPageInner() {
           </p>
         </div>
 
-        <div className="rounded-[28px] border border-black/[0.06] bg-white p-7 shadow-[0_20px_90px_rgba(26,28,29,0.12)] backdrop-blur-xl">
-          <div className="grid grid-cols-2 border-b border-black/[0.06]">
+        <div className="rounded-[28px] border border-black/6 bg-white p-7 shadow-[0_20px_90px_rgba(26,28,29,0.12)] backdrop-blur-xl">
+          <div className="grid grid-cols-2 border-b border-black/6">
             <button
               type="button"
               className={`pb-4 text-sm font-medium transition ${
@@ -653,7 +636,7 @@ function LoginPageInner() {
 
           {mode === "login" ? (
             <div className="mt-7 space-y-5">
-              <div className="grid grid-cols-2 rounded-full border border-black/[0.08] bg-muted/60 p-1">
+              <div className="grid grid-cols-2 rounded-full border border-black/8 bg-muted/60 p-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -695,7 +678,7 @@ function LoginPageInner() {
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
-                    className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-black/[0.08] bg-white text-base font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                    className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-black/8 bg-white text-base font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
                     disabled={loading || googleLoading}
                   >
                     {googleLoading ? (
@@ -707,11 +690,11 @@ function LoginPageInner() {
                   </button>
 
                   <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-black/[0.08]" />
+                    <div className="h-px flex-1 bg-black/8" />
                     <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                       or
                     </span>
-                    <div className="h-px flex-1 bg-black/[0.08]" />
+                    <div className="h-px flex-1 bg-black/8" />
                   </div>
 
                   <label className="block">
@@ -793,7 +776,7 @@ function LoginPageInner() {
                 </form>
               ) : (
                 <form onSubmit={handleVerifyLoginOtp} className="space-y-5">
-                  <div className="rounded-2xl border border-black/[0.06] bg-muted px-4 py-4">
+                  <div className="rounded-2xl border border-black/6 bg-muted px-4 py-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
                       OTP Login
                     </p>
@@ -860,7 +843,7 @@ function LoginPageInner() {
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-black/[0.08] bg-white text-base font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-black/8 bg-white text-base font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={loading || googleLoading}
               >
                 {googleLoading ? (
@@ -872,11 +855,11 @@ function LoginPageInner() {
               </button>
 
               <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-black/[0.08]" />
+                <div className="h-px flex-1 bg-black/8" />
                 <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                   or
                 </span>
-                <div className="h-px flex-1 bg-black/[0.08]" />
+                <div className="h-px flex-1 bg-black/8" />
               </div>
 
               <label className="block">
@@ -937,7 +920,7 @@ function LoginPageInner() {
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} className="mt-7 space-y-5">
-              <div className="rounded-2xl border border-black/[0.06] bg-muted px-4 py-4">
+              <div className="rounded-2xl border border-black/6 bg-muted px-4 py-4">
                 <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
                   Pending Signup
                 </p>

@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { StudentType } from "@/lib/types/database";
 
 interface CreateStudentInput {
@@ -23,16 +23,8 @@ export interface AvailableStudentProfile {
 }
 
 export async function getAvailableStudentProfiles(): Promise<AvailableStudentProfile[]> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return [];
-  }
-
-  const admin = createAdminClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  try {
+    const admin = createAdminClient();
 
   const [{ data: profilesData, error: profilesError }, { data: studentsData, error: studentsError }] =
     await Promise.all([
@@ -73,6 +65,9 @@ export async function getAvailableStudentProfiles(): Promise<AvailableStudentPro
   ));
 
   return normalizedProfiles.filter((profile) => !enrolledProfileIds.has(profile.id));
+  } catch {
+    return [];
+  }
 }
 
 export async function createStudent(
@@ -94,19 +89,15 @@ export async function createStudent(
     };
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
     return {
       success: false,
       error: "Server misconfigured - missing SUPABASE_SERVICE_ROLE_KEY",
     };
   }
-
-  const admin = createAdminClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
 
   const { data: profile, error: profileError } = await admin
     .from("profiles")

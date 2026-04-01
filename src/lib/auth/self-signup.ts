@@ -1,19 +1,6 @@
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-function createAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Server misconfigured for self-signup provisioning.");
-  }
-
-  return createAdminClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
-
-async function resolveDefaultClassId(admin: ReturnType<typeof createAdmin>) {
+async function resolveDefaultClassId(admin: ReturnType<typeof createAdminClient>) {
   const configuredClassId = process.env.SELF_SIGNUP_DEFAULT_CLASS_ID?.trim();
 
   if (configuredClassId) {
@@ -40,7 +27,7 @@ export async function ensureOnlineStudentAccess(input: {
   fullName?: string | null;
   phone?: string | null;
 }) {
-  const admin = createAdmin();
+  const admin = createAdminClient();
   const { data: existingProfile, error: profileLookupError } = await admin
     .from("profiles")
     .select("id, role, full_name, phone")

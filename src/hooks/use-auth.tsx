@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   useCallback,
   type ReactNode,
@@ -36,6 +37,9 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+/** Stable singleton — never changes between renders */
+const supabase = createClient();
+
 /**
  * Provides authentication state to the entire app.
  * Wraps Supabase auth listener + profile fetching.
@@ -47,7 +51,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createClient();
+  /** Track previous user ID for cache cleanup on sign-out */
+  const prevUserIdRef = useRef<string | null>(null);
 
   /** Fetch profile from Supabase for the current user */
   const fetchProfile = useCallback(
@@ -71,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return null;
       }
     },
-    [supabase]
+    [],
   );
 
   /** Refresh the profile (useful after updates) */
@@ -86,8 +91,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = useCallback(async () => {
     try {
       // Clear the server session first, then clear the browser session.
-      // Running them in parallel can race and make one side think the
-      // session already disappeared.
       await fetch("/api/auth/logout", {
         method: "POST",
         headers: {
@@ -101,9 +104,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.error("Client sign out error:", clientError.message);
       }
 
-      if (user?.id) {
-        clearCachedProfile(user.id);
-        clearCachedStudentType(user.id);
+      const prevUserId = prevUserIdRef.current;
+      if (prevUserId) {
+        clearCachedProfile(prevUserId);
+        clearCachedStudentType(prevUserId);
       }
 
       setUser(null);
@@ -116,7 +120,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       router.replace("/login");
       router.refresh();
     }
-  }, [supabase, router, user?.id]);
+  }, [router]);
 
   useEffect(() => {
     /** Get initial session */
@@ -128,6 +132,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
+        prevUserIdRef.current = currentSession?.user?.id ?? null;
 
         if (currentSession?.user) {
           const cachedProfile = getCachedProfile(currentSession.user.id);
@@ -157,6 +162,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(newSession?.user ?? null);
 
       if (event === "SIGNED_IN" && newSession?.user) {
+        prevUserIdRef.current = newSession.user.id;
         const cachedProfile = getCachedProfile(newSession.user.id);
         if (cachedProfile) {
           setProfile(cachedProfile);
@@ -170,10 +176,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (event === "SIGNED_OUT") {
-        if (user?.id) {
-          clearCachedProfile(user.id);
-          clearCachedStudentType(user.id);
+        const prevUserId = prevUserIdRef.current;
+        if (prevUserId) {
+          clearCachedProfile(prevUserId);
+          clearCachedStudentType(prevUserId);
         }
+        prevUserIdRef.current = null;
         setProfile(null);
         setLoading(false);
       }
@@ -182,7 +190,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, fetchProfile, user?.id]);
+  }, [fetchProfile]);
 
   const role = profile?.role ?? null;
 

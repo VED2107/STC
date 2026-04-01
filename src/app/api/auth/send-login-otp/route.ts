@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   LOGIN_OTP_COOKIE,
   LOGIN_OTP_EXPIRY_MINUTES,
@@ -73,10 +73,8 @@ function buildLoginOtpEmail({ otp }: { otp: string }) {
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.RESEND_API_KEY;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!apiKey || !supabaseUrl || !serviceRoleKey) {
+    if (!apiKey) {
       return NextResponse.json(
         { error: "Server misconfigured for OTP login." },
         { status: 500 },
@@ -93,9 +91,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const admin = createAdminClient();
 
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "magiclink",

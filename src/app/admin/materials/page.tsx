@@ -435,7 +435,7 @@ function AdminMaterialsPageInner() {
 
         <div className="space-y-6">
           <div className={cn(stitchPanelClass, "border-dashed text-center")}>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.03] text-primary">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/3 text-primary">
               <Upload className="h-7 w-7" />
             </div>
             <h3 className="mt-6 text-3xl text-foreground">Upload Assets</h3>

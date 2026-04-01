@@ -24,7 +24,7 @@ export function StitchMetricCard({ label, value, change }: MetricCardProps) {
         <p className="font-heading text-4xl text-primary md:text-5xl">{value}</p>
         {change ? <span className="pb-2 text-xs text-[#9db7c5]">{change}</span> : null}
       </div>
-      <div className="h-px bg-gradient-to-r from-primary/70 via-primary/20 to-transparent" />
+      <div className="h-px bg-linear-to-r from-primary/70 via-primary/20 to-transparent" />
     </div>
   );
 }

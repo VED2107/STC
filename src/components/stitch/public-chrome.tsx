@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { LogIn, LogOut, Mail, MapPin, Menu, Phone } from "lucide-react";
@@ -181,20 +180,12 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="fixed top-0 z-50 w-full stitch-glass border-b border-black/[0.05]">
+      <header className="fixed top-0 z-50 w-full stitch-glass border-b border-black/5">
         <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 md:gap-6 md:px-12 md:py-5">
           <Reveal variant="fade">
             <Link href="/" className="inline-flex items-center leading-none" aria-label="STC Academy">
-              <span className="relative block h-9 w-[155px] overflow-hidden sm:h-10 sm:w-[180px] md:h-11 md:w-[195px]">
-                <Image
-                  src="/logo.png"
-                  alt="STC Academy"
-                  fill
-                  quality={75}
-                  priority
-                  sizes="(max-width: 640px) 155px, (max-width: 768px) 180px, 195px"
-                  className="object-cover object-center [image-rendering:auto]"
-                />
+              <span className="font-heading text-2xl italic text-foreground sm:text-3xl">
+                STC Academy
               </span>
             </Link>
           </Reveal>
@@ -345,7 +336,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
 
       <main className="pt-20 sm:pt-24">{children}</main>
 
-      <footer className="border-t border-black/[0.05] bg-background px-6 py-14 md:px-12">
+      <footer className="border-t border-black/5 bg-background px-6 py-14 md:px-12">
         <div className="mx-auto max-w-[1600px]">
           <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1.1fr]">
             <Reveal variant="fade-up" className="space-y-5">
@@ -408,7 +399,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
             </Reveal>
           </div>
 
-          <div className="mt-10 flex flex-col gap-4 border-t border-black/[0.05] pt-6 text-xs uppercase tracking-[0.18em] text-muted-foreground lg:flex-row lg:items-center lg:justify-between">
+          <div className="mt-10 flex flex-col gap-4 border-t border-black/5 pt-6 text-xs uppercase tracking-[0.18em] text-muted-foreground lg:flex-row lg:items-center lg:justify-between">
             <Reveal variant="fade">
               <p>&copy; {new Date().getFullYear()} STC Academy. Designed for the Modern Scholar.</p>
             </Reveal>

@@ -186,16 +186,16 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
   const sidebar = (
     <>
       <div className="flex items-center justify-between px-5 py-5 lg:block">
-        <Link href={rootHref} className="font-heading text-3xl italic text-foreground">
+        <Link href="/" className="font-heading text-3xl italic text-foreground">
           STC Academy
         </Link>
-        <span className="rounded-full border border-black/[0.06] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground lg:hidden">
+        <span className="rounded-full border border-black/6 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground lg:hidden">
           {area}
         </span>
       </div>
 
       <div className="px-4 pb-5">
-        <div className="rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-[0_18px_40px_-28px_rgba(26,28,29,0.18)]">
+        <div className="rounded-[20px] border border-black/6 bg-white p-4 shadow-[0_18px_40px_-28px_rgba(26,28,29,0.18)]">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
               {initials}
@@ -236,14 +236,14 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
         })}
       </nav>
 
-      <div className="border-t border-black/[0.05] px-3 py-5">
+      <div className="border-t border-black/5 px-3 py-5">
         <Link
           href={contextualAction.href}
           onClick={() => setMobileMenuOpen(false)}
           className={`mb-5 flex w-full items-center justify-center rounded-2xl border px-4 py-3 text-sm font-medium transition ${
             area === "admin"
               ? "border-primary/10 bg-primary text-white hover:brightness-105"
-              : "border-black/[0.06] bg-white text-foreground hover:bg-muted"
+              : "border-black/6 bg-white text-foreground hover:bg-muted"
           }`}
         >
           {contextualAction.label}
@@ -271,8 +271,8 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
 
   return (
     <div className="stitch-app-surface min-h-screen bg-muted text-foreground lg:grid lg:grid-cols-[252px_minmax(0,1fr)]">
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-black/[0.06] bg-[#f3f3f5]/95 px-4 py-3 backdrop-blur lg:hidden">
-        <Link href={rootHref} className="font-heading text-2xl italic text-foreground">
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-black/6 bg-surface-container-low/95 px-4 py-3 backdrop-blur lg:hidden">
+        <Link href="/" className="font-heading text-2xl italic text-foreground">
           STC Academy
         </Link>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -280,13 +280,13 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
             <Menu className="h-5 w-5" />
             <span className="sr-only">Open workspace menu</span>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[88vw] max-w-sm bg-[#f3f3f5] p-0">
+          <SheetContent side="left" className="w-[88vw] max-w-sm bg-surface-container-low p-0">
             <div className="h-full overflow-y-auto">{sidebar}</div>
           </SheetContent>
         </Sheet>
       </div>
 
-      <aside className="hidden border-r border-black/[0.05] bg-[#f3f3f5] lg:block lg:min-h-screen">
+      <aside className="hidden border-r border-black/5 bg-surface-container-low lg:block lg:min-h-screen">
         {sidebar}
       </aside>
 

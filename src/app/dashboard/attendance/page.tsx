@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -224,7 +224,7 @@ export default function StudentAttendancePage() {
                   )}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03]">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/3">
                       {record.status === "present" ? (
                         <CheckCircle2 className="h-5 w-5 text-primary" />
                       ) : (

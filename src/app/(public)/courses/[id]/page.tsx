@@ -462,7 +462,7 @@ export default function CourseDetailPage() {
             <p className="mt-4 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
               Next cohort starts Oct 12, 2023
             </p>
-            <div className="mt-8 space-y-3 border-t border-black/[0.05] pt-6 text-sm text-muted-foreground">
+            <div className="mt-8 space-y-3 border-t border-black/5 pt-6 text-sm text-muted-foreground">
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />

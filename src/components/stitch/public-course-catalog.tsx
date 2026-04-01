@@ -198,7 +198,7 @@ export function PublicCourseCatalog({
                   <p className="mt-5 text-base leading-8 text-muted-foreground">
                     {featured.description}
                   </p>
-                  <div className="mt-8 flex items-center justify-between border-t border-black/[0.06] pt-6">
+                  <div className="mt-8 flex items-center justify-between border-t border-black/6 pt-6">
                     <div className="text-sm text-muted-foreground">
                       {[featured.subject, featured.teacher?.name ?? "STC Faculty"].join(" - ")}
                     </div>
@@ -229,7 +229,7 @@ export function PublicCourseCatalog({
                   </h3>
                   <p className="mt-4 text-sm leading-7 text-muted-foreground">{course.description}</p>
                 </div>
-                <div className="mt-8 border-t border-black/[0.06] pt-6 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="mt-8 border-t border-black/6 pt-6 text-xs uppercase tracking-[0.16em] text-muted-foreground">
                   {[course.class?.name ?? levelLabel(course), course.subject].join(" - ")}
                 </div>
                 {matchesCatalogTrack(course, "jee") ? (

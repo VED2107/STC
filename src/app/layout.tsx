@@ -37,6 +37,33 @@ export const metadata: Metadata = {
     "STC",
     "education",
   ],
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/site.webmanifest",
+  openGraph: {
+    type: "website",
+    siteName: "STC Academy",
+    title: "STC Academy | The Modern Scholar",
+    description:
+      "STC Tuition Centre provides high-quality study materials and excellent education across every course and level.",
+    images: [
+      {
+        url: "/android-chrome-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "STC Academy",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
@@ -68,7 +95,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full flex flex-col bg-background text-foreground" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>
