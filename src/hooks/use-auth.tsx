@@ -9,7 +9,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/client";
 import {
   clearCachedProfile,
@@ -45,7 +45,7 @@ const supabase = createClient();
  * Wraps Supabase auth listener + profile fetching.
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  const router = useRouter();
+
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -113,14 +113,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(null);
       setProfile(null);
       setSession(null);
-      router.replace("/login");
-      router.refresh();
+      // Hard redirect to main page with full browser refresh
+      window.location.href = "/";
     } catch (err) {
       console.error("Sign out error:", err);
-      router.replace("/login");
-      router.refresh();
+      window.location.href = "/";
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     /** Get initial session */
