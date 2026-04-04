@@ -115,10 +115,10 @@ export default function HomePage() {
 
             <Reveal delay={280} variant="soft-zoom">
               <div className="mt-12 flex flex-col gap-5 sm:flex-row">
-                <Link href="/about-us" className="rounded-xl bg-primary px-6 py-4 text-center text-base font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 sm:px-8 sm:text-lg md:px-10 md:py-5">
+                <Link href="/about-us" className="stitch-press rounded-xl bg-primary px-6 py-4 text-center text-base font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 sm:px-8 sm:text-lg md:px-10 md:py-5">
                   Begin Your Inquiry
                 </Link>
-                <Link href="/courses" className="rounded-xl bg-accent px-6 py-4 text-center text-base font-semibold text-accent-foreground transition hover:-translate-y-0.5 hover:brightness-105 sm:px-8 sm:text-lg md:px-10 md:py-5">
+                <Link href="/courses" className="stitch-press rounded-xl bg-accent px-6 py-4 text-center text-base font-semibold text-accent-foreground transition hover:-translate-y-0.5 hover:brightness-105 sm:px-8 sm:text-lg md:px-10 md:py-5">
                   View Curriculum
                 </Link>
               </div>
@@ -166,7 +166,7 @@ export default function HomePage() {
             return (
               <Reveal key={item.title} delay={index * 90} variant="soft-zoom" className={item.className}>
                 <Link href={item.href} className="block h-full">
-                  <article className="stitch-panel h-full p-8 transition hover:-translate-y-1">
+                  <article className="stitch-panel stitch-hover-lift h-full p-8">
                     <div className="flex h-full flex-col justify-between">
                       <div>
                         <span className={`mb-6 inline-flex h-14 w-14 items-center justify-center rounded-xl ${item.accent}`}>
@@ -261,7 +261,7 @@ export default function HomePage() {
                   Join the next cohort with a calmer, sharper academic environment built around long-term progress.
                 </p>
               </div>
-              <Link href="/login" className="rounded-xl bg-accent px-10 py-5 text-center text-lg font-semibold text-accent-foreground transition hover:brightness-105">
+              <Link href="/login" className="stitch-press rounded-xl bg-accent px-10 py-5 text-center text-lg font-semibold text-accent-foreground transition hover:brightness-105">
                 Begin Application
               </Link>
             </div>

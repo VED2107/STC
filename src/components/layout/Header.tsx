@@ -47,10 +47,10 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#7c6cf0] to-[#00d2d3] text-white transition-transform group-hover:scale-105 shadow-[0_0_20px_rgba(108,92,231,0.3)]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-[#7c6cf0] to-[#00d2d3] text-white transition-transform group-hover:scale-105 shadow-[0_0_20px_rgba(108,92,231,0.3)]">
             <GraduationCap className="h-5 w-5" />
           </div>
-          <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-transparent font-[var(--font-heading)]">
+          <span className="font-heading text-xl font-bold tracking-tight bg-linear-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-transparent">
             STC
           </span>
         </Link>
@@ -93,7 +93,7 @@ export function Header() {
                     <LogIn className="mr-1.5 h-4 w-4" />
                     Login
                   </Link>
-                  <Link href="/enroll" className={cn(buttonVariants({ size: "sm" }), "bg-gradient-to-r from-[#7c6cf0] to-[#00d2d3] hover:from-[#6c5ce7] hover:to-[#00bfbf] text-white shadow-[0_0_20px_rgba(108,92,231,0.3)] border-0")}>
+                  <Link href="/enroll" className={cn(buttonVariants({ size: "sm" }), "bg-linear-to-r from-[#7c6cf0] to-[#00d2d3] hover:from-[#6c5ce7] hover:to-[#00bfbf] text-white shadow-[0_0_20px_rgba(108,92,231,0.3)] border-0")}>
                     Enroll Now
                   </Link>
                 </>
@@ -149,10 +149,10 @@ export function Header() {
                 className="flex items-center gap-2"
                 onClick={() => setOpen(false)}
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#7c6cf0] to-[#00d2d3] text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-[#7c6cf0] to-[#00d2d3] text-white">
                   <GraduationCap className="h-4 w-4" />
                 </div>
-                <span className="text-lg font-bold bg-gradient-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-transparent">STC</span>
+                <span className="text-lg font-bold bg-linear-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-transparent">STC</span>
               </Link>
             </div>
             <nav className="flex flex-col gap-1">
@@ -195,7 +195,7 @@ export function Header() {
                         <LogIn className="mr-2 h-4 w-4" />
                         Login
                       </Link>
-                      <Link href="/enroll" onClick={() => setOpen(false)} className={cn(buttonVariants(), "bg-gradient-to-r from-[#7c6cf0] to-[#00d2d3] text-white border-0")}>
+                      <Link href="/enroll" onClick={() => setOpen(false)} className={cn(buttonVariants(), "bg-linear-to-r from-[#7c6cf0] to-[#00d2d3] text-white border-0")}>
                         Enroll Now
                       </Link>
                     </>

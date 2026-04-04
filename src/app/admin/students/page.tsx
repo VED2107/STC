@@ -219,25 +219,25 @@ function AdminStudentsPageInner() {
 
       <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Total Students</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{students.length}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">+12%</p>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Active Enrollment</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{activeCount}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Stable</p>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Tuition Students</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{tuitionCount}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Offline class access</p>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Online Students</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{onlineCount}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Purchase-based access</p>

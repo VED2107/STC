@@ -24,10 +24,10 @@ export function Footer() {
         <div className="grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#7c6cf0] to-[#00d2d3] text-white shadow-[0_0_15px_rgba(108,92,231,0.25)]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-[#7c6cf0] to-[#00d2d3] text-white shadow-[0_0_15px_rgba(108,92,231,0.25)]">
                 <GraduationCap className="h-5 w-5" />
               </div>
-              <span className="bg-gradient-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-xl font-bold text-transparent">STC</span>
+              <span className="bg-linear-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-xl font-bold text-transparent">STC</span>
             </Link>
             <p className="text-sm leading-relaxed text-[#9994c0]">
               Shaping tomorrow&apos;s leaders through quality education. Coaching classes for Class 1 to HSC - GSEB &amp; NCERT board.

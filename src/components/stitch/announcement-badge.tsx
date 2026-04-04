@@ -26,10 +26,10 @@ export function AnnouncementBadge() {
     <Link
       ref={badgeRef}
       href="/admissions"
-      className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full border border-[#d4a017]/30 bg-gradient-to-r from-[#fef9e7]/90 via-white/95 to-[#fef3c7]/90 px-5 py-2.5 shadow-[0_0_20px_rgba(212,160,23,0.12),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:border-[#d4a017]/50 hover:shadow-[0_0_32px_rgba(212,160,23,0.22),0_4px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 sm:gap-4 sm:px-6 sm:py-3"
+      className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full border border-[#d4a017]/30 bg-linear-to-r from-[#fef9e7]/90 via-white/95 to-[#fef3c7]/90 px-5 py-2.5 shadow-[0_0_20px_rgba(212,160,23,0.12),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:border-[#d4a017]/50 hover:shadow-[0_0_32px_rgba(212,160,23,0.22),0_4px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 sm:gap-4 sm:px-6 sm:py-3"
     >
       {/* Shimmer sweep */}
-      <span className="pointer-events-none absolute inset-0 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#d4a017]/10 to-transparent" />
+      <span className="pointer-events-none absolute inset-0 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite] bg-linear-to-r from-transparent via-[#d4a017]/10 to-transparent" />
 
       {/* Pulse glow ring */}
       <span className="pointer-events-none absolute -inset-[2px] animate-[pulse-glow_2.5s_ease-in-out_infinite] rounded-full border border-[#d4a017]/0" />
@@ -37,7 +37,7 @@ export function AnnouncementBadge() {
       {/* Live indicator dot */}
       <span className="relative flex h-2.5 w-2.5 shrink-0">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#d4a017]/60" />
-        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-gradient-to-br from-[#f59e0b] to-[#d4a017] shadow-[0_0_6px_rgba(212,160,23,0.5)]" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-linear-to-br from-[#f59e0b] to-[#d4a017] shadow-[0_0_6px_rgba(212,160,23,0.5)]" />
       </span>
 
       {/* Text content */}
@@ -48,7 +48,7 @@ export function AnnouncementBadge() {
       </span>
 
       {/* Arrow */}
-      <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#f59e0b] to-[#d4a017] text-white shadow-[0_2px_8px_rgba(212,160,23,0.3)] transition-transform duration-300 group-hover:scale-110 sm:h-7 sm:w-7">
+      <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-linear-to-br from-[#f59e0b] to-[#d4a017] text-white shadow-[0_2px_8px_rgba(212,160,23,0.3)] transition-transform duration-300 group-hover:scale-110 sm:h-7 sm:w-7">
         <svg
           className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5"
           fill="none"

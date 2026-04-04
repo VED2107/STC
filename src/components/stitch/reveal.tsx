@@ -1,8 +1,8 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { useSmoothReveal } from "@/hooks/use-smooth-animation";
 
 type RevealVariant = "fade-up" | "fade" | "mask-up" | "soft-zoom";
 
@@ -12,59 +12,44 @@ interface RevealProps {
   delay?: number;
   threshold?: number;
   variant?: RevealVariant;
+  /** Override animation duration in ms (default: 900) */
+  duration?: number;
 }
 
+/**
+ * Scroll-triggered reveal component powered by Web Animations API.
+ *
+ * WAAPI runs animations on the compositor thread, guaranteeing
+ * buttery 60-120fps regardless of main-thread load.
+ *
+ * - "fade-up"   — opacity + translateY (default)
+ * - "fade"      — opacity only
+ * - "mask-up"   — opacity + large translateY + blur
+ * - "soft-zoom" — opacity + scale + blur
+ */
 export function Reveal({
   children,
   className,
   delay = 0,
-  threshold = 0.2,
+  threshold = 0.15,
   variant = "fade-up",
+  duration = 900,
 }: RevealProps) {
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  // Use a callback ref pattern to apply visibility via DOM mutation
-  // instead of useState (avoids React re-render per element).
-  const handleIntersection = useCallback((entries: IntersectionObserverEntry[], obs: IntersectionObserver) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) {
-        (entry.target as HTMLElement).dataset.visible = "true";
-        obs.unobserve(entry.target);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    // Respect reduced motion
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      element.dataset.visible = "true";
-      return;
-    }
-
-    const observer = new IntersectionObserver(handleIntersection, {
-      rootMargin: "0px 0px -12% 0px",
-      threshold,
-    });
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [threshold, handleIntersection]);
+  const ref = useSmoothReveal(variant, delay, threshold, duration);
 
   return (
     <div
       ref={ref}
       data-reveal={variant}
-      data-visible="false"
       className={cn("stitch-reveal", className)}
       style={
         {
-          "--reveal-delay": `${delay}ms`,
-          // GPU-promote this element so transitions use compositor thread
-          willChange: "transform, opacity",
+          // Start hidden (WAAPI will animate from here)
+          opacity: 0,
+          // GPU-promote so compositor handles the layer
           contain: "layout style",
+          backfaceVisibility: "hidden",
+          WebkitBackfaceVisibility: "hidden",
         } as CSSProperties
       }
     >

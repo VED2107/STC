@@ -110,8 +110,16 @@
     @apply bg-background text-foreground;
     overflow-x: clip;
     background-image:
-      radial-gradient(circle at top right, rgba(254, 214, 91, 0.14), transparent 22%),
-      radial-gradient(circle at bottom left, rgba(208, 233, 212, 0.2), transparent 24%);
+      radial-gradient(
+        circle at top right,
+        rgba(254, 214, 91, 0.14),
+        transparent 22%
+      ),
+      radial-gradient(
+        circle at bottom left,
+        rgba(208, 233, 212, 0.2),
+        transparent 24%
+      );
     font-family: var(--font-body), sans-serif;
     line-height: 1.55;
   }
@@ -155,21 +163,10 @@
 }
 
 @layer components {
+  /* WAAPI handles animation; CSS only provides the initial hidden state
+     and compositor-layer promotion for buttery 60-120fps */
   .stitch-reveal {
-    --reveal-delay: 0ms;
-    --reveal-distance: 24px;
-    --reveal-scale: 1;
-    --reveal-blur: 0px;
     opacity: 0;
-    /* GPU: use translate3d to force compositor layer */
-    transform: translate3d(0, var(--reveal-distance), 0) scale(var(--reveal-scale));
-    filter: blur(var(--reveal-blur));
-    transition:
-      opacity 620ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay),
-      transform 860ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay),
-      filter 860ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay);
-    will-change: opacity, transform, filter;
-    /* GPU: isolate compositing layer to prevent repaint bleed */
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     contain: layout style;
@@ -177,25 +174,39 @@
 
   .stitch-reveal[data-visible="true"] {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0);
-    /* GPU: release will-change after animation completes to free VRAM */
+    transform: none;
+    filter: none;
     will-change: auto;
   }
 
-  .stitch-reveal[data-reveal="fade"] {
-    --reveal-distance: 0px;
+  /* Smooth hover micro-interactions — compositor-friendly transforms */
+  .stitch-hover-lift {
+    transition:
+      transform 400ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 400ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
+    backface-visibility: hidden;
   }
 
-  .stitch-reveal[data-reveal="mask-up"] {
-    --reveal-distance: 36px;
-    --reveal-blur: 8px;
+  .stitch-hover-lift:hover {
+    transform: translate3d(0, -4px, 0);
+    box-shadow: 0 20px 50px -20px rgba(26, 28, 29, 0.18);
   }
 
-  .stitch-reveal[data-reveal="soft-zoom"] {
-    --reveal-distance: 16px;
-    --reveal-scale: 0.985;
-    --reveal-blur: 6px;
+  .stitch-hover-lift:active {
+    transform: translate3d(0, -1px, 0);
+    transition-duration: 100ms;
+  }
+
+  /* Silky smooth button press */
+  .stitch-press {
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  .stitch-press:active {
+    transform: scale(0.97);
   }
 
   .stitch-kicker {
@@ -203,25 +214,25 @@
   }
 
   .stitch-panel {
-    @apply rounded-[24px] border border-black/[0.06] bg-white shadow-[0_24px_60px_-28px_rgba(26,28,29,0.18)];
+    @apply rounded-[24px] border border-black/6 bg-white shadow-[0_24px_60px_-28px_rgba(26,28,29,0.18)];
     contain: layout style;
   }
 
   .stitch-panel-soft {
-    @apply rounded-[20px] border border-black/[0.05] bg-[#f3f3f5];
+    @apply rounded-[20px] border border-black/5 bg-surface-container-low;
     contain: layout style;
   }
 
   .stitch-pill {
-    @apply inline-flex items-center rounded-full border border-black/[0.08] bg-white px-4 py-2 text-xs font-medium text-[#46464a];
+    @apply inline-flex items-center rounded-full border border-black/8 bg-white px-4 py-2 text-xs font-medium text-muted-foreground;
   }
 
   .stitch-input {
-    @apply h-12 w-full rounded-full border border-black/[0.08] bg-[#f3f3f5] px-4 text-sm text-[#1a1c1d] placeholder:text-[#46464a]/60;
+    @apply h-12 w-full rounded-full border border-black/8 bg-surface-container-low px-4 text-sm text-foreground placeholder:text-muted-foreground/60;
   }
 
   .stitch-sidebar-link {
-    @apply flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-[#46464a] transition-all hover:bg-white hover:text-[#1a1c1d];
+    @apply flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-muted-foreground transition-all hover:bg-white hover:text-foreground;
   }
 
   .stitch-sidebar-link[data-active="true"] {
@@ -285,7 +296,10 @@
     border-color: rgba(26, 28, 29, 0.06);
   }
 
-  .stitch-app-surface [class*="divide-white/5"] > :not([hidden]) ~ :not([hidden]) {
+  .stitch-app-surface
+    [class*="divide-white/5"]
+    > :not([hidden])
+    ~ :not([hidden]) {
     border-color: rgba(26, 28, 29, 0.06);
   }
 
@@ -319,19 +333,41 @@
 
 /* Announcement badge animations */
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  50%, 100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  50%,
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { border-color: rgba(212, 160, 23, 0); box-shadow: 0 0 0 0 rgba(212, 160, 23, 0); }
-  50% { border-color: rgba(212, 160, 23, 0.15); box-shadow: 0 0 16px 2px rgba(212, 160, 23, 0.08); }
+  0%,
+  100% {
+    border-color: rgba(212, 160, 23, 0);
+    box-shadow: 0 0 0 0 rgba(212, 160, 23, 0);
+  }
+  50% {
+    border-color: rgba(212, 160, 23, 0.15);
+    box-shadow: 0 0 16px 2px rgba(212, 160, 23, 0.08);
+  }
 }
 
 @keyframes sparkle {
-  0%, 100% { opacity: 0; transform: scale(0) translateY(0); }
-  30% { opacity: 1; transform: scale(1) translateY(-4px); }
-  70% { opacity: 0.6; transform: scale(0.8) translateY(-8px); }
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0) translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1) translateY(-4px);
+  }
+  70% {
+    opacity: 0.6;
+    transform: scale(0.8) translateY(-8px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
