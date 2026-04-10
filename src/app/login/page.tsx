@@ -789,13 +789,13 @@ function LoginPageInner() {
                       name="login_otp"
                       value={loginOtp}
                       onChange={(event) =>
-                        setLoginOtp(event.target.value.replace(/\D/g, "").slice(0, 8))
+                        setLoginOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
                       }
                       inputMode="numeric"
                       autoComplete="one-time-code"
-                      pattern="[0-9]{6,8}"
+                      pattern="[0-9]{6}"
                       required
-                      placeholder="12345678"
+                      placeholder="123456"
                       className={cn(stitchInputClass, "text-center text-lg tracking-[0.35em]")}
                     />
                   </label>

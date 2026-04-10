@@ -100,6 +100,9 @@ export async function POST(request: Request) {
         );
       }
       if (!existingStudent.is_active || existingStudent.class_id !== courseRes.data.class_id) {
+        // NOTE: This overwrites the student's class_id. If they had active
+        // enrollments in a different class, those become orphaned. This is a
+        // known limitation of the single class_id model for online students.
         const { error: activateError } = await admin
           .from("students")
           .update({ is_active: true, class_id: courseRes.data.class_id })

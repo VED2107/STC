@@ -20,7 +20,7 @@ export async function POST() {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (profile?.role !== "student") {
+    if (profile?.role && profile.role !== "student") {
       return NextResponse.json({ success: true, skipped: true });
     }
 

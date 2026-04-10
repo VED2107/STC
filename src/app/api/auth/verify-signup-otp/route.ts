@@ -122,11 +122,13 @@ export async function POST(request: NextRequest) {
     if (signInError) {
       // Account was created but auto sign-in failed; the user can still
       // sign in manually from the login page.
-      return NextResponse.json({
+      const fallbackResponse = NextResponse.json({
         success: true,
         email: pendingSignup.email,
         autoSignIn: false,
       });
+      fallbackResponse.cookies.set(SIGNUP_OTP_COOKIE, "", getSignupOtpCookieOptions(0));
+      return fallbackResponse;
     }
 
     return response;

@@ -43,3 +43,26 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright test artifacts & screenshots
+/tmp/
+/screenshots/
+
+# code-review-graph (auto-generated DB)
+.code-review-graph/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE / editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# supabase local
+.supabase/
+
