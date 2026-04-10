@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,8 +7,11 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   Check,
   ClipboardCheck,
+  Download,
+  History,
   Loader2,
   Search,
+  User,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +32,7 @@ import {
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
+import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 
 type AttendanceStatus = "present" | "absent";
 
@@ -51,6 +55,21 @@ interface AttendanceRecord {
   remarks: string | null;
 }
 
+interface HistoryRow {
+  date: string;
+  status: string;
+  late_minutes: number | null;
+  remarks: string | null;
+  class_name: string;
+  course_title: string;
+}
+
+interface AllStudentRow {
+  id: string;
+  profile: { full_name: string } | null;
+  class: { name: string } | null;
+}
+
 export default function AdminAttendancePage() {
   const router = useRouter();
   const { role, user } = useAuth();
@@ -70,6 +89,15 @@ export default function AdminAttendancePage() {
   const [editingSaved, setEditingSaved] = useState(true);
   const studentCacheRef = useRef<Record<string, StudentForAttendance[]>>({});
   const requestSequenceRef = useRef(0);
+
+  // ─── Student Attendance History lookup state ─────────────────────
+  const [allStudentsList, setAllStudentsList] = useState<AllStudentRow[]>([]);
+  const [allStudentsLoaded, setAllStudentsLoaded] = useState(false);
+  const [selectedHistoryStudentId, setSelectedHistoryStudentId] = useState<string | null>(null);
+  const [selectedHistoryStudentName, setSelectedHistoryStudentName] = useState("");
+  const [selectedHistoryStudentClassName, setSelectedHistoryStudentClassName] = useState("");
+  const [historyRecords, setHistoryRecords] = useState<HistoryRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (role === "student") {
@@ -391,10 +419,10 @@ export default function AdminAttendancePage() {
   const selectedClass =
     classes.find((item) => item.id === selectedClassId) ?? null;
 
+  const normalizedSearch = search.toLowerCase().trim();
+
   const filteredStudents = students.filter((student) =>
-    (student.profile?.full_name ?? "")
-      .toLowerCase()
-      .includes(search.toLowerCase().trim())
+    (student.profile?.full_name ?? "").toLowerCase().includes(normalizedSearch)
   );
 
   const presentCount = records.filter(
@@ -406,6 +434,187 @@ export default function AdminAttendancePage() {
   const lateCount = records.filter(
     (record) => record.status === "present" && (record.late_minutes ?? 0) > 0
   ).length;
+
+  const attendanceExportHeaders = [
+    { key: "name", label: "Student Name" },
+    { key: "status", label: "Status" },
+    { key: "lateMinutes", label: "Late (min)" },
+    { key: "remarks", label: "Remarks" },
+    { key: "date", label: "Date" },
+    { key: "batch", label: "Batch" },
+    { key: "course", label: "Course" },
+  ];
+
+  function buildAttendanceExportRows() {
+    return records.map((record) => {
+      const student = students.find((s) => s.id === record.student_id);
+      return {
+        name: student?.profile?.full_name ?? "Unknown",
+        status: record.status === "present" ? "Present" : "Absent",
+        lateMinutes: record.status === "present" ? String(record.late_minutes ?? 0) : "",
+        remarks: record.remarks ?? "",
+        date: new Date(date).toLocaleDateString("en-IN"),
+        batch: selectedClass?.name ?? "N/A",
+        course: selectedCourse?.title ?? "General",
+      };
+    });
+  }
+
+  function handleAttendanceCSV() {
+    const batchSlug = (selectedClass?.name ?? "batch").replace(/\s+/g, "_");
+    downloadCSV(
+      buildAttendanceExportRows(),
+      attendanceExportHeaders,
+      `attendance_${batchSlug}_${date}`,
+    );
+  }
+
+  async function handleAttendanceXLSX() {
+    const batchSlug = (selectedClass?.name ?? "batch").replace(/\s+/g, "_");
+    await downloadXLSX(
+      buildAttendanceExportRows(),
+      attendanceExportHeaders,
+      `attendance_${batchSlug}_${date}`,
+    );
+  }
+
+  // ─── Student Attendance History functions ────────────────────────
+
+  // Load all students (for the dropdown) on first interaction
+  async function loadAllStudents() {
+    if (allStudentsLoaded) return;
+    const supabase = createClient();
+
+    let query = supabase
+      .from("students")
+      .select("id, profile:profiles(full_name), class:classes(name)")
+      .eq("is_active", true)
+      .order("id");
+
+    // Teachers only see their assigned classes
+    if (role === "teacher" && user?.id) {
+      const { data: accessRows } = await supabase
+        .from("teacher_class_access")
+        .select("class_id")
+        .eq("teacher_profile_id", user.id);
+      const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map((r) => r.class_id);
+      if (classIds.length === 0) {
+        setAllStudentsList([]);
+        setAllStudentsLoaded(true);
+        return;
+      }
+      query = query.in("class_id", classIds);
+    }
+
+    const { data } = await query;
+    const rows = ((data as unknown as AllStudentRow[]) ?? []).sort((left, right) =>
+      (left.profile?.full_name ?? "").localeCompare(right.profile?.full_name ?? "", undefined, {
+        sensitivity: "base",
+      }),
+    );
+    setAllStudentsList(rows);
+    setAllStudentsLoaded(true);
+  }
+
+  async function fetchStudentHistory(studentId: string) {
+    setHistoryLoading(true);
+    setHistoryRecords([]);
+    const supabase = createClient();
+
+    const { data } = await supabase
+      .from("attendance")
+      .select("date, status, late_minutes, remarks, class:classes(name), course:courses(title)")
+      .eq("student_id", studentId)
+      .order("date", { ascending: false });
+
+    const rows: HistoryRow[] = ((data as unknown as Array<{
+      date: string;
+      status: string;
+      late_minutes: number | null;
+      remarks: string | null;
+      class: { name: string } | null;
+      course: { title: string } | null;
+    }>) ?? []).map((r) => ({
+      date: r.date,
+      status: r.status,
+      late_minutes: r.late_minutes,
+      remarks: r.remarks,
+      class_name: r.class?.name ?? "N/A",
+      course_title: r.course?.title ?? "General",
+    }));
+
+    setHistoryRecords(rows);
+    setHistoryLoading(false);
+  }
+
+  function openStudentHistory(studentId: string, studentName: string, className: string) {
+    setSelectedHistoryStudentId(studentId);
+    setSelectedHistoryStudentName(studentName);
+    setSelectedHistoryStudentClassName(className);
+    void fetchStudentHistory(studentId);
+  }
+
+  function handleSelectHistoryStudent(student: AllStudentRow) {
+    openStudentHistory(
+      student.id,
+      student.profile?.full_name ?? "Unknown",
+      student.class?.name ?? "No class",
+    );
+    setSearch(student.profile?.full_name ?? "");
+  }
+
+  function clearHistorySelection(options?: { preserveSearch?: boolean }) {
+    setSelectedHistoryStudentId(null);
+    setSelectedHistoryStudentName("");
+    setSelectedHistoryStudentClassName("");
+    setHistoryRecords([]);
+    setHistoryLoading(false);
+    if (!options?.preserveSearch) {
+      setSearch("");
+    }
+  }
+
+  const historyExportHeaders = [
+    { key: "date", label: "Date" },
+    { key: "status", label: "Status" },
+    { key: "lateMinutes", label: "Late (min)" },
+    { key: "remarks", label: "Remarks" },
+    { key: "className", label: "Batch" },
+    { key: "courseTitle", label: "Course" },
+  ];
+
+  function buildHistoryExportRows() {
+    return historyRecords.map((r) => ({
+      date: new Date(r.date).toLocaleDateString("en-IN"),
+      status: r.status === "present" ? "Present" : "Absent",
+      lateMinutes: r.status === "present" ? String(r.late_minutes ?? 0) : "",
+      remarks: r.remarks ?? "",
+      className: r.class_name,
+      courseTitle: r.course_title,
+    }));
+  }
+
+  function handleHistoryCSV() {
+    const slug = selectedHistoryStudentName.replace(/\s+/g, "_") || "student";
+    downloadCSV(buildHistoryExportRows(), historyExportHeaders, `attendance_history_${slug}`);
+  }
+
+  async function handleHistoryXLSX() {
+    const slug = selectedHistoryStudentName.replace(/\s+/g, "_") || "student";
+    await downloadXLSX(buildHistoryExportRows(), historyExportHeaders, `attendance_history_${slug}`);
+  }
+
+  const filteredAllStudents = allStudentsList.filter((student) =>
+    (student.profile?.full_name ?? "").toLowerCase().includes(normalizedSearch)
+  );
+  const showHistorySuggestions =
+    normalizedSearch.length > 0 &&
+    filteredAllStudents.length > 0 &&
+    normalizedSearch !== selectedHistoryStudentName.toLowerCase().trim();
+
+  const historyPresentCount = historyRecords.filter((r) => r.status === "present").length;
+  const historyAbsentCount = historyRecords.filter((r) => r.status === "absent").length;
+
 
   return (
     <div className="px-6 py-8 md:px-10">
@@ -505,13 +714,79 @@ export default function AdminAttendancePage() {
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setSearch(nextValue);
+                    if (!allStudentsLoaded) {
+                      void loadAllStudents();
+                    }
+
+                    if (
+                      selectedHistoryStudentId &&
+                      nextValue.trim().toLowerCase() !== selectedHistoryStudentName.toLowerCase().trim()
+                    ) {
+                      clearHistorySelection({ preserveSearch: true });
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!allStudentsLoaded) {
+                      void loadAllStudents();
+                    }
+                  }}
                   className={cn(stitchInputClass, "pl-11")}
-                  placeholder="Search students..."
-                  disabled={!editingSaved}
+                  placeholder="Search this batch or choose a student for full history..."
                 />
+                {showHistorySuggestions ? (
+                  <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-60 overflow-y-auto rounded-2xl border border-border bg-card shadow-lg">
+                    {filteredAllStudents.slice(0, 8).map((student) => (
+                      <button
+                        key={student.id}
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-accent/40"
+                        onClick={() => handleSelectHistoryStudent(student)}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-foreground">
+                            {student.profile?.full_name ?? "Unknown"}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {student.class?.name ?? "No class"}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-primary">
+                          History
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Use this search to filter the current batch. Pick a student from the dropdown to open their full attendance history and download it.
+            </p>
+
+            {selectedHistoryStudentId ? (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <User className="h-4 w-4 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{selectedHistoryStudentName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Viewing full history
+                      {selectedHistoryStudentClassName ? ` - ${selectedHistoryStudentClassName}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground transition hover:text-foreground"
+                  onClick={() => clearHistorySelection()}
+                >
+                  Clear history view
+                </button>
+              </div>
+            ) : null}
 
             {selectedCourse ? (
               <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -540,6 +815,15 @@ export default function AdminAttendancePage() {
               <div className="col-span-full flex min-h-40 items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
+            ) : filteredStudents.length === 0 ? (
+              <div className={cn(stitchPanelSoftClass, "text-center")}>
+                <h3 className="text-2xl text-foreground">No students found</h3>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {normalizedSearch
+                    ? `No students in this batch match "${search.trim()}".`
+                    : "No students are available for the selected batch and date."}
+                </p>
+              </div>
             ) : (
               filteredStudents.map((student) => {
                 const record = records.find((item) => item.student_id === student.id);
@@ -561,7 +845,24 @@ export default function AdminAttendancePage() {
                         </h3>
                         <p className="mt-2 text-sm text-muted-foreground">Studio Scholar</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openStudentHistory(
+                              student.id,
+                              student.profile?.full_name ?? "Unknown",
+                              selectedClass?.name ?? "No class",
+                            )
+                          }
+                          className={cn(
+                            stitchSecondaryButtonClass,
+                            "h-8 px-3 py-1 text-[11px] uppercase tracking-[0.18em]",
+                          )}
+                        >
+                          <History className="h-3.5 w-3.5" />
+                          History
+                        </button>
                         <button
                           type="button"
                           onClick={() =>
@@ -653,6 +954,141 @@ export default function AdminAttendancePage() {
               <p>Batch: {classes.find((item) => item.id === selectedClassId)?.name ?? "Not selected"}</p>
               <p>Course: {selectedCourse?.title ?? "General"}</p>
             </div>
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "flex-1 gap-2")}
+                onClick={handleAttendanceCSV}
+                disabled={records.length === 0}
+                title="Download attendance as CSV"
+              >
+                <Download className="h-4 w-4" />
+                CSV
+              </button>
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "flex-1 gap-2")}
+                onClick={() => void handleAttendanceXLSX()}
+                disabled={records.length === 0}
+                title="Download attendance as Excel"
+              >
+                <Download className="h-4 w-4" />
+                Excel
+              </button>
+            </div>
+          </div>
+          <div className={stitchPanelClass}>
+            <div className="flex items-center gap-3">
+              <History className="h-5 w-5 text-primary" />
+              <h3 className="text-3xl text-foreground">Student History</h3>
+            </div>
+            <p className="mt-3 text-sm leading-7 text-muted-foreground">
+              {selectedHistoryStudentId
+                ? "Full attendance archive for the selected student."
+                : "Choose a student from the main search box to view their full attendance history and download it."}
+            </p>
+
+            {!selectedHistoryStudentId ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                Start typing a student name in the search box above, then choose the student marked with the history option.
+              </div>
+            ) : null}
+
+            {selectedHistoryStudentId && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{selectedHistoryStudentName}</p>
+                      <p className="text-xs text-muted-foreground">{selectedHistoryStudentClassName}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground transition hover:text-foreground"
+                    onClick={() => clearHistorySelection()}
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                {historyLoading ? (
+                  <div className="mt-4 flex justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : historyRecords.length === 0 ? (
+                  <p className="mt-4 text-sm text-muted-foreground">No attendance records found for this student.</p>
+                ) : (
+                  <>
+                    <div className="mt-4 flex items-center justify-between text-sm">
+                      <span className="inline-flex items-center gap-1 text-primary">
+                        <Check className="h-3 w-3" /> {historyPresentCount} present
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-destructive">
+                        <X className="h-3 w-3" /> {historyAbsentCount} absent
+                      </span>
+                      <span className="text-muted-foreground">{historyRecords.length} total</span>
+                    </div>
+
+                    <div className="mt-4 max-h-64 overflow-y-auto rounded-lg border border-border">
+                      <table className="w-full text-left text-xs">
+                        <thead className="sticky top-0 bg-card text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-2">Date</th>
+                            <th className="px-3 py-2">Status</th>
+                            <th className="px-3 py-2">Late</th>
+                            <th className="px-3 py-2">Remarks</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {historyRecords.map((row, index) => (
+                            <tr key={`${row.date}-${index}`}>
+                              <td className="px-3 py-2 text-foreground">
+                                {new Date(row.date).toLocaleDateString("en-IN", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className={row.status === "present" ? "text-primary" : "text-destructive"}>
+                                  {row.status === "present" ? "Present" : "Absent"}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {row.status === "present" && (row.late_minutes ?? 0) > 0 ? `${row.late_minutes}m` : "-"}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {row.remarks || "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        type="button"
+                        className={cn(stitchSecondaryButtonClass, "flex-1 gap-2")}
+                        onClick={handleHistoryCSV}
+                      >
+                        <Download className="h-4 w-4" />
+                        CSV
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(stitchSecondaryButtonClass, "flex-1 gap-2")}
+                        onClick={() => void handleHistoryXLSX()}
+                      >
+                        <Download className="h-4 w-4" />
+                        Excel
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className={stitchPanelClass}>

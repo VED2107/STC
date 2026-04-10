@@ -3,7 +3,8 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Users } from "lucide-react";
+import { Download, Search, Users } from "lucide-react";
+import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearchParams } from "next/navigation";
@@ -165,6 +166,47 @@ function AdminStudentsPageInner() {
   const tuitionCount = students.filter((student) => student.student_type === "tuition").length;
   const onlineCount = students.filter((student) => student.student_type === "online").length;
   const isTeacherView = role === "teacher";
+
+  const studentExportHeaders = [
+    { key: "name", label: "Name" },
+    { key: "phone", label: "Phone" },
+    { key: "studentId", label: "Student ID" },
+    { key: "className", label: "Class" },
+    { key: "board", label: "Board" },
+    { key: "accessType", label: "Access Type" },
+    { key: "status", label: "Status" },
+    { key: "courses", label: "Courses" },
+    { key: "enrollmentDate", label: "Enrollment Date" },
+  ];
+
+  function buildExportRows() {
+    return filtered.map((student, index) => ({
+      name: student.profile?.full_name || student.authUser?.full_name || student.authUser?.email || "Unnamed",
+      phone: student.profile?.phone || student.authUser?.phone || "N/A",
+      studentId: `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`,
+      className: student.class?.name ?? "Independent Study",
+      board: student.class?.board ?? "Global Curriculum Board",
+      accessType: student.student_type === "tuition" ? "Tuition" : "Online",
+      status: student.is_active ? "Active" : "Pending Review",
+      courses:
+        student.student_type === "online"
+          ? (student.enrollments ?? [])
+              .filter((e) => e.status === "active")
+              .map((e) => e.course?.title)
+              .filter(Boolean)
+              .join("; ") || "No purchased course"
+          : "Class resources",
+      enrollmentDate: new Date(student.enrollment_date).toLocaleDateString("en-IN"),
+    }));
+  }
+
+  function handleDownloadCSV() {
+    downloadCSV(buildExportRows(), studentExportHeaders, `students_${new Date().toISOString().split("T")[0]}`);
+  }
+
+  async function handleDownloadXLSX() {
+    await downloadXLSX(buildExportRows(), studentExportHeaders, `students_${new Date().toISOString().split("T")[0]}`);
+  }
   const summaryCardClass = cn(
     stitchPanelSoftClass,
     "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
@@ -212,6 +254,28 @@ function AdminStudentsPageInner() {
               disabled={!search.trim()}
             >
               Clear
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={cn(stitchSecondaryButtonClass, "gap-2")}
+              onClick={handleDownloadCSV}
+              disabled={filtered.length === 0}
+              title="Download as CSV"
+            >
+              <Download className="h-4 w-4" />
+              CSV
+            </button>
+            <button
+              type="button"
+              className={cn(stitchSecondaryButtonClass, "gap-2")}
+              onClick={() => void handleDownloadXLSX()}
+              disabled={filtered.length === 0}
+              title="Download as Excel"
+            >
+              <Download className="h-4 w-4" />
+              Excel
             </button>
           </div>
         </div>
