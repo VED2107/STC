@@ -238,6 +238,33 @@ export default function StudentDashboard() {
     );
   }
 
+  if (!studentRecord) {
+    return (
+      <div className="px-6 py-8 md:px-10">
+        <StitchSectionHeader
+          eyebrow="Student Dashboard"
+          title={`Welcome,\n${userName.split(" ")[0]}.`}
+          description="Your account is active, but class access is waiting for admin assignment."
+        />
+
+        <div className={stitchPanelClass}>
+          <h2 className="text-4xl text-foreground">Assignment Pending</h2>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
+            Your signup is complete, but only an admin can attach your account to a class. Once that happens, your syllabus, materials, attendance, and class details will appear here.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href="/dashboard/settings" className={stitchButtonClass}>
+              Review Profile
+            </Link>
+            <Link href="/about-us" className={stitchSecondaryButtonClass}>
+              Contact STC
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const leadCourse = enrolledCourses[0];
 
   return (

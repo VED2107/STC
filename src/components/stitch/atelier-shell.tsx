@@ -180,8 +180,8 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
         : { label: "Open Class Details", href: "/dashboard/class" };
   const supportHref =
     area === "admin"
-      ? "mailto:info@stctuition.com?subject=STC%20Admin%20Support"
-      : "mailto:info@stctuition.com?subject=STC%20Student%20Support";
+      ? "mailto:stcinstindia@gmail.com?subject=STC%20Admin%20Support"
+      : "mailto:stcinstindia@gmail.com?subject=STC%20Student%20Support";
 
   const sidebar = (
     <>

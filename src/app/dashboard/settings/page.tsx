@@ -22,6 +22,7 @@ interface StudentSettingsData {
   role: string;
   notifications: number;
   studentType: "tuition" | "online" | null;
+  hasStudentRecord: boolean;
 }
 
 function StudentSettingsPageInner() {
@@ -35,7 +36,7 @@ function StudentSettingsPageInner() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const isTuitionStudent = data?.studentType === "tuition";
+  const isStudentPhoneLocked = data?.role === "student" && Boolean(data?.phone.trim());
 
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
@@ -78,6 +79,7 @@ function StudentSettingsPageInner() {
       role: profile?.role ?? "student",
       notifications: notificationsCount ?? 0,
       studentType: (student?.student_type as "tuition" | "online" | undefined) ?? null,
+      hasStudentRecord: Boolean(student?.id),
     });
 
     setForm({
@@ -104,7 +106,7 @@ function StudentSettingsPageInner() {
       .from("profiles")
       .update({
         full_name: form.fullName.trim(),
-        phone: isTuitionStudent ? (data?.phone ?? form.phone.trim()) : form.phone.trim(),
+        phone: isStudentPhoneLocked ? (data?.phone ?? form.phone.trim()) : form.phone.trim(),
         parent_phone: form.parentPhone.trim() ? form.parentPhone.trim() : null,
         profile_reviewed_at: new Date().toISOString(),
       })
@@ -126,7 +128,7 @@ function StudentSettingsPageInner() {
       return;
     }
     setSaving(false);
-  }, [data?.phone, fetchData, form.fullName, form.parentPhone, form.phone, isTuitionStudent, refreshProfile, router, searchParams, supabase, user]);
+  }, [data?.phone, fetchData, form.fullName, form.parentPhone, form.phone, isStudentPhoneLocked, refreshProfile, router, searchParams, supabase, user]);
 
   useEffect(() => {
     void fetchData();
@@ -152,6 +154,12 @@ function StudentSettingsPageInner() {
         }
       />
 
+      {!data?.hasStudentRecord ? (
+        <div className="mt-6 rounded-[24px] border border-amber-300/50 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+          Your account is created, but no class is assigned yet. An admin needs to enroll you before class-based dashboard features become available.
+        </div>
+      ) : null}
+
       <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className={stitchPanelClass}>
           <div className="grid gap-4 md:grid-cols-2">
@@ -175,12 +183,12 @@ function StudentSettingsPageInner() {
                 onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
                 className={`mt-4 ${stitchInputClass}`}
                 placeholder="Your phone"
-                readOnly={isTuitionStudent}
-                disabled={isTuitionStudent}
+                readOnly={isStudentPhoneLocked}
+                disabled={isStudentPhoneLocked}
               />
-              {isTuitionStudent ? (
+              {isStudentPhoneLocked ? (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Tuition student phone numbers are locked. Ask the admin to update this number.
+                  Student phone numbers are locked after the first save. Ask the admin to update this number.
                 </p>
               ) : null}
             </div>

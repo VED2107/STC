@@ -61,20 +61,20 @@ const footerLinks = [
 const contactDetails = [
   {
     label: "Campus",
-    value: "STC Tuition Centre, Gujarat, India",
-    href: null,
+    value: "STC found us",
+    href: "https://share.google/E1n2yltTbAqfN9UAd",
     icon: MapPin,
   },
   {
     label: "Call",
-    value: "+91 99999 99999",
-    href: "tel:+919999999999",
+    value: "7016072398, 8160576043",
+    href: "tel:7016072398",
     icon: Phone,
   },
   {
     label: "Write",
-    value: "info@stctuition.com",
-    href: "mailto:info@stctuition.com",
+    value: "stcinstindia@gmail.com",
+    href: "mailto:stcinstindia@gmail.com",
     icon: Mail,
   },
 ];

@@ -77,15 +77,26 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2.5 text-sm text-[#9994c0]">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#00d2d3]" />
-                <span>STC Tuition Centre, Gujarat, India</span>
+                <a
+                  href="https://share.google/E1n2yltTbAqfN9UAd"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="transition-colors hover:text-[#00d2d3]"
+                >
+                  STC found us
+                </a>
               </li>
               <li className="flex items-center gap-2.5 text-sm text-[#9994c0]">
                 <Phone className="h-4 w-4 shrink-0 text-[#00d2d3]" />
-                <span>+91 99999 99999</span>
+                <a href="tel:7016072398" className="transition-colors hover:text-[#00d2d3]">
+                  7016072398, 8160576043
+                </a>
               </li>
               <li className="flex items-center gap-2.5 text-sm text-[#9994c0]">
                 <Mail className="h-4 w-4 shrink-0 text-[#00d2d3]" />
-                <span>info@stctuition.com</span>
+                <a href="mailto:stcinstindia@gmail.com" className="transition-colors hover:text-[#00d2d3]">
+                  stcinstindia@gmail.com
+                </a>
               </li>
             </ul>
           </div>

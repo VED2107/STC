@@ -26,10 +26,25 @@ export default function AboutUsPage() {
               </a>
             </p>
             <p>
-              <span className="font-semibold text-primary">Phone:</span> To be added later
+              <span className="font-semibold text-primary">Phone:</span>{" "}
+              <a className="text-secondary underline-offset-2 hover:underline" href="tel:7016072398">
+                7016072398
+              </a>
+              {", "}
+              <a className="text-secondary underline-offset-2 hover:underline" href="tel:8160576043">
+                8160576043
+              </a>
             </p>
             <p>
-              <span className="font-semibold text-primary">Address:</span> To be updated
+              <span className="font-semibold text-primary">Location:</span>{" "}
+              <a
+                className="text-secondary underline-offset-2 hover:underline"
+                href="https://share.google/E1n2yltTbAqfN9UAd"
+                target="_blank"
+                rel="noreferrer"
+              >
+                STC found us
+              </a>
             </p>
           </div>
         </section>
