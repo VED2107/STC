@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BookCopy,
   BookOpen,
   CalendarCheck,
   ClipboardList,
+  Download,
   FolderOpen,
   GraduationCap,
   House,
@@ -24,6 +25,13 @@ import {
 import { getCachedStudentType, setCachedStudentType } from "@/lib/auth/client-cache";
 import { useAuth } from "@/hooks/use-auth";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -86,6 +94,17 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
   const [studentType, setStudentType] = useState<"tuition" | "online" | null>(null);
   const [studentTypeLoaded, setStudentTypeLoaded] = useState(area !== "student");
   const isOnlineStudent = area === "student" && studentType === "online";
+  const isTuitionStudent = area === "student" && studentType === "tuition";
+
+  // ── QR Code state (tuition students only) ──
+  const [qrToken, setQrToken] = useState<string | null>(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fullNameForQr =
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "Scholar";
 
   useEffect(() => {
     let cancelled = false;
@@ -129,7 +148,64 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [area, profile?.role, user?.id]);
+
+  // ── Fetch QR token for tuition students ──
+  useEffect(() => {
+    if (!isTuitionStudent || !user?.id) return;
+    let cancelled = false;
+
+    async function fetchQrToken() {
+      const supabase = createClient();
+      // First get student id from profile_id
+      const { data: student } = await supabase
+        .from("students")
+        .select("id")
+        .eq("profile_id", user!.id)
+        .maybeSingle();
+
+      if (!student || cancelled) return;
+
+      const { data: tokenRow } = await supabase
+        .from("qr_tokens")
+        .select("token")
+        .eq("student_id", (student as { id: string }).id)
+        .maybeSingle();
+
+      if (!cancelled) {
+        setQrToken((tokenRow as { token: string } | null)?.token ?? null);
+      }
+    }
+
+    void fetchQrToken();
+    return () => { cancelled = true; };
+  }, [isTuitionStudent, user?.id]);
+
+  // ── Render QR code on canvas when dialog opens and token is available ──
+  useEffect(() => {
+    if (!qrDialogOpen || !qrToken) return;
+    // Small delay to let the dialog DOM render the canvas
+    const timer = setTimeout(async () => {
+      if (!qrCanvasRef.current) return;
+      const QRCode = (await import("qrcode")).default;
+      await QRCode.toCanvas(qrCanvasRef.current, qrToken, {
+        width: 220,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+        errorCorrectionLevel: "M",
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [qrDialogOpen, qrToken]);
+
+  const handleDownloadQr = useCallback(() => {
+    if (!qrCanvasRef.current) return;
+    const link = document.createElement("a");
+    link.download = `my_qr_${fullNameForQr.replace(/\s+/g, "_")}.png`;
+    link.href = qrCanvasRef.current.toDataURL("image/png");
+    link.click();
+  }, [fullNameForQr]);
 
   const links =
     area === "admin"
@@ -239,6 +315,18 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
             </Link>
           );
         })}
+
+        {/* QR Code button for tuition students */}
+        {isTuitionStudent && (
+          <button
+            type="button"
+            onClick={() => { setMobileMenuOpen(false); setQrDialogOpen(true); }}
+            className="stitch-sidebar-link w-full text-left"
+          >
+            <QrCode className="h-4 w-4" />
+            <span className="truncate">My QR Code</span>
+          </button>
+        )}
       </nav>
 
       <div className="border-t border-black/5 px-3 py-5">
@@ -296,6 +384,43 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
       </aside>
 
       <div className="min-w-0 bg-muted">{children}</div>
+
+      {/* ── QR Code Dialog ── */}
+      {isTuitionStudent && (
+        <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>My QR Code</DialogTitle>
+              <DialogDescription>
+                Show this QR code to your teacher for attendance check-in &amp; check-out.
+              </DialogDescription>
+            </DialogHeader>
+
+            {qrToken ? (
+              <div className="flex flex-col items-center gap-4 py-2">
+                <div className="rounded-2xl bg-white p-3 shadow-sm">
+                  <canvas ref={qrCanvasRef} className="rounded-lg" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadQr}
+                  className="inline-flex items-center gap-2 rounded-xl border border-black/6 bg-white px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted"
+                >
+                  <Download className="h-4 w-4" />
+                  Save QR
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-black/6 bg-muted/50 p-8 text-center">
+                <QrCode className="h-12 w-12 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">
+                  Your QR code has not been generated yet. Please contact your teacher or admin.
+                </p>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
