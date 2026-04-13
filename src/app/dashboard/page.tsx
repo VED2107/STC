@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarCheck,
   ChevronRight,
+  Download,
   FileText,
   GraduationCap,
   Loader2,
@@ -69,6 +70,8 @@ export default function StudentDashboard() {
   const [recentAttendance, setRecentAttendance] = useState<AttendanceRow[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<CourseRow[]>([]);
   const [recentMaterials, setRecentMaterials] = useState<MaterialRow[]>([]);
+  const [qrToken, setQrToken] = useState<string | null>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isOnlineStudent = studentRecord?.student_type === "online";
 
   useEffect(() => {
@@ -94,6 +97,16 @@ export default function StudentDashboard() {
         .select("id, class_id, student_type, class:classes(name, board, level)")
         .eq("profile_id", user.id)
         .single();
+
+      // Fetch own QR token (RLS ensures only own token is returned)
+      if (student) {
+        const { data: tokenRow } = await supabase
+          .from("qr_tokens")
+          .select("token")
+          .eq("student_id", (student as StudentRecord).id)
+          .maybeSingle();
+        if (!cancelled) setQrToken((tokenRow as { token: string } | null)?.token ?? null);
+      }
 
       if (!student || cancelled) {
         setLoading(false);
@@ -210,6 +223,32 @@ export default function StudentDashboard() {
       cancelled = true;
     };
   }, [authLoading, profile?.full_name, role, router, user]);
+
+  // Render QR code on canvas when token is available
+  useEffect(() => {
+    if (!qrToken || !qrCanvasRef.current) return;
+    let active = true;
+    (async () => {
+      const QRCode = (await import("qrcode")).default;
+      if (active && qrCanvasRef.current) {
+        await QRCode.toCanvas(qrCanvasRef.current, qrToken, {
+          width: 200,
+          margin: 2,
+          color: { dark: "#000000", light: "#ffffff" },
+          errorCorrectionLevel: "M",
+        });
+      }
+    })();
+    return () => { active = false; };
+  }, [qrToken]);
+
+  const handleDownloadQr = useCallback(() => {
+    if (!qrCanvasRef.current) return;
+    const link = document.createElement("a");
+    link.download = `my_qr_${userName.replace(/\s+/g, "_")}.png`;
+    link.href = qrCanvasRef.current.toDataURL("image/png");
+    link.click();
+  }, [userName]);
 
   if (loading) {
     return (
@@ -389,6 +428,47 @@ export default function StudentDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── My QR Code (tuition students only, read-only) ── */}
+      {!isOnlineStudent && (
+        <div className="mt-8">
+          <div className={stitchPanelClass}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-3xl text-foreground">My QR Code</h3>
+              {qrToken && (
+                <button
+                  type="button"
+                  onClick={handleDownloadQr}
+                  className={cn(stitchSecondaryButtonClass, "gap-2 text-xs")}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Save QR
+                </button>
+              )}
+            </div>
+
+            {qrToken ? (
+              <div className="mt-6 flex flex-col items-center">
+                <div className="rounded-2xl bg-white p-3 shadow-sm">
+                  <canvas ref={qrCanvasRef} className="rounded-lg" />
+                </div>
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Show this QR code to your teacher for attendance check-in &amp; check-out.
+                </p>
+              </div>
+            ) : (
+              <div className={cn(stitchPanelSoftClass, "mt-6 text-center")}
+              >
+                <QrCode className="mx-auto h-12 w-12 text-muted-foreground/30" />
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Your QR code has not been generated yet. Please contact your
+                  teacher or admin.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className={`mt-8 grid gap-6 ${isOnlineStudent ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,1fr)_380px]"}`}>
         <div className={stitchPanelClass}>
