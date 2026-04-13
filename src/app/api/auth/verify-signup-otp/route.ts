@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       userId: authData.user.id,
       fullName: pendingSignup.fullName,
       phone: pendingSignup.phone,
+      email: pendingSignup.email,
     });
 
     // Sign in server-side to establish session cookies without exposing

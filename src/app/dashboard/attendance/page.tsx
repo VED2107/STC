@@ -28,6 +28,9 @@ interface AttendanceRow {
   status: "present" | "absent";
   late_minutes: number | null;
   remarks: string | null;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  scan_method: string;
   class?: { name: string } | null;
   course?: { title: string; subject: string } | null;
 }
@@ -81,7 +84,7 @@ export default function StudentAttendancePage() {
     const { data } = await supabase
       .from("attendance")
       .select(
-        "id, date, status, late_minutes, remarks, class:classes(name), course:courses(title, subject)"
+        "id, date, status, late_minutes, remarks, check_in_at, check_out_at, scan_method, class:classes(name), course:courses(title, subject)"
       )
       .eq("student_id", typedStudent.id)
       .order("date", { ascending: false })
@@ -249,6 +252,14 @@ export default function StudentAttendancePage() {
                       {record.remarks ? (
                         <p className="mt-2 text-sm text-muted-foreground">{record.remarks}</p>
                       ) : null}
+                      {record.check_in_at && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          In: {new Date(record.check_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
+                          {record.check_out_at && (
+                            <> → Out: {new Date(record.check_out_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}</>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <span
@@ -259,6 +270,9 @@ export default function StudentAttendancePage() {
                     }`}
                   >
                     {record.status}
+                    {record.scan_method === "qr" && (
+                      <span className="ml-1 text-[9px] text-blue-500">QR</span>
+                    )}
                   </span>
                 </div>
               ))}

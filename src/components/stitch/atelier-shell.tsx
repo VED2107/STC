@@ -15,6 +15,8 @@ import {
   LibraryBig,
   LogOut,
   Menu,
+  QrCode,
+  ScanLine,
   ShieldQuestion,
   Sparkles,
   Users,
@@ -41,6 +43,8 @@ const adminLinks = [
   { href: "/admin/classes", label: "Academic Structures", icon: LibraryBig },
   { href: "/admin/courses", label: "Curriculum", icon: BookOpen },
   { href: "/admin/attendance", label: "Attendance", icon: ClipboardList },
+  { href: "/admin/qr-codes", label: "QR Codes", icon: QrCode },
+  { href: "/admin/qr-scan", label: "QR Scanner", icon: ScanLine },
   { href: "/admin/syllabus", label: "Syllabus", icon: BookCopy },
   { href: "/admin/materials", label: "Assets", icon: FolderOpen },
 ];
@@ -50,6 +54,7 @@ const teacherLinks = [
   { href: "/admin/attendance", label: "Dashboard", icon: LayoutGrid },
   { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/attendance", label: "Attendance", icon: ClipboardList },
+  { href: "/admin/qr-scan", label: "QR Scanner", icon: ScanLine },
   { href: "/admin/syllabus", label: "Syllabus", icon: BookCopy },
   { href: "/admin/materials", label: "Assets", icon: FolderOpen },
 ];

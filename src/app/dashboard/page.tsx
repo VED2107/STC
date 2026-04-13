@@ -11,6 +11,7 @@ import {
   FileText,
   GraduationCap,
   Loader2,
+  QrCode,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -230,9 +231,18 @@ export default function StudentDashboard() {
             center to manage faculty, structures, curriculum, and registry
             operations.
           </p>
-          <Link href="/admin" className={cn(stitchButtonClass, "mt-8")}>
-            Go to Command Center
-          </Link>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href="/admin" className={cn(stitchButtonClass)}>
+              Go to Command Center
+            </Link>
+            <Link
+              href="/admin/qr-scan"
+              className={cn(stitchSecondaryButtonClass, "gap-2")}
+            >
+              <QrCode className="h-4 w-4" />
+              Scan Student QR
+            </Link>
+          </div>
         </div>
       </div>
     );

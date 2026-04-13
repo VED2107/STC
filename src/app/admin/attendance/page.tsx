@@ -53,6 +53,9 @@ interface AttendanceRecord {
   status: AttendanceStatus;
   late_minutes: number | null;
   remarks: string | null;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  scan_method: "manual" | "qr";
 }
 
 interface HistoryRow {
@@ -62,6 +65,9 @@ interface HistoryRow {
   remarks: string | null;
   class_name: string;
   course_title: string;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  scan_method: string;
 }
 
 interface AllStudentRow {
@@ -240,7 +246,7 @@ export default function AdminAttendancePage() {
 
       let attendanceQuery = supabase
         .from("attendance")
-        .select("student_id, status, late_minutes, remarks")
+        .select("student_id, status, late_minutes, remarks, check_in_at, check_out_at, scan_method")
         .eq("class_id", selectedClassId)
         .eq("date", date);
 
@@ -291,6 +297,9 @@ export default function AdminAttendancePage() {
           status: "present",
           late_minutes: null,
           remarks: null,
+          check_in_at: null,
+          check_out_at: null,
+          scan_method: "manual",
         };
         return found ?? fallback;
       });
@@ -523,7 +532,7 @@ export default function AdminAttendancePage() {
 
     const { data } = await supabase
       .from("attendance")
-      .select("date, status, late_minutes, remarks, class:classes(name), course:courses(title)")
+      .select("date, status, late_minutes, remarks, check_in_at, check_out_at, scan_method, class:classes(name), course:courses(title)")
       .eq("student_id", studentId)
       .order("date", { ascending: false });
 
@@ -532,6 +541,9 @@ export default function AdminAttendancePage() {
       status: string;
       late_minutes: number | null;
       remarks: string | null;
+      check_in_at: string | null;
+      check_out_at: string | null;
+      scan_method: string;
       class: { name: string } | null;
       course: { title: string } | null;
     }>) ?? []).map((r) => ({
@@ -541,6 +553,9 @@ export default function AdminAttendancePage() {
       remarks: r.remarks,
       class_name: r.class?.name ?? "N/A",
       course_title: r.course?.title ?? "General",
+      check_in_at: r.check_in_at,
+      check_out_at: r.check_out_at,
+      scan_method: r.scan_method ?? "manual",
     }));
 
     setHistoryRecords(rows);
@@ -843,7 +858,22 @@ export default function AdminAttendancePage() {
                         <h3 className="text-2xl text-foreground">
                           {student.profile?.full_name ?? "Unknown"}
                         </h3>
-                        <p className="mt-2 text-sm text-muted-foreground">Studio Scholar</p>
+                        <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                          Studio Scholar
+                          {record?.scan_method === "qr" && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-blue-500">
+                              QR
+                            </span>
+                          )}
+                        </p>
+                        {record?.check_in_at && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            In: {new Date(record.check_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
+                            {record.check_out_at && (
+                              <> → Out: {new Date(record.check_out_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}</>
+                            )}
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
@@ -1038,6 +1068,7 @@ export default function AdminAttendancePage() {
                             <th className="px-3 py-2">Date</th>
                             <th className="px-3 py-2">Status</th>
                             <th className="px-3 py-2">Late</th>
+                            <th className="px-3 py-2">In/Out</th>
                             <th className="px-3 py-2">Remarks</th>
                           </tr>
                         </thead>
@@ -1058,6 +1089,17 @@ export default function AdminAttendancePage() {
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">
                                 {row.status === "present" && (row.late_minutes ?? 0) > 0 ? `${row.late_minutes}m` : "-"}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {row.check_in_at
+                                  ? new Date(row.check_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })
+                                  : "-"}
+                                {row.check_out_at && (
+                                  <> → {new Date(row.check_out_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}</>
+                                )}
+                                {row.scan_method === "qr" && (
+                                  <span className="ml-1 text-[9px] uppercase text-blue-500">QR</span>
+                                )}
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">
                                 {row.remarks || "-"}

@@ -98,6 +98,9 @@ export interface Attendance {
   late_minutes: number | null;
   remarks: string | null;
   marked_by: string;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  scan_method: 'manual' | 'qr';
   created_at: string;
   /** Joined data */
   student?: Student;
@@ -128,11 +131,20 @@ export interface Syllabus {
 export interface Notification {
   id: string;
   student_id: string;
-  type: "absence" | "general";
+  type: "absence" | "general" | "checkout";
   message: string;
   channel: NotificationChannel;
   delivery_type: NotificationChannel;
   status: NotificationStatus;
   sent_at: string | null;
   created_at: string;
+}
+
+export interface QrToken {
+  id: string;
+  student_id: string;
+  token: string;
+  created_at: string;
+  /** Joined data */
+  student?: Student;
 }

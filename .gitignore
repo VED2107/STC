@@ -66,3 +66,15 @@ Desktop.ini
 # supabase local
 .supabase/
 
+# next.js dev logs
+.next-dev.err
+.next-dev.out
+
+# AI editor configs
+.cursorrules
+.windsurfrules
+
+# AI instruction files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
