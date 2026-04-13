@@ -346,33 +346,86 @@ export default function QrScanPage() {
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
 
+      // Safely clean up any existing scanner instance
       if (scannerRef.current) {
         try {
-          await scannerRef.current.stop();
+          const state = scannerRef.current.getState();
+          if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
+            await scannerRef.current.stop();
+          }
         } catch {
-          // Already stopped
+          // Already stopped — ignore
         }
-        scannerRef.current.clear();
+        try {
+          scannerRef.current.clear();
+        } catch {
+          // Container already cleared — ignore
+        }
+        scannerRef.current = null;
       }
 
       const scanner = new Html5Qrcode(scannerContainerId);
       scannerRef.current = scanner;
 
-      await scanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1,
-          disableFlip: false,
-        },
-        (decodedText) => {
-          void processQrCode(decodedText);
-        },
-        () => {
-          // No QR in frame — expected
-        },
-      );
+      // Responsive qrbox: 70% of container width, capped at 250px
+      const qrboxFunction = (viewfinderWidth: number, viewfinderHeight: number) => {
+        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+        const size = Math.min(Math.floor(minEdge * 0.7), 250);
+        return { width: Math.max(size, 150), height: Math.max(size, 150) };
+      };
+
+      const scannerConfig = {
+        fps: 5,
+        qrbox: qrboxFunction,
+        disableFlip: false,
+        // Do NOT set aspectRatio — let the camera pick its native ratio
+      };
+
+      const onSuccess = (decodedText: string) => {
+        void processQrCode(decodedText);
+      };
+
+      const onFailure = () => {
+        // No QR in frame — expected, do nothing
+      };
+
+      // Try facingMode first; fall back to camera enumeration if it fails
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          scannerConfig,
+          onSuccess,
+          onFailure,
+        );
+      } catch {
+        // facingMode may not be supported — try enumerating cameras
+        try {
+          const cameras = await Html5Qrcode.getCameras();
+          if (cameras.length === 0) {
+            setCameraError("No camera found on this device.");
+            return;
+          }
+          // Prefer back camera; fall back to first available
+          const backCam = cameras.find(
+            (c) =>
+              c.label.toLowerCase().includes("back") ||
+              c.label.toLowerCase().includes("rear") ||
+              c.label.toLowerCase().includes("environment"),
+          );
+          const cameraId = backCam?.id ?? cameras[cameras.length - 1].id;
+          await scanner.start(cameraId, scannerConfig, onSuccess, onFailure);
+        } catch (fallbackErr) {
+          const msg2 = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+          if (msg2.includes("Permission") || msg2.includes("NotAllowed")) {
+            setCameraError(
+              "Camera access denied. Please allow camera permission and try again.",
+            );
+          } else {
+            setCameraError(`Camera error: ${msg2}`);
+          }
+          return;
+        }
+      }
 
       setScanning(true);
     } catch (err) {
@@ -392,11 +445,18 @@ export default function QrScanPage() {
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
+        const state = scannerRef.current.getState();
+        if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
+          await scannerRef.current.stop();
+        }
       } catch {
         // Already stopped
       }
-      scannerRef.current.clear();
+      try {
+        scannerRef.current.clear();
+      } catch {
+        // Already cleared
+      }
       scannerRef.current = null;
     }
     setScanning(false);
@@ -405,13 +465,32 @@ export default function QrScanPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current
-          .stop()
-          .catch(() => {})
-          .finally(() => {
-            scannerRef.current?.clear();
-          });
+      const scanner = scannerRef.current;
+      if (scanner) {
+        try {
+          const state = scanner.getState();
+          if (state === 2 || state === 3) {
+            scanner
+              .stop()
+              .catch(() => {})
+              .finally(() => {
+                try {
+                  scanner.clear();
+                } catch {
+                  // ignore
+                }
+              });
+          } else {
+            try {
+              scanner.clear();
+            } catch {
+              // ignore
+            }
+          }
+        } catch {
+          // ignore
+        }
+        scannerRef.current = null;
       }
     };
   }, []);
@@ -473,9 +552,9 @@ export default function QrScanPage() {
             <div
               id={scannerContainerId}
               className={cn(
-                "relative mx-auto w-full max-w-sm overflow-hidden rounded-xl bg-black/50",
+                "relative mx-auto w-full max-w-sm overflow-hidden rounded-xl bg-black/50 [&_video]:!max-h-[60vh] [&_video]:!object-cover",
                 !scanning &&
-                  "flex min-h-[300px] items-center justify-center",
+                  "flex min-h-[280px] items-center justify-center",
               )}
             >
               {!scanning && (
