@@ -350,24 +350,15 @@ export default function QrScanPage() {
       if (scannerRef.current) {
         try {
           const state = scannerRef.current.getState();
-          if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
+          if (state === 2 || state === 3) {
             await scannerRef.current.stop();
           }
-        } catch {
-          // Already stopped — ignore
-        }
-        try {
-          scannerRef.current.clear();
-        } catch {
-          // Container already cleared — ignore
-        }
+        } catch { /* ignore */ }
+        try { scannerRef.current.clear(); } catch { /* ignore */ }
         scannerRef.current = null;
       }
 
-      const scanner = new Html5Qrcode(scannerContainerId);
-      scannerRef.current = scanner;
-
-      // Responsive qrbox: 70% of container, capped between 150–250px
+      // Responsive qrbox: 70% of container, 150–250px
       const qrboxFunction = (vw: number, vh: number) => {
         const size = Math.min(Math.floor(Math.min(vw, vh) * 0.7), 250);
         return { width: Math.max(size, 150), height: Math.max(size, 150) };
@@ -382,25 +373,31 @@ export default function QrScanPage() {
       const onSuccess = (decodedText: string) => {
         void processQrCode(decodedText);
       };
-      const onFailure = () => {
-        /* No QR in frame — expected */
-      };
+      const onFailure = () => { /* No QR in frame */ };
 
-      // ── Camera constraints ──
-      // Cap resolution at 640×480. That is MORE than enough for QR
-      // recognition and prevents the library from requesting the phone's
-      // full 12-48 MP sensor, which causes an OOM tab crash on mobile.
+      // Cap resolution to prevent OOM on mobile (phones have 12-48MP sensors)
       const videoConstraints: MediaTrackConstraints = {
         facingMode: { ideal: "environment" },
         width: { min: 320, ideal: 640, max: 1280 },
         height: { min: 240, ideal: 480, max: 720 },
       };
 
-      // Attempt 1 — constrained camera
-      try {
-        await scanner.start(videoConstraints, scannerConfig, onSuccess, onFailure);
-      } catch {
-        // Attempt 2 — enumerate cameras and pick the back one by ID
+      // ── Attempt 1: constrained video ──
+      let started = false;
+      {
+        const scanner = new Html5Qrcode(scannerContainerId);
+        try {
+          await scanner.start(videoConstraints, scannerConfig, onSuccess, onFailure);
+          scannerRef.current = scanner;
+          started = true;
+        } catch {
+          // Clean up the failed instance completely before retrying
+          try { scanner.clear(); } catch { /* ignore */ }
+        }
+      }
+
+      // ── Attempt 2: enumerate cameras, pick back camera by ID ──
+      if (!started) {
         try {
           const cameras = await Html5Qrcode.getCameras();
           if (cameras.length === 0) {
@@ -414,27 +411,39 @@ export default function QrScanPage() {
               c.label.toLowerCase().includes("environment"),
           );
           const cameraId = backCam?.id ?? cameras[cameras.length - 1].id;
-          await scanner.start(cameraId, scannerConfig, onSuccess, onFailure);
-        } catch (fallbackErr) {
-          const msg2 = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-          if (msg2.includes("Permission") || msg2.includes("NotAllowed")) {
-            setCameraError(
-              "Camera access denied. Please allow camera permission and try again.",
-            );
+
+          // Fresh instance for the fallback attempt
+          const scanner2 = new Html5Qrcode(scannerContainerId);
+          try {
+            await scanner2.start(cameraId, scannerConfig, onSuccess, onFailure);
+            scannerRef.current = scanner2;
+            started = true;
+          } catch (err2) {
+            try { scanner2.clear(); } catch { /* ignore */ }
+            const msg2 = err2 instanceof Error ? err2.message : String(err2);
+            if (msg2.includes("Permission") || msg2.includes("NotAllowed")) {
+              setCameraError("Camera access denied. Please allow camera permission and try again.");
+            } else {
+              setCameraError(`Camera error: ${msg2}`);
+            }
+            return;
+          }
+        } catch (enumErr) {
+          const msg3 = enumErr instanceof Error ? enumErr.message : String(enumErr);
+          if (msg3.includes("Permission") || msg3.includes("NotAllowed")) {
+            setCameraError("Camera access denied. Please allow camera permission and try again.");
           } else {
-            setCameraError(`Camera error: ${msg2}`);
+            setCameraError(`Camera error: ${msg3}`);
           }
           return;
         }
       }
 
-      setScanning(true);
+      if (started) setScanning(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("Permission") || msg.includes("NotAllowed")) {
-        setCameraError(
-          "Camera access denied. Please allow camera permission and try again.",
-        );
+        setCameraError("Camera access denied. Please allow camera permission and try again.");
       } else if (msg.includes("NotFound") || msg.includes("DevicesNotFound")) {
         setCameraError("No camera found on this device.");
       } else {
