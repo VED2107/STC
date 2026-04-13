@@ -367,10 +367,9 @@ export default function QrScanPage() {
       const scanner = new Html5Qrcode(scannerContainerId);
       scannerRef.current = scanner;
 
-      // Responsive qrbox: 70% of container width, capped at 250px
-      const qrboxFunction = (viewfinderWidth: number, viewfinderHeight: number) => {
-        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-        const size = Math.min(Math.floor(minEdge * 0.7), 250);
+      // Responsive qrbox: 70% of container, capped between 150–250px
+      const qrboxFunction = (vw: number, vh: number) => {
+        const size = Math.min(Math.floor(Math.min(vw, vh) * 0.7), 250);
         return { width: Math.max(size, 150), height: Math.max(size, 150) };
       };
 
@@ -378,34 +377,36 @@ export default function QrScanPage() {
         fps: 5,
         qrbox: qrboxFunction,
         disableFlip: false,
-        // Do NOT set aspectRatio — let the camera pick its native ratio
       };
 
       const onSuccess = (decodedText: string) => {
         void processQrCode(decodedText);
       };
-
       const onFailure = () => {
-        // No QR in frame — expected, do nothing
+        /* No QR in frame — expected */
       };
 
-      // Try facingMode first; fall back to camera enumeration if it fails
+      // ── Camera constraints ──
+      // Cap resolution at 640×480. That is MORE than enough for QR
+      // recognition and prevents the library from requesting the phone's
+      // full 12-48 MP sensor, which causes an OOM tab crash on mobile.
+      const videoConstraints: MediaTrackConstraints = {
+        facingMode: { ideal: "environment" },
+        width: { min: 320, ideal: 640, max: 1280 },
+        height: { min: 240, ideal: 480, max: 720 },
+      };
+
+      // Attempt 1 — constrained camera
       try {
-        await scanner.start(
-          { facingMode: "environment" },
-          scannerConfig,
-          onSuccess,
-          onFailure,
-        );
+        await scanner.start(videoConstraints, scannerConfig, onSuccess, onFailure);
       } catch {
-        // facingMode may not be supported — try enumerating cameras
+        // Attempt 2 — enumerate cameras and pick the back one by ID
         try {
           const cameras = await Html5Qrcode.getCameras();
           if (cameras.length === 0) {
             setCameraError("No camera found on this device.");
             return;
           }
-          // Prefer back camera; fall back to first available
           const backCam = cameras.find(
             (c) =>
               c.label.toLowerCase().includes("back") ||
