@@ -49,6 +49,7 @@ interface CourseForAttendance {
 }
 
 interface AttendanceRecord {
+  session_id?: string | null;
   student_id: string;
   status: AttendanceStatus;
   late_minutes: number | null;
@@ -244,16 +245,6 @@ export default function AdminAttendancePage() {
     try {
       const cachedStudents = studentCacheRef.current[selectedClassId];
 
-      let attendanceQuery = supabase
-        .from("attendance")
-        .select("student_id, status, late_minutes, remarks, check_in_at, check_out_at, scan_method")
-        .eq("class_id", selectedClassId)
-        .eq("date", date);
-
-      if (selectedCourseId) {
-        attendanceQuery = attendanceQuery.eq("course_id", selectedCourseId);
-      }
-
       const studentPromise = cachedStudents
         ? Promise.resolve({ data: cachedStudents, error: null })
         : supabase
@@ -263,10 +254,20 @@ export default function AdminAttendancePage() {
             .eq("is_active", true)
             .order("id");
 
+      let sessionQuery = supabase
+        .from("attendance_sessions")
+        .select("id")
+        .eq("class_id", selectedClassId)
+        .eq("session_date", date);
+
+      sessionQuery = selectedCourseId
+        ? sessionQuery.eq("course_id", selectedCourseId)
+        : sessionQuery.is("course_id", null);
+
       const [
         { data: studentData, error: studentError },
-        { data: existing, error: attendanceError },
-      ] = await Promise.all([studentPromise, attendanceQuery]);
+        { data: sessionData, error: sessionError },
+      ] = await Promise.all([studentPromise, sessionQuery.maybeSingle()]);
 
       if (requestId !== requestSequenceRef.current) {
         return;
@@ -274,6 +275,33 @@ export default function AdminAttendancePage() {
 
       if (studentError) {
         throw studentError;
+      }
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      let attendanceQuery = supabase
+        .from("attendance")
+        .select("session_id, student_id, status, late_minutes, remarks, check_in_at, check_out_at, scan_method");
+
+      if ((sessionData as { id?: string } | null)?.id) {
+        attendanceQuery = attendanceQuery.eq("session_id", sessionData.id);
+      } else {
+        attendanceQuery = attendanceQuery
+          .eq("class_id", selectedClassId)
+          .eq("date", date)
+          .is("session_id", null);
+
+        attendanceQuery = selectedCourseId
+          ? attendanceQuery.eq("course_id", selectedCourseId)
+          : attendanceQuery.is("course_id", null);
+      }
+
+      const { data: existing, error: attendanceError } = await attendanceQuery;
+
+      if (requestId !== requestSequenceRef.current) {
+        return;
       }
 
       if (attendanceError) {
@@ -293,6 +321,7 @@ export default function AdminAttendancePage() {
       const normalizedRecords = fetchedStudents.map((student) => {
         const found = existingMap.get(student.id);
         const fallback: AttendanceRecord = {
+          session_id: (sessionData as { id?: string } | null)?.id ?? null,
           student_id: student.id,
           status: "present",
           late_minutes: null,
@@ -397,7 +426,54 @@ export default function AdminAttendancePage() {
     setSaving(true);
     const supabase = createClient();
 
+    const sessionResponse = await fetch("/api/attendance/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classId: selectedClassId,
+        courseId: selectedCourseId || null,
+        date,
+      }),
+    });
+
+    const sessionJson = (await sessionResponse.json()) as {
+      session?: { id: string };
+      error?: string;
+    };
+
+    if (!sessionResponse.ok || !sessionJson.session?.id) {
+      setSaving(false);
+      setSaved(false);
+      setSaveError(sessionJson.error ?? "Failed to prepare attendance session");
+      return;
+    }
+
+    const sessionId = sessionJson.session.id;
+    const studentIds = records.map((record) => record.student_id);
+
+    let legacySyncQuery = supabase
+      .from("attendance")
+      .update({ session_id: sessionId })
+      .eq("class_id", selectedClassId)
+      .eq("date", date)
+      .is("session_id", null)
+      .in("student_id", studentIds);
+
+    legacySyncQuery = selectedCourseId
+      ? legacySyncQuery.eq("course_id", selectedCourseId)
+      : legacySyncQuery.is("course_id", null);
+
+    const { error: legacySyncError } = await legacySyncQuery;
+
+    if (legacySyncError) {
+      setSaving(false);
+      setSaved(false);
+      setSaveError(legacySyncError.message);
+      return;
+    }
+
     const rows = records.map((record) => ({
+      session_id: sessionId,
       student_id: record.student_id,
       class_id: selectedClassId,
       course_id: selectedCourseId || null,
@@ -410,7 +486,7 @@ export default function AdminAttendancePage() {
     }));
 
     const { error } = await supabase.from("attendance").upsert(rows, {
-      onConflict: "student_id,date",
+      onConflict: "student_id,session_id",
     });
 
     setSaving(false);
@@ -421,6 +497,12 @@ export default function AdminAttendancePage() {
     }
     setSaved(true);
     setEditingSaved(false);
+    setRecords((previous) =>
+      previous.map((record) => ({
+        ...record,
+        session_id: sessionId,
+      })),
+    );
   }
 
   const selectedCourse =

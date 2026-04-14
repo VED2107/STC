@@ -93,6 +93,7 @@ export interface Attendance {
   student_id: string;
   class_id: string;
   course_id: string | null;
+  session_id: string | null;
   date: string;
   status: AttendanceStatus;
   late_minutes: number | null;
@@ -144,7 +145,24 @@ export interface QrToken {
   id: string;
   student_id: string;
   token: string;
+  public_token?: string;
   created_at: string;
   /** Joined data */
   student?: Student;
+}
+
+export interface AttendanceSession {
+  id: string;
+  class_id: string;
+  course_id: string | null;
+  subject: string;
+  session_date: string;
+  is_active: boolean;
+  starts_at: string;
+  ends_at: string | null;
+  created_by: string;
+  created_at: string;
+  student?: Student;
+  class?: Class;
+  course?: Course | null;
 }

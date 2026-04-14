@@ -99,6 +99,22 @@ export async function POST(request: NextRequest) {
     const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
     const now = new Date().toISOString();
 
+    if (profile.role === "teacher") {
+      const { data: access } = await admin
+        .from("teacher_class_access")
+        .select("class_id")
+        .eq("teacher_profile_id", user.id)
+        .eq("class_id", classId)
+        .maybeSingle();
+
+      if (!access) {
+        return NextResponse.json(
+          { error: "You do not have access to this student's class" },
+          { status: 403 },
+        );
+      }
+    }
+
     // 5. Re-check attendance state (prevent race conditions)
     const { data: existing } = await admin
       .from("attendance")

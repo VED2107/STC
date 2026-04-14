@@ -100,6 +100,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const userId = user?.id ?? null;
   const fullNameForQr =
     profile?.full_name ||
     user?.user_metadata?.full_name ||
@@ -148,12 +149,11 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [area, profile?.role, user?.id]);
+  }, [area, profile?.role, user]);
 
   // ── Fetch QR token for tuition students ──
   useEffect(() => {
-    if (!isTuitionStudent || !user?.id) return;
+    if (!isTuitionStudent || !userId) return;
     let cancelled = false;
 
     async function fetchQrToken() {
@@ -162,25 +162,25 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
       const { data: student } = await supabase
         .from("students")
         .select("id")
-        .eq("profile_id", user!.id)
+        .eq("profile_id", userId)
         .maybeSingle();
 
       if (!student || cancelled) return;
 
       const { data: tokenRow } = await supabase
         .from("qr_tokens")
-        .select("token")
+        .select("public_token")
         .eq("student_id", (student as { id: string }).id)
         .maybeSingle();
 
       if (!cancelled) {
-        setQrToken((tokenRow as { token: string } | null)?.token ?? null);
+        setQrToken((tokenRow as { public_token: string } | null)?.public_token ?? null);
       }
     }
 
     void fetchQrToken();
     return () => { cancelled = true; };
-  }, [isTuitionStudent, user?.id]);
+  }, [isTuitionStudent, userId]);
 
   // ── Render QR code on canvas when dialog opens and token is available ──
   useEffect(() => {

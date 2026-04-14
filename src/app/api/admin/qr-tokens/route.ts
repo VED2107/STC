@@ -1,6 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+interface QrTokenRow {
+  id: string;
+  student_id: string;
+  token: string;
+  public_token: string | null;
+  created_at: string;
+}
+
+function buildPublicToken(id: string, rawToken: string) {
+  const signature = createHash("md5")
+    .update(`${id}.${rawToken}`)
+    .digest("hex");
+  return `${id}.${signature}`;
+}
+
+function createRawToken() {
+  return randomBytes(16).toString("hex");
+}
+
+async function ensurePublicToken(
+  admin: ReturnType<typeof createAdminClient>,
+  row: QrTokenRow,
+) {
+  if (row.public_token) {
+    return row.public_token;
+  }
+
+  const publicToken = buildPublicToken(row.id, row.token);
+
+  const { error } = await admin
+    .from("qr_tokens")
+    .update({ public_token: publicToken })
+    .eq("id", row.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return publicToken;
+}
 
 /**
  * GET /api/admin/qr-tokens
@@ -53,12 +95,30 @@ export async function GET(request: NextRequest) {
   }
 
   // Get all existing tokens
-  const { data: tokens } = await admin.from("qr_tokens").select("student_id, token, created_at");
+  const { data: tokens, error: tokensError } = await admin
+    .from("qr_tokens")
+    .select("id, student_id, token, public_token, created_at");
+
+  if (tokensError) {
+    return NextResponse.json(
+      { error: tokensError.message },
+      { status: 500 },
+    );
+  }
+
+  const repairedEntries = await Promise.all(
+    ((tokens as QrTokenRow[] | null) ?? []).map(async (tokenRow) => ({
+      student_id: tokenRow.student_id,
+      token: await ensurePublicToken(admin, tokenRow),
+      created_at: tokenRow.created_at,
+    })),
+  );
 
   const tokenMap = new Map(
-    ((tokens as Array<{ student_id: string; token: string; created_at: string }>) ?? []).map(
-      (t) => [t.student_id, { token: t.token, created_at: t.created_at }],
-    ),
+    repairedEntries.map((entry) => [
+      entry.student_id,
+      { token: entry.token, created_at: entry.created_at },
+    ]),
   );
 
   const result = ((students as unknown as Array<{
@@ -119,6 +179,7 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient();
+  const rawToken = createRawToken();
 
   // Verify student exists
   const { data: student } = await admin
@@ -139,8 +200,11 @@ export async function POST(request: NextRequest) {
 
   const { data: newToken, error: insertError } = await admin
     .from("qr_tokens")
-    .insert({ student_id: studentId })
-    .select("token, created_at")
+    .insert({
+      student_id: studentId,
+      token: rawToken,
+    })
+    .select("id, student_id, token, public_token, created_at")
     .single();
 
   if (insertError) {
@@ -150,10 +214,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const publicToken = await ensurePublicToken(admin, newToken as QrTokenRow);
+
   return NextResponse.json({
     student_id: studentId,
-    token: (newToken as { token: string; created_at: string }).token,
-    created_at: (newToken as { token: string; created_at: string }).created_at,
+    token: publicToken,
+    created_at: (newToken as QrTokenRow).created_at,
   });
 }
 
@@ -207,23 +273,38 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ generated: 0 });
   }
 
-  const { data: existingTokens } = await admin
+  const { data: existingTokens, error: existingTokensError } = await admin
     .from("qr_tokens")
-    .select("student_id")
+    .select("id, student_id, token, public_token, created_at")
     .in(
       "student_id",
       (students as Array<{ id: string }>).map((s) => s.id),
     );
 
+  if (existingTokensError) {
+    return NextResponse.json({ error: existingTokensError.message }, { status: 500 });
+  }
+
+  const existingRows = (existingTokens as QrTokenRow[] | null) ?? [];
+  const repairedRows = await Promise.all(
+    existingRows.map(async (row) => ({
+      ...row,
+      public_token: await ensurePublicToken(admin, row),
+    })),
+  );
+
   const existingSet = new Set(
-    ((existingTokens as Array<{ student_id: string }>) ?? []).map(
+    repairedRows.map(
       (t) => t.student_id,
     ),
   );
 
   const toInsert = (students as Array<{ id: string }>)
     .filter((s) => !existingSet.has(s.id))
-    .map((s) => ({ student_id: s.id }));
+    .map((s) => ({
+      student_id: s.id,
+      token: createRawToken(),
+    }));
 
   if (toInsert.length === 0) {
     return NextResponse.json({ generated: 0, message: "All students already have tokens" });

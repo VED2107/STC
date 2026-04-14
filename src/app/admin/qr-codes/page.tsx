@@ -132,7 +132,12 @@ export default function AdminQrCodesPage() {
       const data = (await res.json()) as {
         generated?: number;
         message?: string;
+        error?: string;
       };
+      if (!res.ok) {
+        setActionMessage(data.error ?? "Failed to generate QR codes");
+        return;
+      }
       setActionMessage(
         data.generated
           ? `Generated ${data.generated} new QR code${data.generated > 1 ? "s" : ""}`
@@ -151,11 +156,16 @@ export default function AdminQrCodesPage() {
     setActionMessage("");
     setConfirmRegenStudent(null);
     try {
-      await fetch("/api/admin/qr-tokens", {
+      const res = await fetch("/api/admin/qr-tokens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ student_id: studentId }),
       });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setActionMessage(data.error ?? "Failed to regenerate");
+        return;
+      }
       await fetchStudents();
       setActionMessage("QR code regenerated — old QR is now invalid");
     } catch {

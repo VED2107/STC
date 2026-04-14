@@ -1,23 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  AlertTriangle,
   ArrowLeft,
   Camera,
-  CheckCircle2,
   Loader2,
-  LogIn,
-  LogOut,
-  AlertTriangle,
   QrCode,
-  X,
-  Clock,
-  ShieldAlert,
-  Zap,
+  RefreshCw,
+  ScanLine,
   User,
+  XCircle,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   StitchSectionHeader,
   stitchButtonClass,
@@ -26,461 +31,310 @@ import {
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
+import type { Class } from "@/lib/types/database";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+const QRScannerWidget = dynamic(() => import("@/components/qr-scanner"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-[250px] items-center justify-center rounded-xl bg-black/50">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  ),
+});
 
-interface LookupResult {
-  action: "check-in" | "check-out" | "already-completed" | "too-early";
-  studentId: string;
-  studentName: string;
-  studentPhoto: string | null;
+interface CourseForScanner {
+  id: string;
+  title: string;
+  subject: string;
+  class_id: string;
+}
+
+interface AttendanceSession {
+  id: string;
+  classId: string;
+  courseId: string | null;
+  subject: string;
+  sessionDate: string;
+  isActive: boolean;
   className: string;
+  courseTitle: string | null;
+}
+
+interface ScanResult {
+  status: "checked_in" | "checked_out" | "already_done";
+  studentName: string;
+  className: string;
+  subject: string;
+  sessionDate: string;
   checkInAt: string | null;
   checkOutAt: string | null;
-  remainingMinutes?: number;
-  minDuration?: number;
-  existingManual?: boolean;
   message: string;
 }
 
-interface ScanHistoryEntry {
-  action: "check-in" | "check-out" | "already-completed" | "too-early" | "error";
-  studentName: string;
-  message: string;
+interface ScanHistoryEntry extends ScanResult {
   timestamp: number;
-  checkInAt?: string;
-  checkOutAt?: string;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Feedback helpers                                                   */
-/* ------------------------------------------------------------------ */
+function formatClock(value: string | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+}
 
-function playSound(type: "success-in" | "success-out" | "error" | "warning") {
+function playFeedback(status: ScanResult["status"]) {
   try {
     const ctx = new AudioContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-    gain.gain.value = 0.15;
+    gain.gain.value = 0.12;
 
-    switch (type) {
-      case "success-in":
-        osc.frequency.value = 880;
-        osc.start();
-        osc.stop(ctx.currentTime + 0.15);
-        break;
-      case "success-out":
-        osc.frequency.value = 660;
-        osc.start();
-        osc.stop(ctx.currentTime + 0.1);
-        setTimeout(() => {
-          const osc2 = ctx.createOscillator();
-          const gain2 = ctx.createGain();
-          osc2.connect(gain2);
-          gain2.connect(ctx.destination);
-          gain2.gain.value = 0.15;
-          osc2.frequency.value = 880;
-          osc2.start();
-          osc2.stop(ctx.currentTime + 0.15);
-        }, 120);
-        break;
-      case "warning":
-        osc.frequency.value = 440;
-        osc.start();
-        osc.stop(ctx.currentTime + 0.25);
-        break;
-      case "error":
-        osc.frequency.value = 330;
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-        break;
+    if (status === "checked_in") {
+      osc.frequency.value = 860;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } else if (status === "checked_out") {
+      osc.frequency.value = 620;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } else {
+      osc.frequency.value = 360;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.24);
     }
   } catch {
-    // Audio not supported
+    // Ignore audio support issues.
   }
 }
-
-function vibrate(pattern: number | number[]) {
-  try {
-    navigator?.vibrate?.(pattern);
-  } catch {
-    // Vibration not supported
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 
 export default function QrScanPage() {
   const router = useRouter();
-  const { role, loading: authLoading } = useAuth();
+  const { role, loading: authLoading, user } = useAuth();
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [courses, setCourses] = useState<CourseForScanner[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState("general");
+  const [activeSession, setActiveSession] = useState<AttendanceSession | null>(null);
+  const [loadingSession, setLoadingSession] = useState(false);
+  const [scannerActive, setScannerActive] = useState(false);
+  const [scannerError, setScannerError] = useState("");
+  const [scanError, setScanError] = useState("");
+  const [latestResult, setLatestResult] = useState<ScanResult | null>(null);
+  const [history, setHistory] = useState<ScanHistoryEntry[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Scanner state
-  const [scanning, setScanning] = useState(false);
-  const [cameraError, setCameraError] = useState("");
+  const lastScanRef = useRef<{ token: string; at: number }>({ token: "", at: 0 });
 
-  // Native camera refs
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const rafIdRef = useRef<number>(0);
-
-  // Debounce
-  const lastScannedTokenRef = useRef<string>("");
-  const lastScanTimeRef = useRef<number>(0);
-
-  // Two-phase state
-  const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // Scan history
-  const [scanHistory, setScanHistory] = useState<ScanHistoryEntry[]>([]);
-
-  // Quick mode toggle
-  const [quickMode, setQuickMode] = useState(false);
-
-  // Redirect students
   useEffect(() => {
     if (!authLoading && role === "student") {
       router.push("/dashboard");
     }
-  }, [role, authLoading, router]);
+  }, [authLoading, role, router]);
 
-  /* ---- Confirm action ---- */
-  const confirmAction = useCallback(
-    async (result: LookupResult) => {
-      setConfirmLoading(true);
-      setError("");
+  useEffect(() => {
+    if (role !== "teacher" && role !== "admin") return;
+    const supabase = createClient();
 
-      try {
-        const res = await fetch("/api/attendance/qr-scan/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            studentId: result.studentId,
-            action: result.action,
-          }),
-        });
+    async function loadBaseData() {
+      if (role === "teacher" && user?.id) {
+        const { data: accessRows, error: accessError } = await supabase
+          .from("teacher_class_access")
+          .select("class_id")
+          .eq("teacher_profile_id", user.id);
 
-        const data = (await res.json()) as {
-          action?: string;
-          studentName?: string;
-          studentPhoto?: string | null;
-          checkInAt?: string;
-          checkOutAt?: string;
-          message?: string;
-          error?: string;
-        };
-
-        if (!res.ok) {
-          setError(data.error ?? "Confirmation failed");
-          playSound("error");
-          vibrate(300);
+        if (accessError) {
+          setScannerError("Unable to load your assigned classes.");
           return;
         }
 
-        const confirmedAction = data.action as ScanHistoryEntry["action"];
+        const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map(
+          (row) => row.class_id,
+        );
 
-        // Add to history
-        setScanHistory((prev) => [
-          {
-            action: confirmedAction,
-            studentName: data.studentName ?? result.studentName,
-            message: data.message ?? "",
-            timestamp: Date.now(),
-            checkInAt: data.checkInAt,
-            checkOutAt: data.checkOutAt,
-          },
-          ...prev.slice(0, 19),
-        ]);
-
-        // Feedback
-        if (confirmedAction === "check-in") {
-          playSound("success-in");
-          vibrate(100);
-        } else if (confirmedAction === "check-out") {
-          playSound("success-out");
-          vibrate([100, 50, 100]);
+        if (classIds.length === 0) {
+          setClasses([]);
+          setCourses([]);
+          return;
         }
 
-        // Clear the confirmation card
-        setLookupResult(null);
-      } catch {
-        setError("Network error — check your connection");
-        playSound("error");
-        vibrate(300);
-      } finally {
-        setConfirmLoading(false);
+        const [classesRes, coursesRes] = await Promise.all([
+          supabase.from("classes").select("*").in("id", classIds).order("sort_order"),
+          supabase
+            .from("courses")
+            .select("id, title, subject, class_id")
+            .in("class_id", classIds)
+            .order("title"),
+        ]);
+
+        if (classesRes.error || coursesRes.error) {
+          setScannerError("Unable to load scanner setup.");
+          return;
+        }
+
+        setClasses((classesRes.data as Class[] | null) ?? []);
+        setCourses((coursesRes.data as CourseForScanner[] | null) ?? []);
+        return;
       }
-    },
-    [],
+
+      const [classesRes, coursesRes] = await Promise.all([
+        supabase.from("classes").select("*").order("sort_order"),
+        supabase
+          .from("courses")
+          .select("id, title, subject, class_id")
+          .order("title"),
+      ]);
+
+      if (classesRes.error || coursesRes.error) {
+        setScannerError("Unable to load scanner setup.");
+        return;
+      }
+
+      setClasses((classesRes.data as Class[] | null) ?? []);
+      setCourses((coursesRes.data as CourseForScanner[] | null) ?? []);
+    }
+
+    void loadBaseData();
+  }, [role, user?.id]);
+
+  useEffect(() => {
+    if (!selectedClassId && classes.length > 0) {
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes, selectedClassId]);
+
+  const classCourses = useMemo(
+    () => courses.filter((course) => course.class_id === selectedClassId),
+    [courses, selectedClassId],
   );
 
-  /* ---- Process QR code ---- */
-  const processQrCode = useCallback(
-    async (decodedText: string) => {
-      // Block scans while confirmation dialog is open (unless quick mode)
-      if (lookupResult && !quickMode) return;
+  useEffect(() => {
+    const currentValueIsValid =
+      selectedCourseId === "general" ||
+      classCourses.some((course) => course.id === selectedCourseId);
 
-      // Debounce: ignore same token within 5 seconds
+    if (!currentValueIsValid) {
+      setSelectedCourseId("general");
+    }
+  }, [classCourses, selectedCourseId]);
+
+  const loadTodaySessions = useCallback(async () => {
+    const res = await fetch("/api/attendance/sessions");
+    const json = (await res.json()) as { data?: AttendanceSession[]; error?: string };
+
+    if (!res.ok) {
+      setScannerError(json.error ?? "Unable to load today’s sessions.");
+      return;
+    }
+
+    const sessions = json.data ?? [];
+    const desiredCourseId = selectedCourseId === "general" ? null : selectedCourseId;
+
+    const matched =
+      sessions.find(
+        (session) =>
+          session.classId === selectedClassId && session.courseId === desiredCourseId,
+      ) ?? null;
+
+    setActiveSession(matched);
+  }, [selectedClassId, selectedCourseId]);
+
+  useEffect(() => {
+    if (!selectedClassId) return;
+    void loadTodaySessions();
+  }, [loadTodaySessions, selectedClassId]);
+
+  const prepareSession = useCallback(async () => {
+    if (!selectedClassId) {
+      setScanError("Select a class before starting the scan session.");
+      return;
+    }
+
+    setLoadingSession(true);
+    setScanError("");
+    setScannerError("");
+
+    const res = await fetch("/api/attendance/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classId: selectedClassId,
+        courseId: selectedCourseId === "general" ? null : selectedCourseId,
+      }),
+    });
+
+    const json = (await res.json()) as { session?: AttendanceSession; error?: string };
+    setLoadingSession(false);
+
+    if (!res.ok || !json.session) {
+      setScanError(json.error ?? "Unable to prepare today’s attendance session.");
+      setActiveSession(null);
+      return;
+    }
+
+    setActiveSession(json.session);
+    setLatestResult(null);
+    setScanError("");
+  }, [selectedClassId, selectedCourseId]);
+
+  const processScan = useCallback(
+    async (decodedText: string) => {
+      if (!activeSession || submitting) return;
+
       const now = Date.now();
       if (
-        decodedText === lastScannedTokenRef.current &&
-        now - lastScanTimeRef.current < 5000
+        decodedText === lastScanRef.current.token &&
+        now - lastScanRef.current.at < 1500
       ) {
         return;
       }
-      lastScannedTokenRef.current = decodedText;
-      lastScanTimeRef.current = now;
 
-      // Extract token from URL or raw text
-      let token = decodedText.trim();
-      try {
-        const url = new URL(decodedText);
-        const paramToken = url.searchParams.get("t");
-        if (paramToken) token = paramToken;
-      } catch {
-        // Not a URL — use raw text as token
-      }
-
-      if (!token) return;
-
-      setLookupLoading(true);
-      setError("");
-      setLookupResult(null);
+      lastScanRef.current = { token: decodedText, at: now };
+      setSubmitting(true);
+      setScanError("");
 
       try {
         const res = await fetch("/api/attendance/qr-scan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
+          body: JSON.stringify({
+            token: decodedText.trim(),
+            sessionId: activeSession.id,
+          }),
         });
 
-        const data = (await res.json()) as LookupResult & { error?: string };
+        const json = (await res.json()) as
+          | ({ error?: string } & Partial<ScanResult>)
+          | ScanResult;
 
         if (!res.ok) {
-          setError(data.error ?? "Scan failed");
-          playSound("error");
-          vibrate(300);
-
-          // Log error to history
-          setScanHistory((prev) => [
-            {
-              action: "error",
-              studentName: "—",
-              message: data.error ?? "Scan failed",
-              timestamp: Date.now(),
-            },
-            ...prev.slice(0, 19),
-          ]);
+          setScanError(("error" in json && json.error) || "Scan failed.");
           return;
         }
 
-        // Handle non-actionable results
-        if (data.action === "already-completed") {
-          setLookupResult(data);
-          playSound("warning");
-          vibrate(200);
-
-          setScanHistory((prev) => [
-            {
-              action: "already-completed",
-              studentName: data.studentName,
-              message: data.message,
-              timestamp: Date.now(),
-              checkInAt: data.checkInAt ?? undefined,
-              checkOutAt: data.checkOutAt ?? undefined,
-            },
-            ...prev.slice(0, 19),
-          ]);
-          return;
-        }
-
-        if (data.action === "too-early") {
-          setLookupResult(data);
-          playSound("warning");
-          vibrate([100, 100, 100]);
-
-          setScanHistory((prev) => [
-            {
-              action: "too-early",
-              studentName: data.studentName,
-              message: data.message,
-              timestamp: Date.now(),
-              checkInAt: data.checkInAt ?? undefined,
-            },
-            ...prev.slice(0, 19),
-          ]);
-          return;
-        }
-
-        // Actionable: check-in or check-out
-        if (quickMode) {
-          // Skip confirmation — auto-confirm
-          await confirmAction(data);
-        } else {
-          // Show confirmation card
-          setLookupResult(data);
-          playSound("success-in");
-          vibrate(50);
-        }
+        const result = json as ScanResult;
+        setLatestResult(result);
+        setHistory((prev) => [{ ...result, timestamp: Date.now() }, ...prev.slice(0, 14)]);
+        playFeedback(result.status);
       } catch {
-        setError("Network error — check your connection");
-        playSound("error");
-        vibrate(300);
+        setScanError("Network error while marking attendance.");
       } finally {
-        setLookupLoading(false);
+        setSubmitting(false);
       }
     },
-    [lookupResult, quickMode, confirmAction],
+    [activeSession, submitting],
   );
 
-  /* ---- Scanner controls (native getUserMedia + jsQR) ---- */
+  const selectedClass = classes.find((item) => item.id === selectedClassId) ?? null;
+  const selectedCourse =
+    selectedCourseId === "general"
+      ? null
+      : classCourses.find((course) => course.id === selectedCourseId) ?? null;
 
-  const startScanner = useCallback(async () => {
-    setCameraError("");
-    setError("");
-
-    try {
-      // Request camera with constrained resolution (prevents OOM on mobile)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 640, max: 1280 },
-          height: { ideal: 480, max: 720 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = stream;
-
-      // Attach stream to video element
-      const video = videoRef.current;
-      if (!video) {
-        setCameraError("Video element not found. Please refresh the page.");
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-
-      video.srcObject = stream;
-      await video.play();
-
-      // Dynamically import jsQR (code-split — only loaded when scanner starts)
-      const jsQR = (await import("jsqr")).default;
-
-      // Create a hidden canvas for QR decoding
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        setCameraError("Canvas element not found. Please refresh the page.");
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) {
-        setCameraError("Canvas context unavailable.");
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-
-      setScanning(true);
-
-      // Frame scanning loop
-      const scanFrame = () => {
-        if (!streamRef.current) return; // stopped
-
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
-          });
-
-          if (code?.data) {
-            void processQrCode(code.data);
-          }
-        }
-
-        rafIdRef.current = requestAnimationFrame(scanFrame);
-      };
-
-      rafIdRef.current = requestAnimationFrame(scanFrame);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("Permission") || msg.includes("NotAllowed") || msg.includes("denied")) {
-        setCameraError(
-          "Camera access denied. Please allow camera permission in your browser settings and try again.",
-        );
-      } else if (msg.includes("NotFound") || msg.includes("DevicesNotFound")) {
-        setCameraError("No camera found on this device.");
-      } else if (msg.includes("NotReadableError") || msg.includes("Could not start")) {
-        setCameraError(
-          "Camera is in use by another app. Close other camera apps and try again.",
-        );
-      } else {
-        setCameraError(`Camera error: ${msg}`);
-      }
-    }
-  }, [processQrCode]);
-
-  const stopScanner = useCallback(() => {
-    // Stop animation frame loop
-    if (rafIdRef.current) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = 0;
-    }
-
-    // Stop camera stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    // Clear video
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-
-    setScanning(false);
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
-    };
-  }, []);
-
-  /* ---- Helpers ---- */
-  const formatTime = (iso?: string | null) => {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Kolkata",
-    });
-  };
-
-  const dismissLookup = () => {
-    setLookupResult(null);
-    setError("");
-  };
-
-  /* ---- Auth guard ---- */
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -493,7 +347,6 @@ export default function QrScanPage() {
     return null;
   }
 
-  /* ---- Render ---- */
   return (
     <div className="px-4 py-6 md:px-10 md:py-8">
       <div className="mb-6">
@@ -509,67 +362,157 @@ export default function QrScanPage() {
 
       <StitchSectionHeader
         eyebrow="QR Attendance"
-        title="Scan Student QR"
-        description="Point the camera at a student's QR code. Verify student details, then confirm attendance."
+        title="Instant Attendance Scanner"
+        description="Open today’s session, point the camera at a student QR, and mark check-in or check-out immediately."
       />
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        {/* Scanner column */}
         <div className="space-y-6">
-          {/* Scanner viewport */}
+          <div className={stitchPanelClass}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Select
+                value={selectedClassId}
+                onValueChange={(value) => setSelectedClassId(value ?? "")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a class">
+                    {selectedClass ? `${selectedClass.name} (${selectedClass.board})` : undefined}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name} ({item.board})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={selectedCourseId}
+                onValueChange={(value) => setSelectedCourseId(value ?? "general")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose subject">
+                    {selectedCourse ? `${selectedCourse.title} (${selectedCourse.subject})` : "General Attendance"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="general">General Attendance</SelectItem>
+                  {classCourses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.title} ({course.subject})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className={cn(stitchButtonClass, "gap-2")}
+                onClick={() => void prepareSession()}
+                disabled={loadingSession || !selectedClassId}
+              >
+                {loadingSession ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ScanLine className="h-4 w-4" />
+                )}
+                {activeSession ? "Refresh Session" : "Open Today’s Session"}
+              </button>
+
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "gap-2")}
+                onClick={() => void loadTodaySessions()}
+                disabled={!selectedClassId}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Reload Active Session
+              </button>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-border/40 bg-muted/20 px-4 py-4">
+              {activeSession ? (
+                <div className="space-y-1.5 text-sm">
+                  <p className="text-foreground">
+                    Session: <span className="font-medium">{activeSession.subject}</span>
+                  </p>
+                  <p className="text-muted-foreground">
+                    Batch: {activeSession.className}
+                    {activeSession.courseTitle ? ` • ${activeSession.courseTitle}` : ""}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Date: {new Date(activeSession.sessionDate).toLocaleDateString("en-IN")}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No active session is ready yet. Open today’s session before scanning.
+                </p>
+              )}
+            </div>
+
+            {scanError && (
+              <div className="mt-4 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <p className="text-sm text-destructive">{scanError}</p>
+              </div>
+            )}
+          </div>
+
           <div className={cn(stitchPanelClass, "overflow-hidden")}>
             <div
               className={cn(
                 "relative mx-auto w-full max-w-sm overflow-hidden rounded-xl bg-black/50",
-                !scanning && "flex min-h-[280px] items-center justify-center",
+                !scannerActive && "flex min-h-[280px] items-center justify-center",
               )}
             >
-              {/* Native video element — always in DOM so ref is ready */}
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                autoPlay
-                className={cn(
-                  "w-full rounded-xl",
-                  !scanning && "hidden",
-                )}
-                style={{ maxHeight: "60vh", objectFit: "cover" }}
-              />
-
-              {/* Hidden canvas for QR decoding */}
-              <canvas ref={canvasRef} className="hidden" />
-
-              {/* Scan region overlay */}
-              {scanning && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="h-48 w-48 rounded-2xl border-2 border-primary/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.3)]" />
-                </div>
-              )}
-
-              {!scanning && (
+              {scannerActive ? (
+                <QRScannerWidget
+                  onScan={(text: string) => void processScan(text)}
+                  onError={(message: string) => {
+                    setScannerError(message);
+                    setScannerActive(false);
+                  }}
+                />
+              ) : (
                 <div className="flex flex-col items-center gap-4 p-8 text-center">
                   <QrCode className="h-16 w-16 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">
-                    Camera is off. Tap the button below to start scanning.
+                    {activeSession
+                      ? "Camera is off. Start scanning when the student QR is ready."
+                      : "Prepare today’s attendance session before turning the camera on."}
                   </p>
+                </div>
+              )}
+
+              {scannerActive && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="h-56 w-56 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.18)]" />
                 </div>
               )}
             </div>
 
-            {cameraError && (
+            {scannerError && (
               <div className="mt-4 flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                <p className="text-sm text-destructive">{cameraError}</p>
+                <p className="text-sm text-destructive">{scannerError}</p>
               </div>
             )}
 
-            <div className="mt-5 flex items-center gap-3">
-              {!scanning ? (
+            <div className="mt-5">
+              {!scannerActive ? (
                 <button
                   type="button"
                   className={cn(stitchButtonClass, "w-full gap-2")}
-                  onClick={() => void startScanner()}
+                  disabled={!activeSession}
+                  onClick={() => {
+                    setScannerError("");
+                    setScannerActive(true);
+                  }}
                 >
                   <Camera className="h-4 w-4" />
                   Start Camera
@@ -578,368 +521,139 @@ export default function QrScanPage() {
                 <button
                   type="button"
                   className={cn(stitchSecondaryButtonClass, "w-full gap-2")}
-                  onClick={() => stopScanner()}
+                  onClick={() => setScannerActive(false)}
                 >
                   Stop Camera
                 </button>
               )}
             </div>
 
-            {/* Quick mode toggle */}
-            <div className="mt-4 flex items-center justify-between rounded-xl border border-border/40 bg-muted/20 px-4 py-3">
-              <div className="flex items-center gap-2.5">
-                <Zap className={cn("h-4 w-4", quickMode ? "text-amber-500" : "text-muted-foreground")} />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Quick Mode</p>
-                  <p className="text-xs text-muted-foreground">Skip confirmation step</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={quickMode}
-                onClick={() => setQuickMode(!quickMode)}
-                className={cn(
-                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                  quickMode ? "bg-amber-500" : "bg-muted-foreground/30",
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
-                    quickMode ? "translate-x-5" : "translate-x-0",
-                  )}
-                />
-              </button>
-            </div>
-
-            {lookupLoading && (
+            {submitting && (
               <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Looking up student…
+                Recording attendance…
               </div>
             )}
           </div>
 
-          {/* ---- Confirmation card ---- */}
-          {lookupResult && (
+          {latestResult && (
             <div
               className={cn(
                 stitchPanelClass,
-                "border-2 transition-all animate-in fade-in slide-in-from-bottom-2 duration-200",
-                lookupResult.action === "check-in" &&
-                  "border-primary/40 bg-primary/5",
-                lookupResult.action === "check-out" &&
-                  "border-blue-500/40 bg-blue-500/5",
-                lookupResult.action === "already-completed" &&
-                  "border-yellow-500/40 bg-yellow-500/5",
-                lookupResult.action === "too-early" &&
-                  "border-orange-500/40 bg-orange-500/5",
+                latestResult.status === "checked_in" && "border-primary/30 bg-primary/5",
+                latestResult.status === "checked_out" && "border-blue-500/30 bg-blue-500/5",
+                latestResult.status === "already_done" && "border-amber-500/30 bg-amber-500/5",
               )}
             >
-              {/* Dismiss button */}
-              <button
-                type="button"
-                onClick={dismissLookup}
-                className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              {/* Student info */}
               <div className="flex items-start gap-4">
-                {/* Avatar */}
-                {lookupResult.studentPhoto ? (
-                  <img
-                    src={lookupResult.studentPhoto}
-                    alt={lookupResult.studentName}
-                    className="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-border/50"
-                  />
-                ) : (
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-muted/50 ring-2 ring-border/50">
-                    <User className="h-7 w-7 text-muted-foreground/60" />
-                  </div>
-                )}
-
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-background/60">
+                  <User className="h-6 w-6 text-muted-foreground" />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-2xl font-semibold text-foreground">
-                    {lookupResult.studentName}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {lookupResult.className}
-                  </p>
-
-                  {/* Status badge */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {lookupResult.action === "check-in" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-                        <LogIn className="h-3 w-3" />
-                        Ready for Check-In
-                      </span>
-                    )}
-                    {lookupResult.action === "check-out" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-500">
-                        <LogOut className="h-3 w-3" />
-                        Ready for Check-Out
-                      </span>
-                    )}
-                    {lookupResult.action === "already-completed" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-yellow-600">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Already Completed
-                      </span>
-                    )}
-                    {lookupResult.action === "too-early" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-600">
-                        <Clock className="h-3 w-3" />
-                        Too Early
-                      </span>
-                    )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-2xl text-foreground">{latestResult.studentName}</h3>
+                    <span
+                      className={cn(
+                        "rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
+                        latestResult.status === "checked_in" && "bg-primary/10 text-primary",
+                        latestResult.status === "checked_out" && "bg-blue-500/10 text-blue-500",
+                        latestResult.status === "already_done" && "bg-amber-500/10 text-amber-600",
+                      )}
+                    >
+                      {latestResult.status === "checked_in" && "Checked In"}
+                      {latestResult.status === "checked_out" && "Checked Out"}
+                      {latestResult.status === "already_done" && "Already Done"}
+                    </span>
                   </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {latestResult.className} • {latestResult.subject}
+                  </p>
+                  <p className="mt-3 text-sm text-foreground">{latestResult.message}</p>
                 </div>
               </div>
 
-              {/* Times */}
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-lg bg-background/60 px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Check-In
-                  </p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Check-In</p>
                   <p className="mt-1 text-lg font-semibold text-foreground">
-                    {formatTime(lookupResult.checkInAt)}
+                    {formatClock(latestResult.checkInAt)}
                   </p>
                 </div>
                 <div className="rounded-lg bg-background/60 px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Check-Out
-                  </p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Check-Out</p>
                   <p className="mt-1 text-lg font-semibold text-foreground">
-                    {formatTime(lookupResult.checkOutAt)}
+                    {formatClock(latestResult.checkOutAt)}
                   </p>
                 </div>
-              </div>
-
-              {/* Too-early detail */}
-              {lookupResult.action === "too-early" &&
-                lookupResult.remainingMinutes != null && (
-                  <div className="mt-4 flex items-start gap-3 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3">
-                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
-                    <p className="text-sm text-orange-700 dark:text-orange-400">
-                      Minimum session duration is{" "}
-                      {lookupResult.minDuration ?? 30} minutes.{" "}
-                      <strong>
-                        {lookupResult.remainingMinutes} minute
-                        {lookupResult.remainingMinutes !== 1 ? "s" : ""}{" "}
-                        remaining.
-                      </strong>
-                    </p>
-                  </div>
-                )}
-
-              {/* Already-completed detail */}
-              {lookupResult.action === "already-completed" && (
-                <div className="mt-4 flex items-start gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
-                  <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                    {lookupResult.studentName} has already completed attendance
-                    for today. No further scans allowed.
-                  </p>
-                </div>
-              )}
-
-              {/* Message */}
-              <p className="mt-4 text-sm text-muted-foreground">
-                {lookupResult.message}
-              </p>
-
-              {/* Action buttons */}
-              {(lookupResult.action === "check-in" ||
-                lookupResult.action === "check-out") && (
-                <div className="mt-6 flex gap-3">
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex-1 gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold transition hover:-translate-y-0.5",
-                      lookupResult.action === "check-in"
-                        ? "bg-primary text-primary-foreground hover:brightness-105"
-                        : "bg-blue-600 text-white hover:brightness-105",
-                    )}
-                    onClick={() => void confirmAction(lookupResult)}
-                    disabled={confirmLoading}
-                  >
-                    {confirmLoading ? (
-                      <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                    ) : lookupResult.action === "check-in" ? (
-                      <span className="inline-flex items-center gap-2">
-                        <LogIn className="h-4 w-4" />
-                        Confirm Check-In
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2">
-                        <LogOut className="h-4 w-4" />
-                        Confirm Check-Out
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      stitchSecondaryButtonClass,
-                      "gap-2",
-                    )}
-                    onClick={dismissLookup}
-                    disabled={confirmLoading}
-                  >
-                    <X className="h-4 w-4" />
-                    Cancel
-                  </button>
-                </div>
-              )}
-
-              {/* Dismiss for non-actionable */}
-              {(lookupResult.action === "already-completed" ||
-                lookupResult.action === "too-early") && (
-                <div className="mt-6">
-                  <button
-                    type="button"
-                    className={cn(stitchSecondaryButtonClass, "w-full gap-2")}
-                    onClick={dismissLookup}
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ---- Error banner ---- */}
-          {error && !lookupResult && (
-            <div
-              className={cn(
-                stitchPanelSoftClass,
-                "flex items-start gap-3 border-destructive/30 bg-destructive/5",
-              )}
-            >
-              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-              <div>
-                <p className="font-medium text-destructive">Scan Error</p>
-                <p className="mt-1 text-sm text-destructive/80">{error}</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* ---- Recent scans sidebar ---- */}
-        <div className={cn(stitchPanelClass, "xl:block hidden")}>
-          <h3 className="text-3xl text-foreground">Recent Scans</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {scanHistory.length === 0
-              ? "No scans yet. Start the camera and scan a student QR code."
-              : `${scanHistory.length} scan${scanHistory.length > 1 ? "s" : ""} this session`}
-          </p>
-
-          {scanHistory.length > 0 && (
-            <div className="mt-5 max-h-[60vh] space-y-3 overflow-y-auto">
-              {scanHistory.map((entry, i) => (
-                <div
-                  key={`${entry.timestamp}-${i}`}
-                  className={cn(
-                    stitchPanelSoftClass,
-                    "flex items-center justify-between gap-3",
-                  )}
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-foreground">
-                      {entry.studentName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(entry.timestamp).toLocaleTimeString("en-IN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                        hour12: true,
-                      })}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
-                      entry.action === "check-in" &&
-                        "bg-primary/10 text-primary",
-                      entry.action === "check-out" &&
-                        "bg-blue-500/10 text-blue-500",
-                      entry.action === "already-completed" &&
-                        "bg-yellow-500/10 text-yellow-500",
-                      entry.action === "too-early" &&
-                        "bg-orange-500/10 text-orange-500",
-                      entry.action === "error" &&
-                        "bg-destructive/10 text-destructive",
-                    )}
-                  >
-                    {entry.action === "check-in" && "IN"}
-                    {entry.action === "check-out" && "OUT"}
-                    {entry.action === "already-completed" && "DONE"}
-                    {entry.action === "too-early" && "EARLY"}
-                    {entry.action === "error" && "ERR"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Mobile recent scans (below scanner) */}
-        <div className={cn(stitchPanelClass, "xl:hidden")}>
-          <h3 className="text-2xl text-foreground">Recent Scans</h3>
-          {scanHistory.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              No scans yet.
+        <div className="space-y-6">
+          <div className={stitchPanelClass}>
+            <h3 className="text-3xl text-foreground">Today’s Session</h3>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Only today’s active session accepts scans. Teachers are limited to their assigned class and subject.
             </p>
-          ) : (
-            <div className="mt-4 max-h-[40vh] space-y-2 overflow-y-auto">
-              {scanHistory.slice(0, 10).map((entry, i) => (
-                <div
-                  key={`m-${entry.timestamp}-${i}`}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-muted/20 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-foreground">
-                      {entry.studentName}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {new Date(entry.timestamp).toLocaleTimeString("en-IN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wider",
-                      entry.action === "check-in" &&
-                        "bg-primary/10 text-primary",
-                      entry.action === "check-out" &&
-                        "bg-blue-500/10 text-blue-500",
-                      entry.action === "already-completed" &&
-                        "bg-yellow-500/10 text-yellow-500",
-                      entry.action === "too-early" &&
-                        "bg-orange-500/10 text-orange-500",
-                      entry.action === "error" &&
-                        "bg-destructive/10 text-destructive",
-                    )}
-                  >
-                    {entry.action === "check-in" && "IN"}
-                    {entry.action === "check-out" && "OUT"}
-                    {entry.action === "already-completed" && "DONE"}
-                    {entry.action === "too-early" && "EARLY"}
-                    {entry.action === "error" && "ERR"}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-5 space-y-3 text-sm text-muted-foreground">
+              <p>Class: <span className="text-foreground">{activeSession?.className ?? "Not prepared"}</span></p>
+              <p>Subject: <span className="text-foreground">{activeSession?.subject ?? "Not prepared"}</span></p>
+              <p>Date: <span className="text-foreground">{activeSession ? new Date(activeSession.sessionDate).toLocaleDateString("en-IN") : "Not prepared"}</span></p>
             </div>
-          )}
+          </div>
+
+          <div className={stitchPanelClass}>
+            <h3 className="text-3xl text-foreground">Recent Scans</h3>
+            {history.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No scans yet. Open a session and start the camera to begin.
+              </p>
+            ) : (
+              <div className="mt-4 max-h-[60vh] space-y-3 overflow-y-auto">
+                {history.map((entry, index) => (
+                  <div key={`${entry.timestamp}-${index}`} className={stitchPanelSoftClass}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-foreground">{entry.studentName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(entry.timestamp).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            hour12: true,
+                          })}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
+                          entry.status === "checked_in" && "bg-primary/10 text-primary",
+                          entry.status === "checked_out" && "bg-blue-500/10 text-blue-500",
+                          entry.status === "already_done" && "bg-amber-500/10 text-amber-600",
+                        )}
+                      >
+                        {entry.status === "checked_in" && "IN"}
+                        {entry.status === "checked_out" && "OUT"}
+                        {entry.status === "already_done" && "DONE"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">{entry.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className={stitchPanelClass}>
+            <h3 className="text-3xl text-foreground">Scan Rules</h3>
+            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <p>First scan marks check-in.</p>
+              <p>Second scan marks check-out.</p>
+              <p>Third scan is rejected as already done.</p>
+              <p>Scans are debounced and session-limited for the current day only.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
