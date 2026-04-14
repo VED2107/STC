@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { sendCheckInMessage, sendCheckoutMessage } from "@/lib/whatsapp";
 
 interface MarkAttendanceRpcRow {
   status: "checked_in" | "checked_out" | "already_done";
@@ -78,6 +80,41 @@ export async function POST(request: NextRequest) {
         { error: "Attendance could not be recorded" },
         { status: 500 },
       );
+    }
+
+    if (row.status === "checked_in" || row.status === "checked_out") {
+      const admin = createAdminClient();
+      const { data: student } = await admin
+        .from("students")
+        .select("id, profile:profiles(phone, parent_phone)")
+        .eq("id", row.student_id)
+        .maybeSingle();
+
+      const profile = (student?.profile as
+        | Array<{ phone: string | null; parent_phone: string | null }>
+        | null)?.[0];
+      const parentPhone = profile?.parent_phone || profile?.phone || "";
+
+      const canSendCheckIn = row.status === "checked_in" && Boolean(row.check_in_at);
+      const canSendCheckOut =
+        row.status === "checked_out" &&
+        Boolean(row.check_in_at) &&
+        Boolean(row.check_out_at);
+
+      if (parentPhone && (canSendCheckIn || canSendCheckOut)) {
+        const sendPromise = canSendCheckIn
+          ? sendCheckInMessage(parentPhone, row.student_name, row.check_in_at as string)
+          : sendCheckoutMessage(
+              parentPhone,
+              row.student_name,
+              row.check_in_at as string,
+              row.check_out_at as string,
+            );
+
+        void sendPromise.catch((sendError) => {
+          console.error("[QR Scan] Parent WhatsApp failed:", sendError);
+        });
+      }
     }
 
     return NextResponse.json({
