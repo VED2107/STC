@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -11,6 +11,7 @@ import {
   Camera,
   Loader2,
   QrCode,
+  CheckCircle2,
   RefreshCw,
   ScanLine,
   User,
@@ -127,6 +128,7 @@ export default function QrScanPage() {
   const [latestResult, setLatestResult] = useState<ScanResult | null>(null);
   const [history, setHistory] = useState<ScanHistoryEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmResult, setConfirmResult] = useState<ScanResult | null>(null);
 
   const lastScanRef = useRef<{ token: string; at: number }>({ token: "", at: 0 });
 
@@ -281,14 +283,17 @@ export default function QrScanPage() {
     setScanError("");
   }, [selectedClassId, selectedCourseId]);
 
+  /** Ignore re-reads of the exact same QR token within this window (ms). */
+  const SAME_TOKEN_DEBOUNCE_MS = 5000;
+
   const processScan = useCallback(
     async (decodedText: string) => {
-      if (!activeSession || submitting) return;
+      if (!activeSession || submitting || confirmResult) return;
 
       const now = Date.now();
       if (
         decodedText === lastScanRef.current.token &&
-        now - lastScanRef.current.at < 1500
+        now - lastScanRef.current.at < SAME_TOKEN_DEBOUNCE_MS
       ) {
         return;
       }
@@ -320,13 +325,19 @@ export default function QrScanPage() {
         setLatestResult(result);
         setHistory((prev) => [{ ...result, timestamp: Date.now() }, ...prev.slice(0, 14)]);
         playFeedback(result.status);
+
+        // ── Show confirmation popup so teacher must acknowledge before
+        //    the next scan can be processed. Camera stays on. ──
+        if (result.status === "checked_in" || result.status === "checked_out") {
+          setConfirmResult(result);
+        }
       } catch {
         setScanError("Network error while marking attendance.");
       } finally {
         setSubmitting(false);
       }
     },
-    [activeSession, submitting],
+    [activeSession, submitting, confirmResult],
   );
 
   const selectedClass = classes.find((item) => item.id === selectedClassId) ?? null;
@@ -587,6 +598,88 @@ export default function QrScanPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ── Confirmation Popup ── */}
+          {confirmResult && (
+            <Fragment>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+                onClick={() => setConfirmResult(null)}
+              />
+              {/* Dialog */}
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div
+                  className={cn(
+                    "w-full max-w-md rounded-2xl border bg-background p-6 shadow-2xl",
+                    confirmResult.status === "checked_in" && "border-primary/30",
+                    confirmResult.status === "checked_out" && "border-blue-500/30",
+                  )}
+                >
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <div
+                      className={cn(
+                        "flex h-16 w-16 items-center justify-center rounded-full",
+                        confirmResult.status === "checked_in" && "bg-primary/10",
+                        confirmResult.status === "checked_out" && "bg-blue-500/10",
+                      )}
+                    >
+                      <CheckCircle2
+                        className={cn(
+                          "h-8 w-8",
+                          confirmResult.status === "checked_in" && "text-primary",
+                          confirmResult.status === "checked_out" && "text-blue-500",
+                        )}
+                      />
+                    </div>
+
+                    <h3 className="text-xl font-semibold text-foreground">
+                      {confirmResult.studentName}
+                    </h3>
+
+                    <span
+                      className={cn(
+                        "rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-widest",
+                        confirmResult.status === "checked_in" && "bg-primary/10 text-primary",
+                        confirmResult.status === "checked_out" && "bg-blue-500/10 text-blue-500",
+                      )}
+                    >
+                      {confirmResult.status === "checked_in" ? "Checked In" : "Checked Out"}
+                    </span>
+
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {confirmResult.className} • {confirmResult.subject}
+                    </p>
+
+                    <div className="mt-2 grid w-full grid-cols-2 gap-3">
+                      <div className="rounded-lg bg-muted/30 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Check-In</p>
+                        <p className="mt-0.5 text-base font-semibold text-foreground">
+                          {formatClock(confirmResult.checkInAt)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-muted/30 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Check-Out</p>
+                        <p className="mt-0.5 text-base font-semibold text-foreground">
+                          {formatClock(confirmResult.checkOutAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-1 text-sm text-foreground">{confirmResult.message}</p>
+
+                    <button
+                      type="button"
+                      className={cn(stitchButtonClass, "mt-3 w-full gap-2")}
+                      onClick={() => setConfirmResult(null)}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Fragment>
           )}
         </div>
 
