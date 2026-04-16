@@ -22,26 +22,30 @@ function createRawToken() {
   return randomBytes(16).toString("hex");
 }
 
+function needsPublicTokenRepair(row: QrTokenRow) {
+  return row.public_token !== buildPublicToken(row.id, row.token);
+}
+
 async function ensurePublicToken(
   admin: ReturnType<typeof createAdminClient>,
   row: QrTokenRow,
 ) {
-  if (row.public_token) {
-    return row.public_token;
-  }
+  const expectedPublicToken = buildPublicToken(row.id, row.token);
 
-  const publicToken = buildPublicToken(row.id, row.token);
+  if (!needsPublicTokenRepair(row)) {
+    return expectedPublicToken;
+  }
 
   const { error } = await admin
     .from("qr_tokens")
-    .update({ public_token: publicToken })
+    .update({ public_token: expectedPublicToken })
     .eq("id", row.id);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return publicToken;
+  return expectedPublicToken;
 }
 
 /**
@@ -195,8 +199,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Delete existing token if any, then insert a new one
-  await admin.from("qr_tokens").delete().eq("student_id", studentId);
+  // Delete the previous QR row first so the old QR is immediately invalid.
+  const { error: deleteError } = await admin
+    .from("qr_tokens")
+    .delete()
+    .eq("student_id", studentId);
+
+  if (deleteError) {
+    return NextResponse.json(
+      { error: deleteError.message },
+      { status: 500 },
+    );
+  }
 
   const { data: newToken, error: insertError } = await admin
     .from("qr_tokens")

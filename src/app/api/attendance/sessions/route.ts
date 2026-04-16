@@ -9,11 +9,25 @@ interface SessionRow {
   subject: string;
   session_date: string;
   is_active: boolean;
-  class: { name: string }[] | null;
-  course: { title: string; subject: string }[] | null;
+  class: { name: string } | { name: string }[] | null;
+  course:
+    | { title: string; subject: string }
+    | { title: string; subject: string }[]
+    | null;
+}
+
+function unwrapRelation<T>(value: T | T[] | null | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
 }
 
 function serializeSession(row: SessionRow) {
+  const classRow = unwrapRelation(row.class);
+  const courseRow = unwrapRelation(row.course);
+
   return {
     id: row.id,
     classId: row.class_id,
@@ -21,8 +35,8 @@ function serializeSession(row: SessionRow) {
     subject: row.subject,
     sessionDate: row.session_date,
     isActive: row.is_active,
-    className: row.class?.[0]?.name ?? "Unknown class",
-    courseTitle: row.course?.[0]?.title ?? null,
+    className: classRow?.name ?? "Unknown class",
+    courseTitle: courseRow?.title ?? null,
   };
 }
 
