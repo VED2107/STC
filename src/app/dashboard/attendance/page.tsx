@@ -47,9 +47,10 @@ interface StudentAccessRow {
   student_type: "tuition" | "online";
 }
 
+const supabase = createClient();
+
 export default function StudentAttendancePage() {
   const router = useRouter();
-  const supabase = createClient();
   const { user, loading: authLoading } = useAuth();
   const [records, setRecords] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +97,7 @@ export default function StudentAttendancePage() {
     setRecords(rows);
     setStats({ total: rows.length, present, absent: rows.length - present });
     setLoading(false);
-  }, [authLoading, router, supabase, user]);
+  }, [authLoading, router, user]);
 
   useEffect(() => {
     void fetchAttendance();

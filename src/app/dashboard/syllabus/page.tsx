@@ -32,9 +32,10 @@ interface StudentAccessRow {
   student_type: "tuition" | "online";
 }
 
+const supabase = createClient();
+
 export default function StudentSyllabusPage() {
   const router = useRouter();
-  const supabase = createClient();
   const { user, loading: authLoading } = useAuth();
   const [syllabi, setSyllabi] = useState<SyllabusRow[]>([]);
   const [className, setClassName] = useState("");
@@ -103,7 +104,7 @@ export default function StudentSyllabusPage() {
     setSyllabi(rows);
     setClassName(rows[0]?.class?.name ?? "");
     setLoading(false);
-  }, [authLoading, router, supabase, user]);
+  }, [authLoading, router, user]);
 
   useEffect(() => {
     void fetchSyllabi();

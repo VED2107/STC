@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GripVertical, Loader2, Upload } from "lucide-react";
+import { ExternalLink, GripVertical, Link2, Loader2, Upload } from "lucide-react";
 import type { Class, Course, Material, MaterialType } from "@/lib/types/database";
 import {
   StitchSectionHeader,
@@ -27,6 +27,8 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
+
+const supabase = createClient();
 
 function AdminMaterialsPageInner() {
   const router = useRouter();
@@ -43,6 +45,8 @@ function AdminMaterialsPageInner() {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<MaterialType>("pdf");
   const [fileUrl, setFileUrl] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [uploadMethod, setUploadMethod] = useState<"file" | "link">("file");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -59,6 +63,8 @@ function AdminMaterialsPageInner() {
     if (!nextOpen) {
       setUploadError("");
       setActionError("");
+      setUploadMethod("file");
+      setLinkUrl("");
       if (searchParams?.get("create") === "1") {
         router.replace(pathname, { scroll: false });
       }
@@ -72,7 +78,6 @@ function AdminMaterialsPageInner() {
     }
 
     if (role !== "admin" && role !== "teacher") return;
-    const supabase = createClient();
 
     async function loadClasses() {
       if (role === "teacher" && user?.id) {
@@ -128,7 +133,6 @@ function AdminMaterialsPageInner() {
       setSelectedCourseId("");
       return;
     }
-    const supabase = createClient();
     supabase
       .from("courses")
       .select("*")
@@ -151,7 +155,6 @@ function AdminMaterialsPageInner() {
       return;
     }
     setLoading(true);
-    const supabase = createClient();
     const { data } = await supabase
       .from("materials")
       .select("*")
@@ -191,7 +194,6 @@ function AdminMaterialsPageInner() {
     if (!file) return;
     setUploadError("");
     setUploading(true);
-    const supabase = createClient();
     const safeName = sanitizeUploadFileName(file.name);
     const filePath = `materials/${Date.now()}-${safeName}`;
     const contentType = resolveUploadContentType(file, "application/octet-stream");
@@ -213,14 +215,15 @@ function AdminMaterialsPageInner() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!fileUrl || !selectedCourseId || !selectedClassId) return;
-    const supabase = createClient();
+    const resolvedUrl = uploadMethod === "link" ? linkUrl : fileUrl;
+    const resolvedType = uploadMethod === "link" ? "link" as MaterialType : type;
+    if (!resolvedUrl || !selectedCourseId || !selectedClassId) return;
     const { error } = await supabase.from("materials").insert({
       title,
       course_id: selectedCourseId,
       class_id: selectedClassId,
-      type,
-      file_url: fileUrl,
+      type: resolvedType,
+      file_url: resolvedUrl,
       sort_order: materials.length,
     });
     if (error) {
@@ -231,14 +234,15 @@ function AdminMaterialsPageInner() {
     setDialogOpen(false);
     setTitle("");
     setFileUrl("");
+    setLinkUrl("");
     setType("pdf");
+    setUploadMethod("file");
     setUploadError("");
     void fetchMaterials();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this material?")) return;
-    const supabase = createClient();
     await supabase.from("materials").delete().eq("id", id);
     void fetchMaterials();
   }
@@ -267,7 +271,6 @@ function AdminMaterialsPageInner() {
     }));
     setMaterials(nextMaterials);
     setReordering(true);
-    const supabase = createClient();
     try {
       const updates = nextMaterials.map((item) =>
         supabase.from("materials").update({ sort_order: item.sort_order }).eq("id", item.id),
@@ -354,8 +357,8 @@ function AdminMaterialsPageInner() {
               </div>
             </div>
             <div className="mt-5 rounded-[22px] border border-border bg-muted p-5 text-sm leading-7 text-muted-foreground">
-              Use the editor panel to publish PDFs, lecture notes, and seminar
-              recordings while keeping the course material stack synchronized.
+              Use the editor panel to publish PDFs, lecture notes, external links,
+              and seminar recordings while keeping the course material stack synchronized.
             </div>
             {actionError ? (
               <div className="mt-4 rounded-[18px] border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -390,11 +393,16 @@ function AdminMaterialsPageInner() {
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={() => void handleDrop(material.id)}
                   >
-                    <div>
-                      <p className="text-base text-foreground">{material.title}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                        {material.type} • updated {new Date(material.created_at).toLocaleDateString("en-IN")}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      {material.type === "link" ? (
+                        <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
+                      ) : null}
+                      <div>
+                        <p className="text-base text-foreground">{material.title}</p>
+                        <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                          {material.type} • updated {new Date(material.created_at).toLocaleDateString("en-IN")}
+                        </p>
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -478,64 +486,141 @@ function AdminMaterialsPageInner() {
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Upload Material</DialogTitle>
-            <DialogDescription>Add a PDF, notes file, or video link.</DialogDescription>
+            <DialogTitle>Add Material</DialogTitle>
+            <DialogDescription>Upload a file or paste an external link.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* ── Method toggle: File vs Link ─────────────────── */}
+            <div className="space-y-2">
+              <Label>Method</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-medium transition",
+                    uploadMethod === "file"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/30"
+                  )}
+                  onClick={() => {
+                    setUploadMethod("file");
+                    setLinkUrl("");
+                    setUploadError("");
+                  }}
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload File
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-medium transition",
+                    uploadMethod === "link"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/30"
+                  )}
+                  onClick={() => {
+                    setUploadMethod("link");
+                    setFileUrl("");
+                    setUploadError("");
+                  }}
+                >
+                  <Link2 className="h-4 w-4" />
+                  Add Link
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="material-title">Title</Label>
               <Input id="material-title" value={title} onChange={(event) => setTitle(event.target.value)} required />
             </div>
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select value={type} onValueChange={(value) => setType((value ?? "pdf") as MaterialType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pdf">PDF</SelectItem>
-                  <SelectItem value="notes">Notes</SelectItem>
-                  <SelectItem value="video">Video</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {type === "video" ? (
+
+            {/* ── Type selector (only for file uploads) ──────── */}
+            {uploadMethod === "file" ? (
               <div className="space-y-2">
-                <Label htmlFor="material-url">Video URL</Label>
+                <Label>File Type</Label>
+                <Select value={type} onValueChange={(value) => {
+                  const next = (value ?? "pdf") as MaterialType;
+                  setType(next);
+                  setFileUrl("");
+                  setUploadError("");
+                }}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="notes">Notes</SelectItem>
+                    <SelectItem value="video">Video</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            {/* ── File upload area ────────────────────────────── */}
+            {uploadMethod === "file" ? (
+              type === "video" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="material-url">Video URL</Label>
+                  <Input
+                    id="material-url"
+                    type="url"
+                    placeholder="https://youtube.com/..."
+                    value={fileUrl}
+                    onChange={(event) => setFileUrl(event.target.value)}
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Upload File</Label>
+                  <div className="rounded-lg border-2 border-dashed p-6 text-center">
+                    {fileUrl ? (
+                      <p className="text-sm text-green-600">✓ File uploaded successfully</p>
+                    ) : (
+                      <>
+                        <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-2">Drop file or click to browse</p>
+                      </>
+                    )}
+                    <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="w-full text-sm" />
+                    {uploading ? <Loader2 className="mx-auto mt-2 h-4 w-4 animate-spin" /> : null}
+                    {uploadError ? <p className="mt-2 text-xs text-destructive">{uploadError}</p> : null}
+                  </div>
+                </div>
+              )
+            ) : null}
+
+            {/* ── Link URL input ──────────────────────────────── */}
+            {uploadMethod === "link" ? (
+              <div className="space-y-2">
+                <Label htmlFor="material-link-url">Link URL</Label>
                 <Input
-                  id="material-url"
+                  id="material-link-url"
                   type="url"
-                  placeholder="https://..."
-                  value={fileUrl}
-                  onChange={(event) => setFileUrl(event.target.value)}
+                  placeholder="https://drive.google.com/... or any URL"
+                  value={linkUrl}
+                  onChange={(event) => setLinkUrl(event.target.value)}
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Paste any external URL — Google Drive, website, article, YouTube, etc.
+                </p>
+                {uploadError ? <p className="mt-1 text-xs text-destructive">{uploadError}</p> : null}
               </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Upload File</Label>
-                <div className="rounded-lg border-2 border-dashed p-6 text-center">
-                  {fileUrl ? (
-                    <p className="text-sm text-green-600">File uploaded</p>
-                  ) : (
-                    <>
-                      <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground mb-2">Drop file or click to browse</p>
-                    </>
-                  )}
-                  <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="w-full text-sm" />
-                  {uploading ? <Loader2 className="mx-auto mt-2 h-4 w-4 animate-spin" /> : null}
-                  {uploadError ? <p className="mt-2 text-xs text-destructive">{uploadError}</p> : null}
-                </div>
-              </div>
-            )}
+            ) : null}
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!fileUrl || uploading}>
+              <Button
+                type="submit"
+                disabled={(uploadMethod === "file" ? !fileUrl : !linkUrl) || uploading}
+              >
                 {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Upload
+                {uploadMethod === "link" ? "Add Link" : "Upload"}
               </Button>
             </DialogFooter>
           </form>

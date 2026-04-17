@@ -36,6 +36,7 @@ interface EditableStudent {
   student_type: StudentType;
   is_active: boolean;
   fees_amount: number;
+  fees_full_payment_paid: boolean;
   fees_installment1_paid: boolean;
   fees_installment2_paid: boolean;
   profile: { full_name: string; phone: string } | null;
@@ -65,6 +66,7 @@ export function StudentFormDialog({
   const [studentType, setStudentType] = useState<StudentType>("tuition");
   const [isActive, setIsActive] = useState<"active" | "inactive">("active");
   const [feesAmount, setFeesAmount] = useState("");
+  const [feesFullPayment, setFeesFullPayment] = useState(false);
   const [feesInst1, setFeesInst1] = useState(false);
   const [feesInst2, setFeesInst2] = useState(false);
   const isEditMode = Boolean(editStudent);
@@ -100,6 +102,7 @@ export function StudentFormDialog({
       setStudentType(editStudent.student_type);
       setIsActive(editStudent.is_active ? "active" : "inactive");
       setFeesAmount(String(editStudent.fees_amount ?? 0));
+      setFeesFullPayment(editStudent.fees_full_payment_paid ?? false);
       setFeesInst1(editStudent.fees_installment1_paid ?? false);
       setFeesInst2(editStudent.fees_installment2_paid ?? false);
       return;
@@ -113,6 +116,7 @@ export function StudentFormDialog({
     setStudentType("tuition");
     setIsActive("active");
     setFeesAmount("");
+    setFeesFullPayment(false);
     setFeesInst1(false);
     setFeesInst2(false);
 
@@ -121,6 +125,15 @@ export function StudentFormDialog({
       setAvailableProfiles(eligibleProfiles);
     })();
   }, [open, editStudent]);
+
+  useEffect(() => {
+    if (!feesFullPayment) {
+      return;
+    }
+
+    setFeesInst1(true);
+    setFeesInst2(true);
+  }, [feesFullPayment]);
 
   useEffect(() => {
     if (!isEditMode && selectedProfile) {
@@ -163,6 +176,7 @@ export function StudentFormDialog({
             student_type: studentType,
             is_active: isActive === "active",
             fees_amount: parseInt(feesAmount || "0", 10) || 0,
+            fees_full_payment_paid: feesFullPayment,
             fees_installment1_paid: feesInst1,
             fees_installment2_paid: feesInst2,
           })
@@ -191,6 +205,7 @@ export function StudentFormDialog({
       studentType,
       isActive: isActive === "active",
       feesAmount: parseInt(feesAmount || "0", 10) || 0,
+      feesFullPaymentPaid: feesFullPayment,
       feesInstallment1Paid: feesInst1,
       feesInstallment2Paid: feesInst2,
     });
@@ -358,12 +373,22 @@ export function StudentFormDialog({
 
           <div className="space-y-2">
             <Label>Installment Status</Label>
-            <div className="flex gap-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={feesFullPayment}
+                  onChange={(e) => setFeesFullPayment(e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                Full Payment Marked
+              </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={feesInst1}
                   onChange={(e) => setFeesInst1(e.target.checked)}
+                  disabled={feesFullPayment}
                   className="h-4 w-4 rounded border-input"
                 />
                 Installment 1 Paid
@@ -373,11 +398,15 @@ export function StudentFormDialog({
                   type="checkbox"
                   checked={feesInst2}
                   onChange={(e) => setFeesInst2(e.target.checked)}
+                  disabled={feesFullPayment}
                   className="h-4 w-4 rounded border-input"
                 />
                 Installment 2 Paid
               </label>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Mark full payment when the student pays in one shot. That will automatically count both installments as paid.
+            </p>
           </div>
 
           <DialogFooter>

@@ -424,6 +424,7 @@ const BULK_TEMPLATE_HEADERS = [
   { key: "class_name", label: "Class Name" },
   { key: "student_type", label: "Student Type" },
   { key: "fees_amount", label: "Fees Amount (INR)" },
+  { key: "fees_full_payment_paid", label: "Full Payment Marked" },
   { key: "fees_installment1_paid", label: "Installment 1 Paid" },
   { key: "fees_installment2_paid", label: "Installment 2 Paid" },
 ];
@@ -435,6 +436,7 @@ const SAMPLE_ROW = {
   class_name: "Class 5 - GSEB",
   student_type: "tuition",
   fees_amount: "5000",
+  fees_full_payment_paid: "no",
   fees_installment1_paid: "no",
   fees_installment2_paid: "no",
 };
@@ -446,4 +448,3 @@ export function downloadBulkTemplateCSV() {
 export async function downloadBulkTemplateXLSX() {
   await downloadXLSX([SAMPLE_ROW], BULK_TEMPLATE_HEADERS, "student_registration_template");
 }
-

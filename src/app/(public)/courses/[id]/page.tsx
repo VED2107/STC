@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Clock3,
   Download,
+  ExternalLink,
   FileText,
   GraduationCap,
   Loader2,
@@ -395,6 +396,8 @@ export default function CourseDetailPage() {
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-primary stitch-ghost-border">
                           {material.type === "video" ? (
                             <PlayCircle className="h-5 w-5" />
+                          ) : material.type === "link" ? (
+                            <ExternalLink className="h-5 w-5" />
                           ) : (
                             <FileText className="h-5 w-5" />
                           )}

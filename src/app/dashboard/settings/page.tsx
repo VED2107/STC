@@ -25,10 +25,11 @@ interface StudentSettingsData {
   hasStudentRecord: boolean;
 }
 
+const supabase = createClient();
+
 function StudentSettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
   const { refreshProfile, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<StudentSettingsData | null>(null);
@@ -90,7 +91,7 @@ function StudentSettingsPageInner() {
 
     await refreshProfile();
     if (!options?.silent) setLoading(false);
-  }, [authLoading, refreshProfile, router, supabase, user]);
+  }, [authLoading, refreshProfile, router, user]);
 
   const saveProfile = useCallback(async () => {
     setSaving(true);
@@ -128,7 +129,7 @@ function StudentSettingsPageInner() {
       return;
     }
     setSaving(false);
-  }, [data?.phone, fetchData, form.fullName, form.parentPhone, form.phone, isStudentPhoneLocked, refreshProfile, router, searchParams, supabase, user]);
+  }, [data?.phone, fetchData, form.fullName, form.parentPhone, form.phone, isStudentPhoneLocked, refreshProfile, router, searchParams, user]);
 
   useEffect(() => {
     void fetchData();

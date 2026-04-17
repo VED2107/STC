@@ -21,6 +21,7 @@ import {
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
+import { getFeesStatusLabel, hasFullPaymentMarked, isFullyPaid, isPartiallyPaid } from "@/lib/student-fees";
 
 interface DashboardStats {
   students: number;
@@ -41,13 +42,13 @@ interface RegistryRow {
   created_at?: string;
   is_active: boolean;
   fees_amount: number;
+  fees_full_payment_paid: boolean;
   fees_installment1_paid: boolean;
   fees_installment2_paid: boolean;
   profile: { full_name: string; phone: string } | null;
   class: { name: string; board: string } | null;
   student_type?: "tuition" | "online";
   enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
-  authUser?: { email: string; full_name: string; phone: string } | null;
 }
 
 interface TeacherRow {
@@ -71,6 +72,8 @@ interface ClassRow {
   level: string;
 }
 
+const supabase = createClient();
+
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, role, loading: authLoading } = useAuth();
@@ -82,7 +85,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    const supabase = createClient();
 
     async function loadDashboard() {
       if (authLoading) {
@@ -104,6 +106,7 @@ export default function AdminDashboard() {
         return;
       }
 
+      // Fire ALL queries in a single parallel batch — no sequential follow-ups
       const [
         studentCount,
         courseCount,
@@ -115,7 +118,7 @@ export default function AdminDashboard() {
         teachersRes,
         coursesRes,
         classesRes,
-        authUsersRes,
+        feesRes,
       ] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("courses").select("id", { count: "exact", head: true }),
@@ -126,7 +129,7 @@ export default function AdminDashboard() {
         supabase
           .from("students")
           .select(
-            "id, profile_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
+            "id, profile_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
           )
           .order("created_at", { ascending: false })
           .order("enrollment_date", { ascending: false })
@@ -146,41 +149,33 @@ export default function AdminDashboard() {
           .select("id, name, board, level")
           .order("created_at", { ascending: false })
           .limit(4),
-        fetch("/api/admin/auth-users", { cache: "no-store" }).then(async (response) =>
-          response.ok ? response.json() : { users: [] },
-        ),
+        // Fees stats — lightweight select in the same batch instead of a separate sequential call
+        supabase
+          .from("students")
+          .select("fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid"),
       ]);
 
       if (cancelled) {
         return;
       }
 
-      const authFallbackById = new Map(
-        (((authUsersRes as { users?: Array<{ id: string; email: string; full_name: string; phone: string }> }).users) ?? []).map(
-          (entry) => [
-            entry.id,
-            {
-              email: entry.email,
-              full_name: entry.full_name,
-              phone: entry.phone,
-            },
-          ],
-        ),
-      );
+      // Registry rows already have profile data joined — no auth-users API call needed
+      const registryRows = (registryRes.data as RegistryRow[] | null) ?? [];
 
-      const registryRows = ((registryRes.data as RegistryRow[] | null) ?? []).map((row) => ({
-        ...row,
-        authUser: authFallbackById.get(row.profile_id) ?? null,
-      }));
-
-      // Compute fees stats from all students (not just top 5)
-      const { data: allStudentsFees } = await supabase
-        .from("students")
-        .select("fees_installment1_paid, fees_installment2_paid");
-      const feesRows = (allStudentsFees ?? []) as { fees_installment1_paid: boolean; fees_installment2_paid: boolean }[];
-      const feesPaid = feesRows.filter((r) => r.fees_installment1_paid && r.fees_installment2_paid).length;
-      const feesPartial = feesRows.filter((r) => (r.fees_installment1_paid || r.fees_installment2_paid) && !(r.fees_installment1_paid && r.fees_installment2_paid)).length;
-      const feesNotPaid = feesRows.filter((r) => !r.fees_installment1_paid && !r.fees_installment2_paid).length;
+      // Compute fees stats from the parallel batch result
+      const feesRows = (feesRes.data ?? []) as Array<{
+        fees_full_payment_paid: boolean;
+        fees_installment1_paid: boolean;
+        fees_installment2_paid: boolean;
+      }>;
+      let feesPaid = 0;
+      let feesPartial = 0;
+      let feesNotPaid = 0;
+      for (const r of feesRows) {
+        if (isFullyPaid(r)) feesPaid++;
+        else if (isPartiallyPaid(r)) feesPartial++;
+        else feesNotPaid++;
+      }
 
       setStats({
         students: studentCount.count ?? 0,
@@ -284,7 +279,7 @@ export default function AdminDashboard() {
           <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Fees Fully Paid</p>
           <p className="mt-5 font-heading text-5xl text-green-600">{stats.feesPaid}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Both installments paid
+            Full payment or both installments
           </p>
         </div>
         <div className={summaryCardClass}>
@@ -292,7 +287,7 @@ export default function AdminDashboard() {
           <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Partially Paid</p>
           <p className="mt-5 font-heading text-5xl text-amber-600">{stats.feesPartial}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            1 installment paid
+            Installments in progress
           </p>
         </div>
         <div className={summaryCardClass}>
@@ -348,10 +343,10 @@ export default function AdminDashboard() {
                     <tr key={row.id}>
                       <td className="py-4">
                         <p className="text-base text-foreground">
-                          {row.profile?.full_name || row.authUser?.full_name || row.authUser?.email || "Unnamed Scholar"}
+                          {row.profile?.full_name || "Unnamed Scholar"}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {row.profile?.phone || row.authUser?.phone || row.authUser?.email || "No contact"}
+                          {row.profile?.phone || "No contact"}
                         </p>
                       </td>
                       <td className="py-4 text-sm text-muted-foreground">
@@ -381,19 +376,18 @@ export default function AdminDashboard() {
                         <span
                           className={cn(
                             "rounded-full px-3 py-1 text-xs",
-                            row.fees_installment1_paid && row.fees_installment2_paid
+                            isFullyPaid(row)
                               ? "bg-green-100 text-green-700"
-                              : row.fees_installment1_paid || row.fees_installment2_paid
+                              : isPartiallyPaid(row)
                                 ? "bg-amber-100 text-amber-700"
                                 : "bg-red-100 text-red-700",
                           )}
                         >
-                          {row.fees_installment1_paid && row.fees_installment2_paid
-                            ? "Fully Paid"
-                            : row.fees_installment1_paid || row.fees_installment2_paid
-                              ? "Partial"
-                              : "Not Paid"}
+                          {getFeesStatusLabel(row)}
                         </span>
+                        {hasFullPaymentMarked(row) ? (
+                          <p className="mt-1 text-xs text-green-700">One-shot payment</p>
+                        ) : null}
                         {(row.fees_amount ?? 0) > 0 && (
                           <p className="mt-1 text-xs text-muted-foreground">₹{row.fees_amount.toLocaleString("en-IN")}</p>
                         )}

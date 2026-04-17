@@ -2,7 +2,7 @@
 
 export type UserRole = "student" | "teacher" | "admin";
 export type AttendanceStatus = "present" | "absent";
-export type MaterialType = "pdf" | "notes" | "video";
+export type MaterialType = "pdf" | "notes" | "video" | "link";
 export type NotificationChannel = "whatsapp" | "sms";
 export type NotificationStatus = "sent" | "failed" | "pending";
 export type BoardType = "GSEB" | "NCERT";
@@ -75,6 +75,7 @@ export interface Student {
   enrollment_date: string;
   is_active: boolean;
   fees_amount: number;
+  fees_full_payment_paid: boolean;
   fees_installment1_paid: boolean;
   fees_installment2_paid: boolean;
   created_at: string;

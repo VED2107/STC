@@ -32,6 +32,8 @@ interface SyllabusUnit {
   topics: string[];
 }
 
+const supabase = createClient();
+
 function AdminSyllabusPageInner() {
   const router = useRouter();
   const pathname = usePathname();
@@ -73,7 +75,6 @@ function AdminSyllabusPageInner() {
     }
 
     setLoading(true);
-    const supabase = createClient();
 
     if (role === "teacher" && user?.id) {
       const { data: accessRows } = await supabase
@@ -198,7 +199,6 @@ function AdminSyllabusPageInner() {
   async function handleSave() {
     if (!formClassId || !formSubject) return;
     setSaving(true);
-    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -228,7 +228,6 @@ function AdminSyllabusPageInner() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this syllabus entry?")) return;
-    const supabase = createClient();
     await supabase.from("syllabus").delete().eq("id", id);
     void fetchData();
   }

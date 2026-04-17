@@ -26,6 +26,7 @@ export async function PATCH(request: NextRequest) {
     const body = (await request.json()) as {
       studentId?: string;
       feesAmount?: number;
+      feesFullPaymentPaid?: boolean;
       feesInstallment1Paid?: boolean;
       feesInstallment2Paid?: boolean;
     };
@@ -37,6 +38,9 @@ export async function PATCH(request: NextRequest) {
     const updatePayload: Record<string, unknown> = {};
     if (typeof body.feesAmount === "number") {
       updatePayload.fees_amount = body.feesAmount;
+    }
+    if (typeof body.feesFullPaymentPaid === "boolean") {
+      updatePayload.fees_full_payment_paid = body.feesFullPaymentPaid;
     }
     if (typeof body.feesInstallment1Paid === "boolean") {
       updatePayload.fees_installment1_paid = body.feesInstallment1Paid;

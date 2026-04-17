@@ -26,6 +26,7 @@ import {
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
+import { getFeesStatusLabel } from "@/lib/student-fees";
 
 const BOARDS: BoardType[] = ["GSEB", "NCERT"];
 const LEVELS: ClassLevel[] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "SSC", "HSC"];
@@ -41,6 +42,8 @@ interface ClassTeacherRow {
   class_id: string;
   teacher: { name: string } | null;
 }
+
+const supabase = createClient();
 
 function AdminClassesPageInner() {
   const router = useRouter();
@@ -69,6 +72,7 @@ function AdminClassesPageInner() {
     { key: "studentType", label: "Student Type" },
     { key: "status", label: "Status" },
     { key: "feesAmount", label: "Fees Amount (INR)" },
+    { key: "fullPayment", label: "Full Payment Marked" },
     { key: "installment1", label: "Installment 1" },
     { key: "installment2", label: "Installment 2" },
     { key: "feesStatus", label: "Fees Status" },
@@ -78,10 +82,9 @@ function AdminClassesPageInner() {
   async function exportClassStudents(classId: string, className: string, format: "csv" | "xlsx") {
     setExportingClassId(classId);
     try {
-      const supabase = createClient();
       const { data } = await supabase
         .from("students")
-        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone)")
+        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone)")
         .eq("class_id", classId)
         .order("created_at", { ascending: false });
 
@@ -90,24 +93,21 @@ function AdminClassesPageInner() {
         student_type: string;
         is_active: boolean;
         fees_amount: number;
+        fees_full_payment_paid: boolean;
         fees_installment1_paid: boolean;
         fees_installment2_paid: boolean;
         enrollment_date: string;
       }>).map((s) => {
-        const feesStatus = s.fees_installment1_paid && s.fees_installment2_paid
-          ? "Fully Paid"
-          : s.fees_installment1_paid || s.fees_installment2_paid
-            ? "Partially Paid"
-            : "Not Paid";
         return {
           name: s.profile?.full_name ?? "Unnamed",
           phone: s.profile?.phone ?? "N/A",
           studentType: s.student_type === "tuition" ? "Tuition" : "Online",
           status: s.is_active ? "Active" : "Inactive",
           feesAmount: s.fees_amount ?? 0,
+          fullPayment: s.fees_full_payment_paid ? "Yes" : "No",
           installment1: s.fees_installment1_paid ? "Paid" : "Not Paid",
           installment2: s.fees_installment2_paid ? "Paid" : "Not Paid",
-          feesStatus,
+          feesStatus: getFeesStatusLabel(s),
           enrollmentDate: new Date(s.enrollment_date).toLocaleDateString("en-IN"),
         };
       });
@@ -146,7 +146,6 @@ function AdminClassesPageInner() {
   }
 
   const loadClassData = useCallback(async () => {
-    const supabase = createClient();
     const [classesRes, studentsRes, classTeachersRes] = await Promise.all([
       supabase.from("classes").select("*").order("sort_order"),
       supabase.from("students").select("class_id, is_active").eq("is_active", true),
@@ -233,7 +232,6 @@ function AdminClassesPageInner() {
     if (!formName.trim()) return;
     setSaving(true);
     setFormError("");
-    const supabase = createClient();
     const parsedCapacity = Number.parseInt(formCapacity || String(DEFAULT_CLASS_CAPACITY), 10);
     const normalizedCapacity =
       Number.isFinite(parsedCapacity) && parsedCapacity > 0
@@ -303,7 +301,6 @@ function AdminClassesPageInner() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this class?")) return;
-    const supabase = createClient();
     const { error } = await supabase.from("classes").delete().eq("id", id);
     if (!error) {
       refreshClasses();
@@ -328,7 +325,6 @@ function AdminClassesPageInner() {
     }));
     setClasses(nextClasses);
     setReordering(true);
-    const supabase = createClient();
     try {
       const updates = nextClasses.map((item) =>
         supabase.from("classes").update({ sort_order: item.sort_order }).eq("id", item.id),

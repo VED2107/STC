@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// ── In-memory cache (60 s TTL) ──────────────────────────────────
+// Prevents hammering Supabase Auth Admin API on every page load.
+let cachedPayload: { users: Array<{ id: string; email: string; full_name: string; phone: string }> } | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 60_000; // 60 seconds
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -24,6 +30,13 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Serve from cache if fresh
+    if (cachedPayload && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
+      return NextResponse.json(cachedPayload, {
+        headers: { "Cache-Control": "private, max-age=60" },
+      });
+    }
+
     const admin = createAdminClient();
 
     const {
@@ -35,21 +48,26 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({
-      users: (users ?? []).map((user) => ({
-        id: user.id,
-        email: user.email ?? "",
+    cachedPayload = {
+      users: (users ?? []).map((u) => ({
+        id: u.id,
+        email: u.email ?? "",
         full_name:
-          typeof user.user_metadata?.full_name === "string"
-            ? user.user_metadata.full_name
-            : typeof user.user_metadata?.name === "string"
-              ? user.user_metadata.name
+          typeof u.user_metadata?.full_name === "string"
+            ? u.user_metadata.full_name
+            : typeof u.user_metadata?.name === "string"
+              ? u.user_metadata.name
               : "",
         phone:
-          typeof user.user_metadata?.phone === "string"
-            ? user.user_metadata.phone
+          typeof u.user_metadata?.phone === "string"
+            ? u.user_metadata.phone
             : "",
       })),
+    };
+    cacheTimestamp = Date.now();
+
+    return NextResponse.json(cachedPayload, {
+      headers: { "Cache-Control": "private, max-age=60" },
     });
   } catch (error) {
     return NextResponse.json(

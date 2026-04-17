@@ -77,6 +77,8 @@ interface AllStudentRow {
   class: { name: string } | null;
 }
 
+const supabase = createClient();
+
 export default function AdminAttendancePage() {
   const router = useRouter();
   const { role, user } = useAuth();
@@ -113,7 +115,7 @@ export default function AdminAttendancePage() {
     }
 
     if (role !== "admin" && role !== "teacher") return;
-    const supabase = createClient();
+
 
     async function loadBaseData() {
       try {
@@ -240,7 +242,7 @@ export default function AdminAttendancePage() {
     setSaveError("");
     setActionError("");
     setEditingSaved(true);
-    const supabase = createClient();
+
 
     try {
       const cachedStudents = studentCacheRef.current[selectedClassId];
@@ -424,7 +426,7 @@ export default function AdminAttendancePage() {
     setSaveError("");
     setActionError("");
     setSaving(true);
-    const supabase = createClient();
+
 
     const sessionResponse = await fetch("/api/attendance/sessions", {
       method: "POST",
@@ -574,7 +576,7 @@ export default function AdminAttendancePage() {
   // Load all students (for the dropdown) on first interaction
   async function loadAllStudents() {
     if (allStudentsLoaded) return;
-    const supabase = createClient();
+
 
     let query = supabase
       .from("students")
@@ -610,7 +612,7 @@ export default function AdminAttendancePage() {
   async function fetchStudentHistory(studentId: string) {
     setHistoryLoading(true);
     setHistoryRecords([]);
-    const supabase = createClient();
+
 
     const { data } = await supabase
       .from("attendance")

@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarCheck,
   ChevronRight,
+  ExternalLink,
   FileText,
   GraduationCap,
   Loader2,
@@ -43,7 +44,7 @@ interface CourseRow {
 interface MaterialRow {
   id: string;
   title: string;
-  type: "pdf" | "notes" | "video";
+  type: "pdf" | "notes" | "video" | "link";
 }
 
 interface StudentRecord {
@@ -100,55 +101,86 @@ export default function StudentDashboard() {
       }
 
       const typedStudent = student as StudentRecord;
+      const isTuition = typedStudent.student_type === "tuition";
 
-      const [attendanceRes, coursesRes, notifsRes, enrollmentsRes] =
-        await Promise.all([
-          supabase
-            .from("attendance")
-            .select("id, date, status, class:classes(name)")
-            .eq("student_id", typedStudent.id)
-            .order("date", { ascending: false })
+      // ── Build a single query batch ──────────────────────────────
+      // Base queries every student needs (indices 0-3)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const queries: Promise<any>[] = [
+        /* 0 */ supabase
+          .from("attendance")
+          .select("id, date, status, class:classes(name)")
+          .eq("student_id", typedStudent.id)
+          .order("date", { ascending: false })
+          .limit(4),
+        /* 1 */ supabase
+          .from("enrollments")
+          .select("course:courses(id, title, subject)")
+          .eq("student_id", typedStudent.id)
+          .eq("status", "active"),
+        /* 2 */ supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("student_id", typedStudent.id)
+          .eq("status", "pending"),
+        /* 3 */ supabase
+          .from("enrollments")
+          .select("course_id")
+          .eq("student_id", typedStudent.id)
+          .eq("status", "active"),
+      ];
+
+      // For tuition students we already have class_id — add materials
+      // + attendance rate queries to the SAME batch (indices 4-7)
+      if (isTuition) {
+        queries.push(
+          /* 4 */ supabase
+            .from("materials")
+            .select("id", { count: "exact", head: true })
+            .eq("class_id", typedStudent.class_id),
+          /* 5 */ supabase
+            .from("materials")
+            .select("id, title, type")
+            .eq("class_id", typedStudent.class_id)
+            .order("created_at", { ascending: false })
             .limit(4),
-          supabase
-            .from("enrollments")
-            .select("course:courses(id, title, subject)")
-            .eq("student_id", typedStudent.id)
-            .eq("status", "active"),
-          supabase
-            .from("notifications")
+          /* 6 */ supabase
+            .from("attendance")
+            .select("id", { count: "exact", head: true })
+            .eq("student_id", typedStudent.id),
+          /* 7 */ supabase
+            .from("attendance")
             .select("id", { count: "exact", head: true })
             .eq("student_id", typedStudent.id)
-            .eq("status", "pending"),
-          supabase
-            .from("enrollments")
-            .select("course_id")
-            .eq("student_id", typedStudent.id)
-            .eq("status", "active"),
-        ]);
+            .eq("status", "present"),
+        );
+      }
+
+      const results = await Promise.all(queries);
+
+      // ── Extract base results (all students) ─────────────────────
+      const attendanceRes = results[0];
+      const coursesRes = results[1];
+      const notifsRes = results[2];
+      const enrollmentsRes = results[3];
 
       const activeCourseIds = ((enrollmentsRes.data as { course_id: string }[] | null) ?? []).map(
         (entry) => entry.course_id,
       );
 
       let materialsCount = 0;
-      let recentMaterials: MaterialRow[] = [];
+      let recentMats: MaterialRow[] = [];
+      let rate = 0;
 
-      if (typedStudent.student_type === "tuition") {
-        const [materialsRes, recentMaterialsRes] = await Promise.all([
-          supabase
-            .from("materials")
-            .select("id", { count: "exact", head: true })
-            .eq("class_id", typedStudent.class_id),
-          supabase
-            .from("materials")
-            .select("id, title, type")
-            .eq("class_id", typedStudent.class_id)
-            .order("created_at", { ascending: false })
-            .limit(4),
-        ]);
-        materialsCount = materialsRes.count ?? 0;
-        recentMaterials = (recentMaterialsRes.data as MaterialRow[] | null) ?? [];
+      if (isTuition) {
+        // Results already in the batch (indices 4-7)
+        materialsCount = results[4].count ?? 0;
+        recentMats = (results[5].data as MaterialRow[] | null) ?? [];
+        const totalAtt = results[6].count ?? 0;
+        const presentAtt = results[7].count ?? 0;
+        rate = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : 0;
       } else if (activeCourseIds.length > 0) {
+        // Online students: need course IDs first, so this is a 2nd batch
         const [materialsRes, recentMaterialsRes] = await Promise.all([
           supabase
             .from("materials")
@@ -162,27 +194,7 @@ export default function StudentDashboard() {
             .limit(4),
         ]);
         materialsCount = materialsRes.count ?? 0;
-        recentMaterials = (recentMaterialsRes.data as MaterialRow[] | null) ?? [];
-      }
-
-      let rate = 0;
-      if (typedStudent.student_type === "tuition") {
-        const [{ count: totalAtt }, { count: presentAtt }] = await Promise.all([
-          supabase
-            .from("attendance")
-            .select("id", { count: "exact", head: true })
-            .eq("student_id", typedStudent.id),
-          supabase
-            .from("attendance")
-            .select("id", { count: "exact", head: true })
-            .eq("student_id", typedStudent.id)
-            .eq("status", "present"),
-        ]);
-
-        rate =
-          totalAtt && totalAtt > 0
-            ? Math.round(((presentAtt ?? 0) / totalAtt) * 100)
-            : 0;
+        recentMats = (recentMaterialsRes.data as MaterialRow[] | null) ?? [];
       }
 
       const courses = (coursesRes.data ?? [])
@@ -193,7 +205,7 @@ export default function StudentDashboard() {
       setStudentRecord(typedStudent);
       setRecentAttendance((attendanceRes.data as AttendanceRow[] | null) ?? []);
       setEnrolledCourses(courses);
-      setRecentMaterials(recentMaterials);
+      setRecentMaterials(recentMats);
       setStats({
         courses: courses.length,
         attendanceRate: rate,
@@ -424,7 +436,11 @@ export default function StudentDashboard() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/4 text-primary">
-                      <FileText className="h-5 w-5" />
+                      {material.type === "link" ? (
+                        <ExternalLink className="h-5 w-5" />
+                      ) : (
+                        <FileText className="h-5 w-5" />
+                      )}
                     </div>
                     <div>
                       <p className="text-base text-foreground">{material.title}</p>

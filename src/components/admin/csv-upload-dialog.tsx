@@ -83,6 +83,8 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
         class_name: row["class_name"] || row["class"] || row["className"] || "",
         student_type: row["student_type"] || row["type"] || "tuition",
         fees_amount: row["fees_amount"] || row["fees"] || row["fee"] || row["fees_amount_(inr)"] || "0",
+        fees_full_payment_paid:
+          row["fees_full_payment_paid"] || row["full_payment_paid"] || row["full_payment"] || "no",
         fees_installment1_paid: row["fees_installment1_paid"] || row["installment_1_paid"] || row["inst1"] || "no",
         fees_installment2_paid: row["fees_installment2_paid"] || row["installment_2_paid"] || row["inst2"] || "no",
       }));

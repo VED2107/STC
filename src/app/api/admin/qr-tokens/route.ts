@@ -332,3 +332,84 @@ export async function PUT(request: NextRequest) {
 
   return NextResponse.json({ generated: toInsert.length });
 }
+
+/**
+ * PATCH /api/admin/qr-tokens
+ *
+ * Regenerate tokens for all active students in a class.
+ * Body: { class_id: string }
+ * Admin only.
+ */
+export async function PATCH(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "admin") {
+    return NextResponse.json({ error: "Admin only" }, { status: 403 });
+  }
+
+  const body = (await request.json()) as { class_id?: string };
+  const classId = body.class_id?.trim();
+
+  if (!classId) {
+    return NextResponse.json(
+      { error: "Missing class_id" },
+      { status: 400 },
+    );
+  }
+
+  const admin = createAdminClient();
+
+  const { data: students, error: studentsError } = await admin
+    .from("students")
+    .select("id")
+    .eq("class_id", classId)
+    .eq("is_active", true);
+
+  if (studentsError) {
+    return NextResponse.json({ error: studentsError.message }, { status: 500 });
+  }
+
+  const studentIds = ((students as Array<{ id: string }> | null) ?? []).map((student) => student.id);
+
+  if (studentIds.length === 0) {
+    return NextResponse.json({ regenerated: 0, message: "No active students found in this class" });
+  }
+
+  const { error: deleteError } = await admin
+    .from("qr_tokens")
+    .delete()
+    .in("student_id", studentIds);
+
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  }
+
+  const toInsert = studentIds.map((studentId) => ({
+    student_id: studentId,
+    token: createRawToken(),
+  }));
+
+  const { error: insertError } = await admin.from("qr_tokens").insert(toInsert);
+
+  if (insertError) {
+    return NextResponse.json({ error: insertError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    regenerated: toInsert.length,
+    message: `Regenerated ${toInsert.length} QR code${toInsert.length === 1 ? "" : "s"}`,
+  });
+}

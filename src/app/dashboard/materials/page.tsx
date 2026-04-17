@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 interface MaterialRow {
   id: string;
   title: string;
-  type: "pdf" | "notes" | "video";
+  type: "pdf" | "notes" | "video" | "link";
   file_url: string;
   course?: { title: string } | null;
 }
@@ -28,6 +28,8 @@ interface StudentAccessRow {
   class?: { name?: string } | null;
 }
 
+const supabase = createClient();
+
 export default function StudentMaterialsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -37,7 +39,6 @@ export default function StudentMaterialsPage() {
 
   const fetchMaterials = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
     if (authLoading) {
       return;
     }

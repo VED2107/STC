@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { TeacherFormDialog } from "@/components/admin/teacher-form-dialog";
 import type { Teacher } from "@/lib/types/database";
 
+const supabase = createClient();
+
 function AdminTeachersPageInner() {
   const router = useRouter();
   const pathname = usePathname();
@@ -43,7 +45,6 @@ function AdminTeachersPageInner() {
 
   const fetchTeachers = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
     const { data } = await supabase.from("teachers").select("*").order("name", { ascending: true });
     setTeachers((data as Teacher[] | null) ?? []);
     setLoading(false);
@@ -77,7 +78,6 @@ function AdminTeachersPageInner() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this teacher?")) return;
-    const supabase = createClient();
     await supabase.from("teachers").delete().eq("id", id);
     void fetchTeachers();
   }

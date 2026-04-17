@@ -28,9 +28,10 @@ interface CourseRow {
   subject: string;
 }
 
+const supabase = createClient();
+
 export default function StudentClassPage() {
   const router = useRouter();
-  const supabase = createClient();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [classRecord, setClassRecord] = useState<StudentClassRecord | null>(null);
@@ -80,7 +81,7 @@ export default function StudentClassPage() {
     }
 
     setLoading(false);
-  }, [authLoading, router, supabase, user]);
+  }, [authLoading, router, user]);
 
   useEffect(() => {
     void fetchData();

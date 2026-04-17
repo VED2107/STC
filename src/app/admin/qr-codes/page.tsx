@@ -40,6 +40,8 @@ interface StudentQrRow {
   token_created_at: string | null;
 }
 
+const supabase = createClient();
+
 export default function AdminQrCodesPage() {
   const router = useRouter();
   const { role, loading: authLoading } = useAuth();
@@ -49,12 +51,14 @@ export default function AdminQrCodesPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [generatingAll, setGeneratingAll] = useState(false);
+  const [regeneratingClass, setRegeneratingClass] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState("");
   const qrCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
 
   // Confirmation dialog state
   const [confirmRegenStudent, setConfirmRegenStudent] = useState<StudentQrRow | null>(null);
+  const [confirmRegenClass, setConfirmRegenClass] = useState(false);
 
   useEffect(() => {
     if (!authLoading && role !== "admin") {
@@ -65,7 +69,6 @@ export default function AdminQrCodesPage() {
   // Load classes
   useEffect(() => {
     if (role !== "admin") return;
-    const supabase = createClient();
     supabase
       .from("classes")
       .select("*")
@@ -191,6 +194,38 @@ export default function AdminQrCodesPage() {
     }
   }
 
+  async function handleRegenerateClass() {
+    setRegeneratingClass(true);
+    setActionMessage("");
+    setConfirmRegenClass(false);
+    try {
+      const res = await fetch("/api/admin/qr-tokens", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ class_id: selectedClassId }),
+      });
+      const data = (await res.json()) as {
+        regenerated?: number;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        setActionMessage(data.error ?? "Failed to regenerate class QR codes");
+        return;
+      }
+      setActionMessage(
+        data.regenerated
+          ? `Regenerated ${data.regenerated} QR code${data.regenerated > 1 ? "s" : ""} for this class`
+          : data.message ?? "No QR codes were regenerated",
+      );
+      await fetchStudents();
+    } catch {
+      setActionMessage("Failed to regenerate class QR codes");
+    } finally {
+      setRegeneratingClass(false);
+    }
+  }
+
   function handleDownloadQr(studentId: string, studentName: string) {
     const canvas = qrCanvasRefs.current.get(studentId);
     if (!canvas) return;
@@ -283,7 +318,20 @@ export default function AdminQrCodesPage() {
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                Generate All QR Codes
+                Generate Missing QR Codes
+              </button>
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "gap-2")}
+                onClick={() => setConfirmRegenClass(true)}
+                disabled={regeneratingClass || generatingAll || !selectedClassId || students.length === 0}
+              >
+                {regeneratingClass ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Regenerate Whole Class QR
               </button>
             </div>
 
@@ -441,7 +489,8 @@ export default function AdminQrCodesPage() {
           <div className={stitchPanelClass}>
             <h3 className="text-3xl text-foreground">How It Works</h3>
             <ol className="mt-5 list-inside list-decimal space-y-3 text-sm leading-7 text-muted-foreground">
-              <li>Generate QR codes for students</li>
+              <li>Generate missing QR codes only for students who do not have one yet</li>
+              <li>Use whole-class regeneration only when every old QR in the class must be invalidated</li>
               <li>Print or share QR codes with students</li>
               <li>Teachers scan QR on arrival → verify → check-in</li>
               <li>Teachers scan QR on departure → verify → check-out</li>
@@ -502,6 +551,44 @@ export default function AdminQrCodesPage() {
                 type="button"
                 className={cn(stitchSecondaryButtonClass, "flex-1")}
                 onClick={() => setConfirmRegenStudent(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmRegenClass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">
+                  Regenerate Whole Class QR Codes?
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  This will invalidate every existing QR code in{" "}
+                  <strong>{selectedClass?.name ?? "this class"}</strong>. All students in
+                  this class will need newly printed or shared QR codes.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                className="flex-1 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700"
+                onClick={() => void handleRegenerateClass()}
+              >
+                Yes, Regenerate All
+              </button>
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "flex-1")}
+                onClick={() => setConfirmRegenClass(false)}
               >
                 Cancel
               </button>

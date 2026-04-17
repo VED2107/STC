@@ -25,6 +25,8 @@ type CourseRow = Omit<Course, "class" | "teacher"> & {
   teacher_id?: string;
 };
 
+const supabase = createClient();
+
 function AdminCoursesPageInner() {
   const router = useRouter();
   const pathname = usePathname();
@@ -49,7 +51,6 @@ function AdminCoursesPageInner() {
 
   const fetchCourses = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
     const { data } = await supabase
       .from("courses")
       .select("*, class:classes(name, board), teacher:teachers(name)")
@@ -86,7 +87,6 @@ function AdminCoursesPageInner() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this course?")) return;
-    const supabase = createClient();
     await supabase.from("courses").delete().eq("id", id);
     void fetchCourses();
   }

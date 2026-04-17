@@ -11,6 +11,7 @@ export interface BulkStudentRow {
   class_name: string;
   student_type: string;
   fees_amount: string;
+  fees_full_payment_paid: string;
   fees_installment1_paid: string;
   fees_installment2_paid: string;
 }
@@ -131,8 +132,9 @@ export async function bulkUploadStudents(
     }
 
     const feesAmount = parseInt(row.fees_amount || "0", 10) || 0;
-    const inst1Paid = parseBool(row.fees_installment1_paid);
-    const inst2Paid = parseBool(row.fees_installment2_paid);
+    const fullPaymentPaid = parseBool(row.fees_full_payment_paid);
+    const inst1Paid = fullPaymentPaid || parseBool(row.fees_installment1_paid);
+    const inst2Paid = fullPaymentPaid || parseBool(row.fees_installment2_paid);
 
     try {
       // Check if user already exists by email (from pre-fetched map)
@@ -225,6 +227,7 @@ export async function bulkUploadStudents(
         enrollment_date: new Date().toISOString().split("T")[0],
         is_active: true,
         fees_amount: feesAmount,
+        fees_full_payment_paid: fullPaymentPaid,
         fees_installment1_paid: inst1Paid,
         fees_installment2_paid: inst2Paid,
       });
