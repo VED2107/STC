@@ -19,6 +19,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!/^\d{6}$/.test(normalizedOtp)) {
+      return NextResponse.json(
+        { error: "OTP must be exactly 6 digits." },
+        { status: 400 },
+      );
+    }
+
     const pendingToken = request.cookies.get(LOGIN_OTP_COOKIE)?.value;
 
     if (!pendingToken) {
@@ -73,15 +80,30 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const { data, error } = await supabase.auth.verifyOtp({
-      email: pendingLogin.email,
-      token: normalizedOtp,
-      type: "magiclink",
-    });
+    const attempts = await Promise.all([
+      supabase.auth.verifyOtp({
+        email: pendingLogin.email,
+        token: normalizedOtp,
+        type: "email",
+      }),
+      supabase.auth.verifyOtp({
+        email: pendingLogin.email,
+        token: normalizedOtp,
+        type: "magiclink",
+      }),
+    ]);
 
-    if (error || !data.session || !data.user) {
+    const successfulAttempt = attempts.find(
+      ({ data, error }) => !error && data.session && data.user,
+    );
+
+    const firstError =
+      attempts.find(({ error }) => error)?.error?.message ??
+      "Invalid login code. Please try again.";
+
+    if (!successfulAttempt) {
       return NextResponse.json(
-        { error: error?.message ?? "Invalid login code. Please try again." },
+        { error: firstError },
         { status: 400 },
       );
     }

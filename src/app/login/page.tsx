@@ -3,12 +3,22 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import {
+  Clock3,
+  Eye,
+  EyeOff,
+  Loader2,
+  MailCheck,
+  PencilLine,
+  RotateCcw,
+  ShieldCheck,
+} from "lucide-react";
 import { getCachedRole, setCachedProfile } from "@/lib/auth/client-cache";
 import { createClient } from "@/lib/supabase/client";
 import {
   stitchButtonClass,
   stitchInputClass,
+  stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import type { Profile, UserRole } from "@/lib/types/database";
@@ -23,6 +33,8 @@ interface PendingSignupState {
   email: string;
   password: string;
 }
+
+type AuthActionPrompt = "signup" | null;
 
 function GoogleLogo({ className }: { className?: string }) {
   return (
@@ -48,6 +60,97 @@ function GoogleLogo({ className }: { className?: string }) {
         fill="#EA4335"
       />
     </svg>
+  );
+}
+
+interface OtpDeliveryPanelProps {
+  title: string;
+  eyebrow: string;
+  email: string;
+  description: string;
+  editLabel: string;
+  resendLabel: string;
+  loading: boolean;
+  onEdit: () => void;
+  onResend: () => void;
+}
+
+function OtpDeliveryPanel({
+  title,
+  eyebrow,
+  email,
+  description,
+  editLabel,
+  resendLabel,
+  loading,
+  onEdit,
+  onResend,
+}: OtpDeliveryPanelProps) {
+  return (
+    <div className="overflow-hidden rounded-[26px] border border-black/6 bg-linear-to-br from-[#fffaf0] via-white to-[#f5f7fb]">
+      <div className="border-b border-black/6 px-5 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-secondary/75">
+              {eyebrow}
+            </p>
+            <h3 className="mt-2 flex items-center gap-2 text-xl text-primary">
+              <MailCheck className="h-5 w-5 text-secondary" />
+              {title}
+            </h3>
+          </div>
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Secure delivery
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-5 px-5 py-5">
+        <div className="rounded-[22px] border border-black/6 bg-white/90 p-4 shadow-[0_18px_34px_-28px_rgba(26,28,29,0.22)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Destination inbox
+          </p>
+          <p className="mt-2 break-all text-base font-medium text-foreground">{email}</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+
+        <div className="grid gap-3 rounded-[22px] border border-dashed border-black/8 bg-white/55 p-4 text-sm text-muted-foreground sm:grid-cols-2">
+          <div className="flex items-start gap-3">
+            <Clock3 className="mt-0.5 h-4 w-4 text-secondary" />
+            <p>Check spam or promotions if the email does not land in your main inbox.</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <MailCheck className="mt-0.5 h-4 w-4 text-secondary" />
+            <p>Enter the most recent 6-digit code only. Older codes stop working after resend.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-black/8 bg-white px-4 py-3 text-sm font-medium text-foreground transition hover:bg-muted"
+          >
+            <PencilLine className="h-4 w-4" />
+            {editLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onResend}
+            className={cn(stitchSecondaryButtonClass, "gap-2 px-4 py-3")}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4" />
+            )}
+            {resendLabel}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -132,6 +235,7 @@ function LoginPageInner() {
   const [devOtpHint, setDevOtpHint] = useState("");
   const [otp, setOtp] = useState("");
   const [pendingSignup, setPendingSignup] = useState<PendingSignupState | null>(null);
+  const [authActionPrompt, setAuthActionPrompt] = useState<AuthActionPrompt>(null);
 
   useEffect(() => {
     let active = true;
@@ -250,6 +354,7 @@ function LoginPageInner() {
     setLoading(true);
     setError("");
     setNotice("");
+    setAuthActionPrompt(null);
 
     const normalizedEmail = loginEmail.trim().toLowerCase();
 
@@ -261,6 +366,8 @@ function LoginPageInner() {
 
     const result = (await response.json()) as {
       error?: string;
+      code?: string;
+      suggestedAction?: "signup";
       expiresInMinutes?: number;
       devOtp?: string;
       notice?: string;
@@ -268,6 +375,7 @@ function LoginPageInner() {
 
     if (!response.ok) {
       setError(result.error ?? "Failed to send login OTP.");
+      setAuthActionPrompt(result.suggestedAction === "signup" ? "signup" : null);
       setLoading(false);
       return;
     }
@@ -285,6 +393,7 @@ function LoginPageInner() {
         ? `Development mode is active. Use the code below for ${normalizedEmail}.`
         : `We sent a login code to ${normalizedEmail}. Enter it below within ${result.expiresInMinutes ?? 10} minutes.`,
     );
+    setAuthActionPrompt(null);
     setLoading(false);
   }
 
@@ -551,6 +660,7 @@ function LoginPageInner() {
     setError("");
     setNotice("");
     setLoading(false);
+    setAuthActionPrompt(null);
 
     if (nextMode === "signup") {
       setSignupStep("form");
@@ -631,6 +741,30 @@ function LoginPageInner() {
           {error ? (
             <div className="mt-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
+            </div>
+          ) : null}
+
+          {authActionPrompt === "signup" ? (
+            <div className="mt-6 overflow-hidden rounded-[24px] border border-secondary/18 bg-linear-to-br from-[#fff9e6] via-white to-[#f7f8fb]">
+              <div className="border-b border-secondary/12 px-5 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-secondary/75">
+                  New To STC
+                </p>
+                <h3 className="mt-2 text-xl text-primary">Create your account to continue</h3>
+              </div>
+              <div className="space-y-4 px-5 py-5">
+                <p className="text-sm leading-7 text-muted-foreground">
+                  That email is not registered yet. Sign up first, then we can send your login
+                  OTP and give you access to the portal.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => switchMode("signup")}
+                  className={cn(stitchSecondaryButtonClass, "w-full justify-center py-3 text-sm")}
+                >
+                  Go To Sign Up
+                </button>
+              </div>
             </div>
           ) : null}
 
@@ -776,12 +910,23 @@ function LoginPageInner() {
                 </form>
               ) : (
                 <form onSubmit={handleVerifyLoginOtp} className="space-y-5">
-                  <div className="rounded-2xl border border-black/6 bg-muted px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                      OTP Login
-                    </p>
-                    <p className="mt-2 text-sm text-foreground/70">{loginEmail}</p>
-                  </div>
+                  <OtpDeliveryPanel
+                    eyebrow="OTP Login"
+                    title="Check your email for the latest code"
+                    email={loginEmail}
+                    description="We sent a one-time sign-in code through our Resend mail flow. It is valid for a short window and refreshes each time you request a new code."
+                    editLabel="Change email"
+                    resendLabel="Resend OTP"
+                    loading={loading}
+                    onEdit={() => {
+                      setLoginOtpSent(false);
+                      setLoginOtp("");
+                      setError("");
+                      setNotice("");
+                      setDevOtpHint("");
+                    }}
+                    onResend={handleResendLoginOtp}
+                  />
 
                   <label className="block">
                     <span className="mb-2 block text-sm text-muted-foreground">6-digit OTP</span>
@@ -798,6 +943,10 @@ function LoginPageInner() {
                       placeholder="123456"
                       className={cn(stitchInputClass, "text-center text-lg tracking-[0.35em]")}
                     />
+                    <span className="mt-2 block text-sm leading-6 text-muted-foreground">
+                      Use the newest code from your inbox. If you requested another email, previous
+                      codes will no longer verify.
+                    </span>
                   </label>
 
                   <button
@@ -811,30 +960,6 @@ function LoginPageInner() {
                       "Verify OTP and Sign In"
                     )}
                   </button>
-
-                  <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
-                    <button
-                      type="button"
-                    onClick={() => {
-                      setLoginOtpSent(false);
-                      setLoginOtp("");
-                      setError("");
-                      setNotice("");
-                      setDevOtpHint("");
-                    }}
-                    className="transition-colors hover:text-foreground"
-                  >
-                      Change email
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleResendLoginOtp}
-                      className="transition-colors hover:text-primary"
-                      disabled={loading}
-                    >
-                      Resend OTP
-                    </button>
-                  </div>
                 </form>
               )}
             </div>
@@ -920,12 +1045,23 @@ function LoginPageInner() {
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} className="mt-7 space-y-5">
-              <div className="rounded-2xl border border-black/6 bg-muted px-4 py-4">
-                <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                  Pending Signup
-                </p>
-                <p className="mt-2 text-sm text-foreground/70">{pendingSignup?.email}</p>
-              </div>
+              <OtpDeliveryPanel
+                eyebrow="Pending Signup"
+                title="Finish creating your account"
+                email={pendingSignup?.email ?? ""}
+                description="Your verification email has been queued through Resend. Open the latest message, copy the 6-digit code, and enter it below to activate the student portal."
+                editLabel="Edit details"
+                resendLabel="Resend OTP"
+                loading={loading}
+                onEdit={() => {
+                  setSignupStep("form");
+                  setOtp("");
+                  setError("");
+                  setNotice("");
+                  setDevOtpHint("");
+                }}
+                onResend={handleResendOtp}
+              />
 
               <label className="block">
                 <span className="mb-2 block text-sm text-muted-foreground">6-digit OTP</span>
@@ -942,6 +1078,9 @@ function LoginPageInner() {
                   placeholder="123456"
                   className={cn(stitchInputClass, "text-center text-lg tracking-[0.35em]")}
                 />
+                <span className="mt-2 block text-sm leading-6 text-muted-foreground">
+                  The code in the most recent email is the one that will complete account creation.
+                </span>
               </label>
 
               <button
@@ -955,30 +1094,6 @@ function LoginPageInner() {
                   "Verify OTP and Create Account"
                 )}
               </button>
-
-              <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSignupStep("form");
-                    setOtp("");
-                    setError("");
-                    setNotice("");
-                    setDevOtpHint("");
-                  }}
-                  className="transition-colors hover:text-foreground"
-                >
-                  Edit details
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  className="transition-colors hover:text-primary"
-                  disabled={loading}
-                >
-                  Resend OTP
-                </button>
-              </div>
             </form>
           )}
 

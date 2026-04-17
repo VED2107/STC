@@ -102,22 +102,38 @@ export default function AdminQrCodesPage() {
 
   // Render QR codes when students change
   useEffect(() => {
+    let cancelled = false;
+
     async function renderQrCodes() {
       const QRCode = (await import("qrcode")).default;
+
+      // Wait a tick for React to commit canvas elements and run ref callbacks
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      if (cancelled) return;
+
       for (const student of students) {
-        if (!student.token) continue;
+        if (!student.token || cancelled) continue;
         const canvas = qrCanvasRefs.current.get(student.student_id);
         if (!canvas) continue;
 
-        await QRCode.toCanvas(canvas, student.token, {
-          width: 180,
-          margin: 2,
-          color: { dark: "#000000", light: "#ffffff" },
-          errorCorrectionLevel: "M",
-        });
+        try {
+          await QRCode.toCanvas(canvas, student.token, {
+            width: 180,
+            margin: 2,
+            color: { dark: "#000000", light: "#ffffff" },
+            errorCorrectionLevel: "M",
+          });
+        } catch {
+          // Canvas may have unmounted
+        }
       }
     }
     void renderQrCodes();
+
+    return () => {
+      cancelled = true;
+    };
   }, [students]);
 
   async function handleGenerateAll() {

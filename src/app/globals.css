@@ -370,6 +370,40 @@
   }
 }
 
+/* Skeleton loading animations */
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scaleY(0.85);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes skeleton-width {
+  0%,
+  100% {
+    width: 12px;
+    opacity: 0.3;
+  }
+  50% {
+    width: 48px;
+    opacity: 0.7;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   @layer components {
     .stitch-reveal {

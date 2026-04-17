@@ -22,6 +22,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!/^\d{6}$/.test(normalizedOtp)) {
+      return NextResponse.json(
+        { error: "OTP must be exactly 6 digits." },
+        { status: 400 },
+      );
+    }
+
     const pendingToken = request.cookies.get(SIGNUP_OTP_COOKIE)?.value;
 
     if (!pendingToken) {

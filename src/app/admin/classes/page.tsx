@@ -15,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GripVertical, Loader2, Pencil, Save, Trash2 } from "lucide-react";
+import { Download, GripVertical, Loader2, Pencil, Save, Trash2 } from "lucide-react";
 import type { BoardType, Class, ClassLevel } from "@/lib/types/database";
+import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -60,6 +61,67 @@ function AdminClassesPageInner() {
   const [formError, setFormError] = useState("");
   const [draggingClassId, setDraggingClassId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [exportingClassId, setExportingClassId] = useState<string | null>(null);
+
+  const classExportHeaders = [
+    { key: "name", label: "Name" },
+    { key: "phone", label: "Phone" },
+    { key: "studentType", label: "Student Type" },
+    { key: "status", label: "Status" },
+    { key: "feesAmount", label: "Fees Amount (INR)" },
+    { key: "installment1", label: "Installment 1" },
+    { key: "installment2", label: "Installment 2" },
+    { key: "feesStatus", label: "Fees Status" },
+    { key: "enrollmentDate", label: "Enrollment Date" },
+  ];
+
+  async function exportClassStudents(classId: string, className: string, format: "csv" | "xlsx") {
+    setExportingClassId(classId);
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("students")
+        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone)")
+        .eq("class_id", classId)
+        .order("created_at", { ascending: false });
+
+      const rows = ((data ?? []) as Array<{
+        profile: { full_name: string; phone: string } | null;
+        student_type: string;
+        is_active: boolean;
+        fees_amount: number;
+        fees_installment1_paid: boolean;
+        fees_installment2_paid: boolean;
+        enrollment_date: string;
+      }>).map((s) => {
+        const feesStatus = s.fees_installment1_paid && s.fees_installment2_paid
+          ? "Fully Paid"
+          : s.fees_installment1_paid || s.fees_installment2_paid
+            ? "Partially Paid"
+            : "Not Paid";
+        return {
+          name: s.profile?.full_name ?? "Unnamed",
+          phone: s.profile?.phone ?? "N/A",
+          studentType: s.student_type === "tuition" ? "Tuition" : "Online",
+          status: s.is_active ? "Active" : "Inactive",
+          feesAmount: s.fees_amount ?? 0,
+          installment1: s.fees_installment1_paid ? "Paid" : "Not Paid",
+          installment2: s.fees_installment2_paid ? "Paid" : "Not Paid",
+          feesStatus,
+          enrollmentDate: new Date(s.enrollment_date).toLocaleDateString("en-IN"),
+        };
+      });
+
+      const filename = `${className.replace(/\s+/g, "_")}_students_${new Date().toISOString().split("T")[0]}`;
+      if (format === "csv") {
+        downloadCSV(rows, classExportHeaders, filename);
+      } else {
+        await downloadXLSX(rows, classExportHeaders, filename);
+      }
+    } finally {
+      setExportingClassId(null);
+    }
+  }
 
   function handleDialogOpenChange(nextOpen: boolean) {
     setDialogOpen(nextOpen);
@@ -429,6 +491,26 @@ function AdminClassesPageInner() {
                           <span>Capacity</span>
                           <span>{enrolled}/{capacity}</span>
                         </div>
+                        <div className="mt-4 flex gap-1.5">
+                          <button
+                            type="button"
+                            className="rounded-md bg-muted/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                            onClick={() => void exportClassStudents(item.id, item.name, "csv")}
+                            disabled={exportingClassId === item.id}
+                            title="Download students CSV"
+                          >
+                            <Download className="mr-1 inline h-3 w-3" />CSV
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md bg-muted/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                            onClick={() => void exportClassStudents(item.id, item.name, "xlsx")}
+                            disabled={exportingClassId === item.id}
+                            title="Download students Excel"
+                          >
+                            <Download className="mr-1 inline h-3 w-3" />Excel
+                          </button>
+                        </div>
                       </>
                     );
                   })()}
@@ -509,6 +591,15 @@ function AdminClassesPageInner() {
                           </button>
                           <button type="button" onClick={() => void handleDelete(item.id)} className="text-destructive">
                             <Trash2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void exportClassStudents(item.id, item.name, "csv")}
+                            className="text-muted-foreground"
+                            title="Download students CSV"
+                            disabled={exportingClassId === item.id}
+                          >
+                            <Download className="h-4 w-4" />
                           </button>
                         </div>
                       </td>

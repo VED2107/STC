@@ -74,6 +74,9 @@ export interface Student {
   student_type: StudentType;
   enrollment_date: string;
   is_active: boolean;
+  fees_amount: number;
+  fees_installment1_paid: boolean;
+  fees_installment2_paid: boolean;
   created_at: string;
   /** Joined data */
   profile?: Profile;

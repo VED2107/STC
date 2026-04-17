@@ -3,7 +3,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Download, Search, Users } from "lucide-react";
+import { Download, FileSpreadsheet, Search, Users } from "lucide-react";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,6 +19,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { StudentFormDialog } from "@/components/admin/student-form-dialog";
+import { CsvUploadDialog } from "@/components/admin/csv-upload-dialog";
 
 interface StudentRow {
   id: string;
@@ -28,6 +29,9 @@ interface StudentRow {
   created_at?: string;
   is_active: boolean;
   student_type: "tuition" | "online";
+  fees_amount: number;
+  fees_installment1_paid: boolean;
+  fees_installment2_paid: boolean;
   profile: { full_name: string; phone: string } | null;
   class: { name: string; board: string } | null;
   enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
@@ -43,6 +47,7 @@ function AdminStudentsPageInner() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentRow | null>(null);
 
   function handleDialogOpenChange(nextOpen: boolean) {
@@ -111,7 +116,7 @@ function AdminStudentsPageInner() {
       const { data } = await supabase
         .from("students")
         .select(
-          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))"
+          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))"
         )
         .in("class_id", classIds)
         .order("created_at", { ascending: false })
@@ -125,7 +130,7 @@ function AdminStudentsPageInner() {
     const { data } = await supabase
       .from("students")
       .select(
-        "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))"
+        "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))"
       )
       .order("created_at", { ascending: false })
       .order("enrollment_date", { ascending: false });
@@ -167,6 +172,10 @@ function AdminStudentsPageInner() {
   const onlineCount = students.filter((student) => student.student_type === "online").length;
   const isTeacherView = role === "teacher";
 
+  const feesPaidCount = students.filter((s) => s.fees_installment1_paid && s.fees_installment2_paid).length;
+  const feesPartialCount = students.filter((s) => (s.fees_installment1_paid || s.fees_installment2_paid) && !(s.fees_installment1_paid && s.fees_installment2_paid)).length;
+  const feesNotPaidCount = students.filter((s) => !s.fees_installment1_paid && !s.fees_installment2_paid).length;
+
   const studentExportHeaders = [
     { key: "name", label: "Name" },
     { key: "phone", label: "Phone" },
@@ -176,8 +185,18 @@ function AdminStudentsPageInner() {
     { key: "accessType", label: "Access Type" },
     { key: "status", label: "Status" },
     { key: "courses", label: "Courses" },
+    { key: "feesAmount", label: "Fees Amount (INR)" },
+    { key: "feesInstallment1", label: "Installment 1" },
+    { key: "feesInstallment2", label: "Installment 2" },
+    { key: "feesStatus", label: "Fees Status" },
     { key: "enrollmentDate", label: "Enrollment Date" },
   ];
+
+  function getFeesStatus(s: StudentRow) {
+    if (s.fees_installment1_paid && s.fees_installment2_paid) return "Fully Paid";
+    if (s.fees_installment1_paid || s.fees_installment2_paid) return "Partially Paid";
+    return "Not Paid";
+  }
 
   function buildExportRows() {
     return filtered.map((student, index) => ({
@@ -196,6 +215,10 @@ function AdminStudentsPageInner() {
               .filter(Boolean)
               .join("; ") || "No purchased course"
           : "Class resources",
+      feesAmount: student.fees_amount ?? 0,
+      feesInstallment1: student.fees_installment1_paid ? "Paid" : "Not Paid",
+      feesInstallment2: student.fees_installment2_paid ? "Paid" : "Not Paid",
+      feesStatus: getFeesStatus(student),
       enrollmentDate: new Date(student.enrollment_date).toLocaleDateString("en-IN"),
     }));
   }
@@ -226,16 +249,26 @@ function AdminStudentsPageInner() {
         />
         <div className="flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           {isTeacherView ? null : (
-            <button
-              type="button"
-              className={stitchButtonClass}
-              onClick={() => {
-                setEditingStudent(null);
-                setDialogOpen(true);
-              }}
-            >
-              Enroll Student
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "gap-2")}
+                onClick={() => setCsvDialogOpen(true)}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Bulk Upload
+              </button>
+              <button
+                type="button"
+                className={stitchButtonClass}
+                onClick={() => {
+                  setEditingStudent(null);
+                  setDialogOpen(true);
+                }}
+              >
+                Enroll Student
+              </button>
+            </div>
           )}
           <div className="flex flex-1 gap-3">
             <div className="relative flex-1">
@@ -286,25 +319,25 @@ function AdminStudentsPageInner() {
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Total Students</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{students.length}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">+12%</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Active: {activeCount}</p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Active Enrollment</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{activeCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Stable</p>
+          <p className="stitch-kicker">Fees Fully Paid</p>
+          <p className="mt-5 font-heading text-5xl text-foreground">{feesPaidCount}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Both installments</p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Tuition Students</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{tuitionCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Offline class access</p>
+          <p className="stitch-kicker">Fees Partial</p>
+          <p className="mt-5 font-heading text-5xl text-foreground">{feesPartialCount}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">1 installment paid</p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Online Students</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{onlineCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Purchase-based access</p>
+          <p className="stitch-kicker">Fees Not Paid</p>
+          <p className="mt-5 font-heading text-5xl text-foreground">{feesNotPaidCount}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">No payment received</p>
         </div>
       </div>
 
@@ -350,6 +383,7 @@ function AdminStudentsPageInner() {
                   <th className="pb-4 font-medium">Course Access</th>
                   <th className="pb-4 font-medium">Access Type</th>
                   <th className="pb-4 font-medium">Status</th>
+                  <th className="pb-4 font-medium">Fees</th>
                   <th className="pb-4 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -403,6 +437,24 @@ function AdminStudentsPageInner() {
                       >
                         {student.is_active ? "Active" : "Pending Review"}
                       </span>
+                    </td>
+                    <td className="py-4">
+                      <div className="space-y-1">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs ${
+                            student.fees_installment1_paid && student.fees_installment2_paid
+                              ? "bg-green-100 text-green-700"
+                              : student.fees_installment1_paid || student.fees_installment2_paid
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {getFeesStatus(student)}
+                        </span>
+                        {student.fees_amount > 0 && (
+                          <p className="text-xs text-muted-foreground">₹{student.fees_amount.toLocaleString("en-IN")}</p>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
                       {isTeacherView ? (
@@ -472,12 +524,19 @@ function AdminStudentsPageInner() {
       )}
 
       {isTeacherView ? null : (
-        <StudentFormDialog
-          open={dialogOpen}
-          onOpenChange={handleDialogOpenChange}
-          onSuccess={fetchStudents}
-          editStudent={editingStudent}
-        />
+        <>
+          <StudentFormDialog
+            open={dialogOpen}
+            onOpenChange={handleDialogOpenChange}
+            onSuccess={fetchStudents}
+            editStudent={editingStudent}
+          />
+          <CsvUploadDialog
+            open={csvDialogOpen}
+            onOpenChange={setCsvDialogOpen}
+            onSuccess={fetchStudents}
+          />
+        </>
       )}
     </div>
   );

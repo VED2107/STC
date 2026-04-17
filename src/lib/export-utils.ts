@@ -251,3 +251,199 @@ function triggerDownload(
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+// ─── CSV Parser (client-side) ───────────────────────────────────────
+
+export function parseCSVText(text: string): Record<string, string>[] {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length < 2) return [];
+
+  const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
+  const rows: Record<string, string>[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    const row: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      row[header] = (values[index] ?? "").trim();
+    });
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ",") {
+        result.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// ─── XLSX Parser (lightweight, client-side) ─────────────────────────
+
+export async function parseXLSXFromFile(file: File): Promise<Record<string, string>[]> {
+  const buffer = await file.arrayBuffer();
+  const entries = await readZipEntries(new Uint8Array(buffer));
+
+  const sheetEntry = entries.find((e) => e.path.toLowerCase().includes("sheet1.xml") || e.path.toLowerCase().includes("sheet.xml"));
+  if (!sheetEntry) return [];
+
+  const decoder = new TextDecoder();
+  const sheetXml = decoder.decode(sheetEntry.data);
+
+  // Try shared strings first
+  const sstEntry = entries.find((e) => e.path.toLowerCase().includes("sharedstrings.xml"));
+  const sharedStrings: string[] = [];
+  if (sstEntry) {
+    const sstXml = decoder.decode(sstEntry.data);
+    const siMatches = sstXml.matchAll(/<si[^>]*>[\s\S]*?<t[^>]*>([\s\S]*?)<\/t>[\s\S]*?<\/si>/gi);
+    for (const match of siMatches) {
+      sharedStrings.push(decodeXmlEntities(match[1]));
+    }
+  }
+
+  // Parse rows
+  const rowMatches = sheetXml.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/gi);
+  const allRows: string[][] = [];
+
+  for (const rowMatch of rowMatches) {
+    const cellMatches = rowMatch[1].matchAll(/<c\s([^>]*)>([\s\S]*?)<\/c>/gi);
+    const cells: string[] = [];
+
+    for (const cellMatch of cellMatches) {
+      const attrs = cellMatch[1];
+      const inner = cellMatch[2];
+      const isSharedString = /t\s*=\s*"s"/i.test(attrs);
+      const valueMatch = inner.match(/<v>([\s\S]*?)<\/v>/);
+      const inlineMatch = inner.match(/<t[^>]*>([\s\S]*?)<\/t>/);
+
+      if (inlineMatch) {
+        cells.push(decodeXmlEntities(inlineMatch[1]));
+      } else if (valueMatch) {
+        if (isSharedString) {
+          const idx = parseInt(valueMatch[1], 10);
+          cells.push(sharedStrings[idx] ?? "");
+        } else {
+          cells.push(valueMatch[1]);
+        }
+      } else {
+        cells.push("");
+      }
+    }
+    allRows.push(cells);
+  }
+
+  if (allRows.length < 2) return [];
+
+  const headers = allRows[0].map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
+  const result: Record<string, string>[] = [];
+
+  for (let i = 1; i < allRows.length; i++) {
+    const row: Record<string, string> = {};
+    let hasValue = false;
+    headers.forEach((header, index) => {
+      const val = (allRows[i][index] ?? "").trim();
+      row[header] = val;
+      if (val) hasValue = true;
+    });
+    if (hasValue) result.push(row);
+  }
+
+  return result;
+}
+
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+async function readZipEntries(data: Uint8Array): Promise<{ path: string; data: Uint8Array }[]> {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const entries: { path: string; data: Uint8Array }[] = [];
+  const decoder = new TextDecoder();
+
+  let offset = 0;
+  while (offset < data.length - 4) {
+    const sig = view.getUint32(offset, true);
+    if (sig !== 0x04034b50) break;
+
+    const compMethod = view.getUint16(offset + 8, true);
+    const compSize = view.getUint32(offset + 18, true);
+    const nameLen = view.getUint16(offset + 26, true);
+    const extraLen = view.getUint16(offset + 28, true);
+    const nameStart = offset + 30;
+    const path = decoder.decode(data.subarray(nameStart, nameStart + nameLen));
+    const dataStart = nameStart + nameLen + extraLen;
+
+    if (compMethod === 0) {
+      entries.push({ path, data: data.subarray(dataStart, dataStart + compSize) });
+    }
+    offset = dataStart + compSize;
+  }
+
+  return entries;
+}
+
+// ─── Bulk Upload Template ──────────────────────────────────────────
+
+const BULK_TEMPLATE_HEADERS = [
+  { key: "full_name", label: "Full Name" },
+  { key: "email", label: "Email" },
+  { key: "phone", label: "Phone" },
+  { key: "class_name", label: "Class Name" },
+  { key: "student_type", label: "Student Type" },
+  { key: "fees_amount", label: "Fees Amount (INR)" },
+  { key: "fees_installment1_paid", label: "Installment 1 Paid" },
+  { key: "fees_installment2_paid", label: "Installment 2 Paid" },
+];
+
+const SAMPLE_ROW = {
+  full_name: "John Doe",
+  email: "johndoe@example.com",
+  phone: "9876543210",
+  class_name: "Class 5 - GSEB",
+  student_type: "tuition",
+  fees_amount: "5000",
+  fees_installment1_paid: "no",
+  fees_installment2_paid: "no",
+};
+
+export function downloadBulkTemplateCSV() {
+  downloadCSV([SAMPLE_ROW], BULK_TEMPLATE_HEADERS, "student_registration_template");
+}
+
+export async function downloadBulkTemplateXLSX() {
+  await downloadXLSX([SAMPLE_ROW], BULK_TEMPLATE_HEADERS, "student_registration_template");
+}
+

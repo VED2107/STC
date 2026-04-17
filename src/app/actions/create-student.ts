@@ -8,6 +8,9 @@ interface CreateStudentInput {
   classId: string;
   studentType: StudentType;
   isActive: boolean;
+  feesAmount?: number;
+  feesInstallment1Paid?: boolean;
+  feesInstallment2Paid?: boolean;
 }
 
 interface CreateStudentResult {
@@ -73,7 +76,7 @@ export async function getAvailableStudentProfiles(): Promise<AvailableStudentPro
 export async function createStudent(
   input: CreateStudentInput
 ): Promise<CreateStudentResult> {
-  const { profileId, classId, studentType, isActive } = input;
+  const { profileId, classId, studentType, isActive, feesAmount, feesInstallment1Paid, feesInstallment2Paid } = input;
 
   if (!profileId) {
     return {
@@ -145,6 +148,9 @@ export async function createStudent(
     student_type: studentType,
     enrollment_date: new Date().toISOString().split("T")[0],
     is_active: isActive,
+    fees_amount: feesAmount ?? 0,
+    fees_installment1_paid: feesInstallment1Paid ?? false,
+    fees_installment2_paid: feesInstallment2Paid ?? false,
   });
 
   if (studentError) {

@@ -5,10 +5,10 @@ import { HeroMedia } from "@/components/stitch/hero-media";
 import { AnnouncementBadge } from "@/components/stitch/announcement-badge";
 
 const stats = [
-  { value: "98%", label: "Placement Rate" },
-  { value: "12:1", label: "Student-Teacher Ratio" },
-  { value: "15k+", label: "Alumni Network" },
-  { value: "45", label: "Global Partners" },
+  { value: "99%", label: "Passing Students" },
+  { value: "30:1", label: "Student-Teacher Ratio" },
+  { value: "15 years+", label: "Teaching Experience" },
+  { value: "30+", label: "Students In Best Universities" },
 ];
 
 const departments = [

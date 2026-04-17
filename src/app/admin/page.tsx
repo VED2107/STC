@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FileText,
   GraduationCap,
+  IndianRupee,
   LibraryBig,
   Loader2,
 } from "lucide-react";
@@ -28,6 +29,9 @@ interface DashboardStats {
   materials: number;
   classes: number;
   attendance: number;
+  feesPaid: number;
+  feesPartial: number;
+  feesNotPaid: number;
 }
 
 interface RegistryRow {
@@ -36,6 +40,9 @@ interface RegistryRow {
   enrollment_date: string;
   created_at?: string;
   is_active: boolean;
+  fees_amount: number;
+  fees_installment1_paid: boolean;
+  fees_installment2_paid: boolean;
   profile: { full_name: string; phone: string } | null;
   class: { name: string; board: string } | null;
   student_type?: "tuition" | "online";
@@ -119,7 +126,7 @@ export default function AdminDashboard() {
         supabase
           .from("students")
           .select(
-            "id, profile_id, enrollment_date, created_at, is_active, student_type, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
+            "id, profile_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
           )
           .order("created_at", { ascending: false })
           .order("enrollment_date", { ascending: false })
@@ -161,6 +168,20 @@ export default function AdminDashboard() {
         ),
       );
 
+      const registryRows = ((registryRes.data as RegistryRow[] | null) ?? []).map((row) => ({
+        ...row,
+        authUser: authFallbackById.get(row.profile_id) ?? null,
+      }));
+
+      // Compute fees stats from all students (not just top 5)
+      const { data: allStudentsFees } = await supabase
+        .from("students")
+        .select("fees_installment1_paid, fees_installment2_paid");
+      const feesRows = (allStudentsFees ?? []) as { fees_installment1_paid: boolean; fees_installment2_paid: boolean }[];
+      const feesPaid = feesRows.filter((r) => r.fees_installment1_paid && r.fees_installment2_paid).length;
+      const feesPartial = feesRows.filter((r) => (r.fees_installment1_paid || r.fees_installment2_paid) && !(r.fees_installment1_paid && r.fees_installment2_paid)).length;
+      const feesNotPaid = feesRows.filter((r) => !r.fees_installment1_paid && !r.fees_installment2_paid).length;
+
       setStats({
         students: studentCount.count ?? 0,
         courses: courseCount.count ?? 0,
@@ -168,13 +189,11 @@ export default function AdminDashboard() {
         materials: materialCount.count ?? 0,
         classes: classCount.count ?? 0,
         attendance: attendanceCount.count ?? 0,
+        feesPaid,
+        feesPartial,
+        feesNotPaid,
       });
-      setRegistry(
-        (((registryRes.data as RegistryRow[] | null) ?? []).map((row) => ({
-          ...row,
-          authUser: authFallbackById.get(row.profile_id) ?? null,
-        }))),
-      );
+      setRegistry(registryRows);
       setTeachers((teachersRes.data as TeacherRow[] | null) ?? []);
       setCourses((coursesRes.data as CourseRow[] | null) ?? []);
       setClasses((classesRes.data as ClassRow[] | null) ?? []);
@@ -258,6 +277,34 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Fees Summary */}
+      <div className="mt-6 grid gap-6 md:grid-cols-3">
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Fees Fully Paid</p>
+          <p className="mt-5 font-heading text-5xl text-green-600">{stats.feesPaid}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            Both installments paid
+          </p>
+        </div>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Partially Paid</p>
+          <p className="mt-5 font-heading text-5xl text-amber-600">{stats.feesPartial}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            1 installment paid
+          </p>
+        </div>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Not Paid</p>
+          <p className="mt-5 font-heading text-5xl text-red-500">{stats.feesNotPaid}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            No payment received
+          </p>
+        </div>
+      </div>
+
       <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
         <div className={stitchPanelClass}>
           <div className="flex flex-col gap-4 border-b border-black/6 pb-5 md:flex-row md:items-end md:justify-between">
@@ -285,6 +332,7 @@ export default function AdminDashboard() {
                   <th className="pb-4 font-medium">Class</th>
                   <th className="pb-4 font-medium">Course Access</th>
                   <th className="pb-4 font-medium">Status</th>
+                  <th className="pb-4 font-medium">Fees</th>
                   <th className="pb-4 font-medium">Enrolled</th>
                 </tr>
               </thead>
@@ -328,6 +376,27 @@ export default function AdminDashboard() {
                         >
                           {row.is_active ? "Active" : "Inactive"}
                         </span>
+                      </td>
+                      <td className="py-4">
+                        <span
+                          className={cn(
+                            "rounded-full px-3 py-1 text-xs",
+                            row.fees_installment1_paid && row.fees_installment2_paid
+                              ? "bg-green-100 text-green-700"
+                              : row.fees_installment1_paid || row.fees_installment2_paid
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-red-100 text-red-700",
+                          )}
+                        >
+                          {row.fees_installment1_paid && row.fees_installment2_paid
+                            ? "Fully Paid"
+                            : row.fees_installment1_paid || row.fees_installment2_paid
+                              ? "Partial"
+                              : "Not Paid"}
+                        </span>
+                        {(row.fees_amount ?? 0) > 0 && (
+                          <p className="mt-1 text-xs text-muted-foreground">₹{row.fees_amount.toLocaleString("en-IN")}</p>
+                        )}
                       </td>
                       <td className="py-4 text-sm text-muted-foreground">
                         {new Date(row.enrollment_date).toLocaleDateString("en-IN")}

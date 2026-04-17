@@ -90,34 +90,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /** Sign out and redirect to home */
   const signOut = useCallback(async () => {
     try {
-      // Clear the server session first, then clear the browser session.
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }).catch(() => null);
-
-      const { error: clientError } = await supabase.auth.signOut({ scope: "local" });
-
-      if (clientError) {
-        console.error("Client sign out error:", clientError.message);
-      }
-
+      // Clear caches immediately so stale state never lingers
       const prevUserId = prevUserIdRef.current;
       if (prevUserId) {
         clearCachedProfile(prevUserId);
         clearCachedStudentType(prevUserId);
       }
 
+      // Clear local state right away
       setUser(null);
       setProfile(null);
       setSession(null);
-      // Hard redirect to main page with full browser refresh
-      window.location.href = "/";
-    } catch (err) {
-      console.error("Sign out error:", err);
-      window.location.href = "/";
+
+      // Fire server-side session clear (don't block on it)
+      fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).catch(() => null);
+
+      // Fire client-side sign out (don't await — it can hang on invalid sessions)
+      supabase.auth.signOut({ scope: "local" }).catch(() => null);
+    } catch {
+      // swallow — we're redirecting anyway
+    } finally {
+      // Hard redirect that guarantees a full page reload
+      window.location.replace("/");
     }
   }, []);
 
