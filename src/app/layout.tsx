@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Nunito } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -6,7 +6,7 @@ import "./globals.css";
 const nunito = Nunito({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["600", "700", "800"],  // Only weights actually used in UI
   style: ["normal", "italic"],
   display: "swap",
   preload: true,
@@ -19,7 +19,16 @@ const inter = Inter({
   preload: true,
 });
 
+/** Viewport config — extracted so Next.js can serve it in the initial HTML head */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#ffffff",
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://snowbros.me"),
   title: {
     default: "STC Academy | The Modern Scholar",
     template: "%s | STC Academy",

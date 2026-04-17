@@ -414,3 +414,24 @@
     }
   }
 }
+
+/* ─── Performance utilities ─── */
+
+/* Skip rendering off-screen footer until user scrolls near it */
+footer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+}
+
+/* GPU-promote scrollable panels to avoid paint thrashing */
+.stitch-sidebar-link {
+  will-change: transform;
+}
+
+/* Reduce paint area for table rows */
+@layer components {
+  .stitch-table-row {
+    contain: layout style;
+  }
+}
+
