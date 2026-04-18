@@ -2,12 +2,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download, FileSpreadsheet, Search, Users } from "lucide-react";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useSearchParams } from "next/navigation";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -28,10 +27,11 @@ import {
 } from "@/lib/student-fees";
 
 interface StudentRow {
+  rowKind: "enrolled" | "pending";
   id: string;
   profile_id: string;
-  class_id: string;
-  enrollment_date: string;
+  class_id: string | null;
+  enrollment_date: string | null;
   created_at?: string;
   is_active: boolean;
   student_type: "tuition" | "online";
@@ -39,10 +39,18 @@ interface StudentRow {
   fees_full_payment_paid: boolean;
   fees_installment1_paid: boolean;
   fees_installment2_paid: boolean;
-  profile: { full_name: string; phone: string } | null;
+  profile: { full_name: string; phone: string; email?: string | null } | null;
   class: { name: string; board: string } | null;
   enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
 }
+
+type PendingProfileRow = {
+  id: string;
+  full_name: string;
+  phone: string;
+  email?: string | null;
+  created_at?: string;
+};
 
 const supabase = createClient();
 
@@ -57,12 +65,14 @@ function AdminStudentsPageInner() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentRow | null>(null);
+  const [initialProfileId, setInitialProfileId] = useState<string | null>(null);
 
   function handleDialogOpenChange(nextOpen: boolean) {
     setDialogOpen(nextOpen);
 
     if (!nextOpen) {
       setEditingStudent(null);
+      setInitialProfileId(null);
       if (searchParams?.get("create") === "1") {
         router.replace(pathname, { scroll: false });
       }
@@ -91,25 +101,72 @@ function AdminStudentsPageInner() {
       const { data } = await supabase
         .from("students")
         .select(
-          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))"
+          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email), class:classes(name, board), enrollments(status, course:courses(title))"
         )
         .in("class_id", classIds)
         .order("created_at", { ascending: false })
         .order("enrollment_date", { ascending: false });
 
-      setStudents((data as StudentRow[] | null) ?? []);
+      const enrolledStudents = ((data as Omit<StudentRow, "rowKind">[] | null) ?? []).map(
+        (student) => ({
+          ...student,
+          rowKind: "enrolled" as const,
+        }),
+      );
+
+      setStudents(enrolledStudents);
       setLoading(false);
       return;
     }
 
-    const { data } = await supabase
-      .from("students")
-      .select(
-        "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))"
-      )
-      .order("created_at", { ascending: false })
-      .order("enrollment_date", { ascending: false });
-    setStudents((data as StudentRow[] | null) ?? []);
+    const [{ data: studentData }, { data: profileData }] = await Promise.all([
+      supabase
+        .from("students")
+        .select(
+          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email), class:classes(name, board), enrollments(status, course:courses(title))"
+        )
+        .order("created_at", { ascending: false })
+        .order("enrollment_date", { ascending: false }),
+      supabase
+        .from("profiles")
+        .select("id, full_name, phone, email, created_at")
+        .eq("role", "student")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    const enrolledStudents = ((studentData as Omit<StudentRow, "rowKind">[] | null) ?? []).map(
+      (student) => ({
+        ...student,
+        rowKind: "enrolled" as const,
+      }),
+    );
+
+    const enrolledProfileIds = new Set(enrolledStudents.map((student) => student.profile_id));
+    const pendingStudents = ((profileData as PendingProfileRow[] | null) ?? [])
+      .filter((profile) => !enrolledProfileIds.has(profile.id))
+      .map((profile) => ({
+        rowKind: "pending" as const,
+        id: profile.id,
+        profile_id: profile.id,
+        class_id: null,
+        enrollment_date: null,
+        created_at: profile.created_at,
+        is_active: false,
+        student_type: "online" as const,
+        fees_amount: 0,
+        fees_full_payment_paid: false,
+        fees_installment1_paid: false,
+        fees_installment2_paid: false,
+        profile: {
+          full_name: profile.full_name,
+          phone: profile.phone,
+          email: profile.email,
+        },
+        class: null,
+        enrollments: [],
+      }));
+
+    setStudents([...pendingStudents, ...enrolledStudents]);
     setLoading(false);
   }, [role, user]);
 
@@ -121,7 +178,6 @@ function AdminStudentsPageInner() {
 
     if (role === "student") {
       router.push("/dashboard");
-      return;
     }
   }, [fetchStudents, role, router]);
 
@@ -129,6 +185,7 @@ function AdminStudentsPageInner() {
     if (role !== "admin") return;
     if (searchParams?.get("create") === "1") {
       setEditingStudent(null);
+      setInitialProfileId(null);
       setDialogOpen(true);
       router.replace(pathname, { scroll: false });
     }
@@ -138,16 +195,28 @@ function AdminStudentsPageInner() {
     const courseTitles = (student.enrollments ?? [])
       .map((entry) => entry.course?.title ?? "")
       .join(" ");
-    const haystack = `${student.profile?.full_name ?? ""} ${student.class?.name ?? ""} ${courseTitles}`.toLowerCase();
+    const haystack = [
+      student.profile?.full_name ?? "",
+      student.profile?.phone ?? "",
+      student.profile?.email ?? "",
+      student.class?.name ?? "",
+      courseTitles,
+    ]
+      .join(" ")
+      .toLowerCase();
+
     return haystack.includes(search.toLowerCase());
   });
 
-  const activeCount = students.filter((student) => student.is_active).length;
+  const enrolledStudents = students.filter((student) => student.rowKind === "enrolled");
+  const activeCount = enrolledStudents.filter((student) => student.is_active).length;
+  const pendingCount = students.filter((student) => student.rowKind === "pending").length;
   const isTeacherView = role === "teacher";
-
-  const feesPaidCount = students.filter((student) => isFullyPaid(student)).length;
-  const feesPartialCount = students.filter((student) => isPartiallyPaid(student)).length;
-  const feesNotPaidCount = students.filter((student) => !isFullyPaid(student) && !isPartiallyPaid(student)).length;
+  const feesPaidCount = enrolledStudents.filter((student) => isFullyPaid(student)).length;
+  const feesPartialCount = enrolledStudents.filter((student) => isPartiallyPaid(student)).length;
+  const feesNotPaidCount = enrolledStudents.filter(
+    (student) => !isFullyPaid(student) && !isPartiallyPaid(student),
+  ).length;
 
   const studentExportHeaders = [
     { key: "name", label: "Name" },
@@ -170,38 +239,80 @@ function AdminStudentsPageInner() {
     return filtered.map((student, index) => ({
       name: student.profile?.full_name || "Unnamed",
       phone: student.profile?.phone || "N/A",
-      studentId: `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`,
-      className: student.class?.name ?? "Independent Study",
-      board: student.class?.board ?? "Global Curriculum Board",
-      accessType: student.student_type === "tuition" ? "Tuition" : "Online",
-      status: student.is_active ? "Active" : "Pending Review",
+      studentId:
+        student.rowKind === "enrolled" && student.enrollment_date
+          ? `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`
+          : "Pending",
+      className: student.class?.name ?? "Awaiting assignment",
+      board: student.class?.board ?? "Pending",
+      accessType:
+        student.rowKind === "pending"
+          ? "Awaiting enrollment"
+          : student.student_type === "tuition"
+            ? "Tuition"
+            : "Online",
+      status:
+        student.rowKind === "pending"
+          ? "Pending Enrollment"
+          : student.is_active
+            ? "Active"
+            : "Pending Review",
       courses:
-        student.student_type === "online"
-          ? (student.enrollments ?? [])
-              .filter((e) => e.status === "active")
-              .map((e) => e.course?.title)
-              .filter(Boolean)
-              .join("; ") || "No purchased course"
-          : "Class resources",
-      feesAmount: student.fees_amount ?? 0,
-      feesFullPayment: student.fees_full_payment_paid ? "Yes" : "No",
-      feesInstallment1: student.fees_installment1_paid ? "Paid" : "Not Paid",
-      feesInstallment2: student.fees_installment2_paid ? "Paid" : "Not Paid",
-      feesStatus: getFeesStatusLabel(student),
-      enrollmentDate: new Date(student.enrollment_date).toLocaleDateString("en-IN"),
+        student.rowKind === "pending"
+          ? "No purchased course"
+          : student.student_type === "online"
+            ? (student.enrollments ?? [])
+                .filter((entry) => entry.status === "active")
+                .map((entry) => entry.course?.title)
+                .filter(Boolean)
+                .join("; ") || "No purchased course"
+            : "Class resources",
+      feesAmount: student.rowKind === "pending" ? 0 : student.fees_amount ?? 0,
+      feesFullPayment:
+        student.rowKind === "pending"
+          ? "No"
+          : student.fees_full_payment_paid
+            ? "Yes"
+            : "No",
+      feesInstallment1:
+        student.rowKind === "pending"
+          ? "Not Enrolled"
+          : student.fees_installment1_paid
+            ? "Paid"
+            : "Not Paid",
+      feesInstallment2:
+        student.rowKind === "pending"
+          ? "Not Enrolled"
+          : student.fees_installment2_paid
+            ? "Paid"
+            : "Not Paid",
+      feesStatus:
+        student.rowKind === "pending" ? "Pending enrollment" : getFeesStatusLabel(student),
+      enrollmentDate: student.enrollment_date
+        ? new Date(student.enrollment_date).toLocaleDateString("en-IN")
+        : "Pending",
     }));
   }
 
   function handleDownloadCSV() {
-    downloadCSV(buildExportRows(), studentExportHeaders, `students_${new Date().toISOString().split("T")[0]}`);
+    downloadCSV(
+      buildExportRows(),
+      studentExportHeaders,
+      `students_${new Date().toISOString().split("T")[0]}`,
+    );
   }
 
   async function handleDownloadXLSX() {
-    await downloadXLSX(buildExportRows(), studentExportHeaders, `students_${new Date().toISOString().split("T")[0]}`);
+    await downloadXLSX(
+      buildExportRows(),
+      studentExportHeaders,
+      `students_${new Date().toISOString().split("T")[0]}`,
+    );
   }
+
   const summaryCardClass = cn(
     stitchPanelSoftClass,
-    "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+    "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]",
   );
 
   return (
@@ -232,6 +343,7 @@ function AdminStudentsPageInner() {
                 className={stitchButtonClass}
                 onClick={() => {
                   setEditingStudent(null);
+                  setInitialProfileId(null);
                   setDialogOpen(true);
                 }}
               >
@@ -246,7 +358,7 @@ function AdminStudentsPageInner() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 className={cn(stitchInputClass, "pl-11")}
-                placeholder="Filter by name or ID..."
+                placeholder="Filter by name, phone, email, or course..."
               />
             </div>
             <button
@@ -297,25 +409,34 @@ function AdminStudentsPageInner() {
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Total Students</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{students.length}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Active: {activeCount}</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            Active: {activeCount}
+            {pendingCount > 0 ? ` | Pending: ${pendingCount}` : ""}
+          </p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Fees Fully Paid</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{feesPaidCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Full payment or both installments</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            Full payment or both installments
+          </p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Fees Partial</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{feesPartialCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">Installments in progress</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            Installments in progress
+          </p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Fees Not Paid</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{feesNotPaidCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">No payment received</p>
+          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+            No payment received
+          </p>
         </div>
       </div>
 
@@ -328,7 +449,7 @@ function AdminStudentsPageInner() {
           <StitchEmptyState
             icon={Users}
             title="No Students Found"
-            description="Enroll a signed-up student account to begin populating the institutional registry."
+            description="Signed-up accounts and enrolled students will appear here as soon as they are available."
           />
         </div>
       ) : (
@@ -344,6 +465,7 @@ function AdminStudentsPageInner() {
                   className={stitchButtonClass}
                   onClick={() => {
                     setEditingStudent(null);
+                    setInitialProfileId(null);
                     setDialogOpen(true);
                   }}
                 >
@@ -367,75 +489,104 @@ function AdminStudentsPageInner() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((student, index) => (
-                  <tr key={student.id}>
+                  <tr key={`${student.rowKind}-${student.id}`}>
                     <td className="py-4">
                       <p className="text-base text-foreground">
                         {student.profile?.full_name || "Unnamed Scholar"}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {student.profile?.phone || "No phone"}
+                        {student.profile?.phone || student.profile?.email || "No contact info"}
                       </p>
                     </td>
                     <td className="py-4 text-sm text-primary">
-                      STC-{new Date(student.enrollment_date).getFullYear()}-{String(index + 1).padStart(3, "0")}
+                      {student.enrollment_date
+                        ? `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`
+                        : "Pending"}
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
-                      {student.class?.name ?? "Independent Study"}
+                      {student.class?.name ?? "Awaiting assignment"}
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
-                      {student.class?.board ?? "Global Curriculum Board"}
+                      {student.class?.board ?? "Pending"}
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
-                      {student.student_type === "online"
-                        ? (student.enrollments ?? [])
-                            .filter((entry) => entry.status === "active")
-                            .map((entry) => entry.course?.title)
-                            .filter((value): value is string => Boolean(value))
-                            .join(", ") || "No purchased course"
-                        : "Class resources"}
+                      {student.rowKind === "pending"
+                        ? "No purchased course"
+                        : student.student_type === "online"
+                          ? (student.enrollments ?? [])
+                              .filter((entry) => entry.status === "active")
+                              .map((entry) => entry.course?.title)
+                              .filter((value): value is string => Boolean(value))
+                              .join(", ") || "No purchased course"
+                          : "Class resources"}
                     </td>
                     <td className="py-4">
                       <span
                         className={`rounded-full px-3 py-1 text-xs ${
-                          student.student_type === "tuition"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-[#163241] text-[#9db7c5]"
+                          student.rowKind === "pending"
+                            ? "bg-amber-100 text-amber-700"
+                            : student.student_type === "tuition"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-[#163241] text-[#9db7c5]"
                         }`}
                       >
-                        {student.student_type === "tuition" ? "Tuition" : "Online"}
+                        {student.rowKind === "pending"
+                          ? "Signup"
+                          : student.student_type === "tuition"
+                            ? "Tuition"
+                            : "Online"}
                       </span>
                     </td>
                     <td className="py-4">
                       <span
                         className={`rounded-full px-3 py-1 text-xs ${
-                          student.is_active
-                            ? "bg-primary/10 text-primary"
-                            : "bg-[#3f231b] text-[#ff9b82]"
+                          student.rowKind === "pending"
+                            ? "bg-amber-100 text-amber-700"
+                            : student.is_active
+                              ? "bg-primary/10 text-primary"
+                              : "bg-[#3f231b] text-[#ff9b82]"
                         }`}
                       >
-                        {student.is_active ? "Active" : "Pending Review"}
+                        {student.rowKind === "pending"
+                          ? "Pending Enrollment"
+                          : student.is_active
+                            ? "Active"
+                            : "Pending Review"}
                       </span>
                     </td>
                     <td className="py-4">
-                      <div className="space-y-1">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs ${
-                            isFullyPaid(student)
-                              ? "bg-green-100 text-green-700"
-                              : isPartiallyPaid(student)
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {getFeesStatusLabel(student)}
-                        </span>
-                        {hasFullPaymentMarked(student) ? (
-                          <p className="text-xs text-green-700">Settled with full payment</p>
-                        ) : null}
-                        {student.fees_amount > 0 && (
-                          <p className="text-xs text-muted-foreground">₹{student.fees_amount.toLocaleString("en-IN")}</p>
-                        )}
-                      </div>
+                      {student.rowKind === "pending" ? (
+                        <div className="space-y-1">
+                          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-700">
+                            Pending enrollment
+                          </span>
+                          <p className="text-xs text-muted-foreground">
+                            Fees can be added after class assignment.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs ${
+                              isFullyPaid(student)
+                                ? "bg-green-100 text-green-700"
+                                : isPartiallyPaid(student)
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {getFeesStatusLabel(student)}
+                          </span>
+                          {hasFullPaymentMarked(student) ? (
+                            <p className="text-xs text-green-700">Settled with full payment</p>
+                          ) : null}
+                          {student.fees_amount > 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              Rs {student.fees_amount.toLocaleString("en-IN")}
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
                       {isTeacherView ? (
@@ -447,11 +598,17 @@ function AdminStudentsPageInner() {
                           type="button"
                           className={stitchSecondaryButtonClass}
                           onClick={() => {
-                            setEditingStudent(student);
+                            if (student.rowKind === "pending") {
+                              setEditingStudent(null);
+                              setInitialProfileId(student.profile_id);
+                            } else {
+                              setEditingStudent(student);
+                              setInitialProfileId(null);
+                            }
                             setDialogOpen(true);
                           }}
                         >
-                          Edit
+                          {student.rowKind === "pending" ? "Enroll" : "Edit"}
                         </button>
                       )}
                     </td>
@@ -510,7 +667,8 @@ function AdminStudentsPageInner() {
             open={dialogOpen}
             onOpenChange={handleDialogOpenChange}
             onSuccess={fetchStudents}
-            editStudent={editingStudent}
+            editStudent={editingStudent?.rowKind === "enrolled" ? editingStudent : null}
+            initialProfileId={initialProfileId}
           />
           <CsvUploadDialog
             open={csvDialogOpen}

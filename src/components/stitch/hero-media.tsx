@@ -25,7 +25,7 @@ export function HeroMedia() {
         <div className="absolute inset-x-6 top-8 bottom-[24%] rounded-[28px] bg-white/45 shadow-[0_20px_80px_rgba(0,0,0,0.06)] backdrop-blur-[2px] md:inset-x-10 md:top-10 md:bottom-[28%] xl:inset-x-10 xl:top-12 xl:bottom-12">
           <div className="relative h-full w-full">
             <Image
-              src="/hero.jpg"
+              src="/hero.png"
               alt="STC Academy"
               fill
               priority

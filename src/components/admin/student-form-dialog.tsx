@@ -47,6 +47,7 @@ interface StudentFormDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   editStudent?: EditableStudent | null;
+  initialProfileId?: string | null;
 }
 
 export function StudentFormDialog({
@@ -54,6 +55,7 @@ export function StudentFormDialog({
   onOpenChange,
   onSuccess,
   editStudent = null,
+  initialProfileId = null,
 }: StudentFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -108,7 +110,7 @@ export function StudentFormDialog({
       return;
     }
 
-    setSelectedProfileId("");
+    setSelectedProfileId(initialProfileId ?? "");
     setProfileSearch("");
     setFullName("");
     setPhone("");
@@ -124,7 +126,7 @@ export function StudentFormDialog({
       const eligibleProfiles = await getAvailableStudentProfiles();
       setAvailableProfiles(eligibleProfiles);
     })();
-  }, [open, editStudent]);
+  }, [open, editStudent, initialProfileId]);
 
   useEffect(() => {
     if (!feesFullPayment) {
