@@ -314,6 +314,13 @@ function AdminStudentsPageInner() {
     stitchPanelSoftClass,
     "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]",
   );
+  const editStudentForDialog =
+    editingStudent?.rowKind === "enrolled" && editingStudent.class_id
+      ? {
+          ...editingStudent,
+          class_id: editingStudent.class_id,
+        }
+      : null;
 
   return (
     <div className="px-6 py-8 md:px-10">
@@ -667,7 +674,7 @@ function AdminStudentsPageInner() {
             open={dialogOpen}
             onOpenChange={handleDialogOpenChange}
             onSuccess={fetchStudents}
-            editStudent={editingStudent?.rowKind === "enrolled" ? editingStudent : null}
+            editStudent={editStudentForDialog}
             initialProfileId={initialProfileId}
           />
           <CsvUploadDialog
