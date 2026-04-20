@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
         // Manual attendance exists but no check_in_at — patch it
         const { error: patchError } = await admin
           .from("attendance")
-          .update({ check_in_at: now, scan_method: "qr" })
+          .update({ check_in_at: now, scan_method: "qr", marked_by: user.id })
           .eq("id", existing.id);
 
         if (patchError) {
@@ -229,9 +229,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Perform check-out
-    const { error: updateError } = await admin
+      const { error: updateError } = await admin
       .from("attendance")
-      .update({ check_out_at: now })
+      .update({ check_out_at: now, marked_by: user.id })
       .eq("id", existing.id);
 
     if (updateError) {

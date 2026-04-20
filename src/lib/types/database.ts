@@ -95,6 +95,7 @@ export interface Enrollment {
 export interface Attendance {
   id: string;
   student_id: string;
+  teacher_id: string | null;
   class_id: string;
   course_id: string | null;
   session_id: string | null;
@@ -165,6 +166,7 @@ export interface AttendanceSession {
   starts_at: string;
   ends_at: string | null;
   created_by: string;
+  teacher_id: string | null;
   created_at: string;
   student?: Student;
   class?: Class;

@@ -60,6 +60,7 @@ interface AttendanceRecord {
 }
 
 interface HistoryRow {
+  student_id: string;
   date: string;
   status: string;
   late_minutes: number | null;
@@ -529,6 +530,7 @@ export default function AdminAttendancePage() {
   ).length;
 
   const attendanceExportHeaders = [
+    { key: "studentId", label: "Student ID" },
     { key: "name", label: "Student Name" },
     { key: "status", label: "Status" },
     { key: "lateMinutes", label: "Late (min)" },
@@ -542,6 +544,7 @@ export default function AdminAttendancePage() {
     return records.map((record) => {
       const student = students.find((s) => s.id === record.student_id);
       return {
+        studentId: record.student_id,
         name: student?.profile?.full_name ?? "Unknown",
         status: record.status === "present" ? "Present" : "Absent",
         lateMinutes: record.status === "present" ? String(record.late_minutes ?? 0) : "",
@@ -631,6 +634,7 @@ export default function AdminAttendancePage() {
       class: { name: string } | null;
       course: { title: string } | null;
     }>) ?? []).map((r) => ({
+      student_id: studentId,
       date: r.date,
       status: r.status,
       late_minutes: r.late_minutes,
@@ -674,6 +678,7 @@ export default function AdminAttendancePage() {
   }
 
   const historyExportHeaders = [
+    { key: "studentId", label: "Student ID" },
     { key: "date", label: "Date" },
     { key: "status", label: "Status" },
     { key: "lateMinutes", label: "Late (min)" },
@@ -684,6 +689,7 @@ export default function AdminAttendancePage() {
 
   function buildHistoryExportRows() {
     return historyRecords.map((r) => ({
+      studentId: r.student_id,
       date: new Date(r.date).toLocaleDateString("en-IN"),
       status: r.status === "present" ? "Present" : "Absent",
       lateMinutes: r.status === "present" ? String(r.late_minutes ?? 0) : "",
