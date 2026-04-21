@@ -274,7 +274,7 @@ function AdminSyllabusPageInner() {
           />
         </div>
       ) : (
-        <div id="published-syllabus-list" className="mt-10 grid gap-6 xl:grid-cols-2">
+        <div id="published-syllabus-list" className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-2">
           {syllabi.map((item) => {
             const content = item.content as { units?: SyllabusUnit[] };
             return (

@@ -402,7 +402,7 @@ function AdminClassesPageInner() {
         </div>
       ) : (
         <>
-          <div className="mt-10 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-[1.25fr_0.75fr]">
           <div className={stitchPanelClass}>
             <p className="stitch-kicker">Total Enrollment</p>
             <p className="mt-5 font-heading text-6xl text-foreground">{totalActiveStudents}</p>
@@ -426,7 +426,7 @@ function AdminClassesPageInner() {
                 {primaryClasses.length} Active Classes
               </span>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-4">
               {primaryClasses.map((item) => (
                 <article
                   key={item.id}

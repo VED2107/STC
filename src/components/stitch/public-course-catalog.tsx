@@ -108,7 +108,7 @@ export function PublicCourseCatalog({
       </header>
 
       <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 pr-2 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:gap-3 md:pb-2">
           {filters.map((filter) => {
             const active =
               filter.key === "all"
@@ -134,7 +134,8 @@ export function PublicCourseCatalog({
                   updateRoute({ level: filter.key, track: "" });
                 }}
                 className={cn(
-                  "rounded-full px-6 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition",
+                  "shrink-0 snap-start rounded-full px-4 py-3 text-center text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] whitespace-normal transition sm:text-[11px] md:px-6 md:py-2 md:tracking-[0.18em]",
+                  filter.key === "all" ? "min-w-[96px]" : "min-w-[72px]",
                   active
                     ? "bg-accent text-accent-foreground"
                     : "bg-muted text-muted-foreground hover:bg-surface-variant",
@@ -145,7 +146,7 @@ export function PublicCourseCatalog({
             );
           })}
         </div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:text-[11px] md:tracking-[0.18em]">
           Displaying {filtered.length} available modules
         </div>
       </div>

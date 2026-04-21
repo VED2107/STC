@@ -128,7 +128,7 @@ export default function StudentMaterialsPage() {
         </div>
       ) : (
         <>
-          <div className="mt-10 grid gap-6 xl:grid-cols-3">
+          <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-3">
             {materials.map((material) => (
               <a
                 key={material.id}

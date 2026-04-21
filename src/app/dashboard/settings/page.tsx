@@ -220,7 +220,7 @@ function StudentSettingsPageInner() {
           </div>
         </div>
 
-        <div className="grid gap-6">
+        <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={stitchPanelClass}>
             <UserCircle2 className="h-6 w-6 text-primary" />
             <h3 className="mt-6 text-3xl text-foreground">Role</h3>

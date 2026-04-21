@@ -377,7 +377,7 @@ export default function QrScanPage() {
         description="Open today’s session, point the camera at a student QR, and mark check-in or check-out immediately."
       />
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="mt-8 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <div className={stitchPanelClass}>
             <div className="grid gap-4 md:grid-cols-2">
@@ -683,7 +683,7 @@ export default function QrScanPage() {
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={stitchPanelClass}>
             <h3 className="text-3xl text-foreground">Today’s Session</h3>
             <p className="mt-3 text-sm text-muted-foreground">

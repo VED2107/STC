@@ -237,7 +237,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      {/* ── Bento stat grid — 2-col on mobile ── */}
+      <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Students</p>
@@ -272,8 +273,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Fees Summary */}
-      <div className="mt-6 grid gap-6 md:grid-cols-3">
+      {/* Fees Summary — 2-col on mobile */}
+      <div className="mt-4 sm:mt-6 grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3">
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Fees Fully Paid</p>
@@ -290,7 +291,7 @@ export default function AdminDashboard() {
             Installments in progress
           </p>
         </div>
-        <div className={summaryCardClass}>
+        <div className={cn(summaryCardClass, "col-span-2 md:col-span-1")}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Not Paid</p>
           <p className="mt-5 font-heading text-5xl text-red-500">{stats.feesNotPaid}</p>
@@ -300,7 +301,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
+      <div className="mt-6 sm:mt-10 grid gap-3 sm:gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
         <div className={stitchPanelClass}>
           <div className="flex flex-col gap-4 border-b border-black/6 pb-5 md:flex-row md:items-end md:justify-between">
             <div>
@@ -447,8 +448,9 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="mt-10 grid gap-6 xl:grid-cols-3">
-        <div className={stitchPanelClass}>
+      {/* ── Bottom panels — 2-col on mobile, 3 on xl ── */}
+      <div className="mt-6 sm:mt-10 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
+        <div className={cn(stitchPanelClass, "col-span-2 xl:col-span-1")}>
           <div className="flex items-center justify-between">
             <h3 className="text-3xl italic text-primary">Latest Teachers</h3>
             <Link href="/admin/teachers" className="text-xs uppercase tracking-[0.2em] text-secondary">
@@ -494,7 +496,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className={stitchPanelClass}>
+        <div className={cn(stitchPanelClass, "col-span-2 sm:col-span-1")}>
           <div className="flex items-center justify-between">
             <h3 className="text-3xl italic text-primary">Latest Classes</h3>
             <Link href="/admin/classes" className="text-xs uppercase tracking-[0.2em] text-secondary">

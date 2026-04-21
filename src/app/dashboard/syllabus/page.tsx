@@ -170,7 +170,7 @@ export default function StudentSyllabusPage() {
                   <h2 className="text-4xl text-foreground">{syllabus.subject}</h2>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                   {(syllabus.content.units ?? []).map((unit, unitIndex) => (
                     <article key={unit.title + unitIndex} className={stitchPanelClass}>
                       <div className="flex items-start justify-between gap-3">

@@ -270,7 +270,7 @@ export default function AdminQrCodesPage() {
         description="Generate, view, and download QR codes for student attendance scanning."
       />
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mt-8 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {/* Controls */}
           <div className={stitchPanelClass}>
@@ -360,7 +360,7 @@ export default function AdminQrCodesPage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
               {filteredStudents.map((student) => (
                 <div
                   key={student.student_id}
@@ -459,7 +459,7 @@ export default function AdminQrCodesPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={stitchPanelClass}>
             <h3 className="text-3xl text-foreground">Summary</h3>
             <div className="mt-5 space-y-4 text-sm text-muted-foreground">

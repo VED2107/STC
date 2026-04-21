@@ -336,9 +336,9 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
 
       <main className="pt-20 sm:pt-24">{children}</main>
 
-      <footer className="border-t border-black/5 bg-background px-6 py-14 md:px-12">
+      <footer className="border-t border-black/5 bg-background px-6 py-10 md:px-12 md:py-14">
         <div className="mx-auto max-w-[1600px]">
-          <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1.1fr]">
+          <div className="grid gap-8 md:gap-12 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1.1fr]">
             <Reveal variant="fade-up" className="space-y-5">
               <div className="font-heading text-3xl italic text-foreground">STC Academy</div>
               <p className="max-w-lg text-base leading-8 text-muted-foreground">
@@ -354,7 +354,18 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
 
             <Reveal delay={80} variant="fade-up" className="space-y-5">
               <h3 className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Academic Tracks</h3>
-              <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-2 md:hidden">
+                {footerLinks.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex min-h-[84px] rounded-[20px] bg-muted px-4 py-3 text-sm leading-5 text-foreground/78 stitch-ghost-border transition-all hover:-translate-y-0.5 hover:text-secondary"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+              <div className="hidden flex-col gap-3 md:flex">
                 {footerLinks.map((item) => (
                   <Link
                     key={item.label}
@@ -369,7 +380,34 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
 
             <Reveal delay={160} variant="soft-zoom" className="space-y-5 md:col-span-2 lg:col-span-1">
               <h3 className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Contact</h3>
-              <div className="rounded-[24px] bg-muted p-6 stitch-ghost-border">
+              <div className="grid grid-cols-2 gap-3 md:hidden">
+                {contactDetails.map((item, index) => {
+                  const Icon = item.icon;
+                  const isWide = index === contactDetails.length - 1;
+
+                  return (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      className={cn(
+                        "rounded-[22px] bg-muted p-4 stitch-ghost-border transition-all hover:-translate-y-0.5 hover:bg-white/90",
+                        isWide && "col-span-2"
+                      )}
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-secondary stitch-ghost-border">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="mt-4 space-y-1">
+                        <div className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
+                          {item.label}
+                        </div>
+                        <div className="text-sm leading-6 text-foreground/80">{item.value}</div>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+              <div className="hidden rounded-[24px] bg-muted p-6 stitch-ghost-border md:block">
                 <div className="space-y-4">
                   {contactDetails.map((item) => {
                     const Icon = item.icon;
@@ -399,13 +437,21 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
             </Reveal>
           </div>
 
-          <div className="mt-10 flex flex-col gap-4 border-t border-black/5 pt-6 text-xs uppercase tracking-[0.18em] text-muted-foreground lg:flex-row lg:items-center lg:justify-between">
-            <Reveal variant="fade">
+          <div className="mt-10 border-t border-black/5 pt-6 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <Reveal variant="fade" className="rounded-[20px] bg-muted/55 p-4 stitch-ghost-border md:border-0 md:bg-transparent md:p-0">
               <p>&copy; {new Date().getFullYear()} STC Academy. Designed for the Modern Scholar.</p>
             </Reveal>
-            <Reveal delay={80} variant="fade" className="flex flex-wrap gap-5">
-              <span>Mon-Sat | 8:00 AM - 8:00 PM</span>
-              <span>Focused learning environment with active admissions support</span>
+            <Reveal
+              delay={80}
+              variant="fade"
+              className="mt-3 grid grid-cols-2 gap-3 md:mt-4 lg:flex lg:flex-wrap lg:gap-5"
+            >
+              <span className="rounded-[20px] bg-muted/55 p-4 stitch-ghost-border md:border-0 md:bg-transparent md:p-0">
+                Mon-Sat | 8:00 AM - 8:00 PM
+              </span>
+              <span className="col-span-2 rounded-[20px] bg-muted/55 p-4 leading-5 stitch-ghost-border md:col-span-1 md:border-0 md:bg-transparent md:p-0 md:leading-normal">
+                Focused learning environment with active admissions support
+              </span>
             </Reveal>
           </div>
         </div>

@@ -441,7 +441,7 @@ function AdminMaterialsPageInner() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={cn(stitchPanelClass, "border-dashed text-center")}>
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/3 text-primary">
               <Upload className="h-7 w-7" />

@@ -1066,7 +1066,7 @@ export default function AdminAttendancePage() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={stitchPanelClass}>
             <h3 className="text-4xl text-foreground">Session Summary</h3>
             <div className="mt-6 space-y-5 text-sm leading-7 text-muted-foreground">

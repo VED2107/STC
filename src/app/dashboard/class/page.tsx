@@ -119,7 +119,7 @@ export default function StudentClassPage() {
         }
       />
 
-      <div className="mt-10 grid gap-6 md:grid-cols-3">
+      <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 md:grid-cols-3">
         <div className={stitchPanelClass}>
           <p className="stitch-kicker">Board</p>
           <p className="mt-5 font-heading text-5xl text-foreground">
@@ -132,13 +132,13 @@ export default function StudentClassPage() {
             {classRecord.class.level}
           </p>
         </div>
-        <div className={stitchPanelClass}>
+        <div className={cn(stitchPanelClass, "col-span-2 md:col-span-1")}>
           <p className="stitch-kicker">Active Courses</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{courses.length}</p>
         </div>
       </div>
 
-      <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
+      <div className="mt-10 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
         <div className={stitchPanelClass}>
           <div className="flex items-center justify-between">
             <h2 className="text-3xl text-foreground">Course Structure</h2>
@@ -154,7 +154,7 @@ export default function StudentClassPage() {
               </p>
             </div>
           ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="mt-6 grid grid-cols-2 gap-3 md:gap-4">
               {courses.map((course) => (
                 <div key={course.id} className={stitchPanelSoftClass}>
                   <p className="text-xl text-foreground">{course.title}</p>

@@ -143,7 +143,7 @@ function AdminTeachersPageInner() {
           </div>
         </div>
       ) : (
-        <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-3">
           {filtered.map((teacher) => (
             <article key={teacher.id} className={cn(stitchPanelClass, "overflow-hidden p-0")}>
               <div className="relative">
@@ -209,7 +209,7 @@ function AdminTeachersPageInner() {
             type="button"
             className={cn(
               stitchPanelClass,
-              "flex min-h-[420px] flex-col items-center justify-center border-dashed text-center"
+              "flex min-h-[280px] md:min-h-[420px] flex-col items-center justify-center border-dashed text-center"
             )}
             onClick={() => {
               setEditingTeacher(undefined);

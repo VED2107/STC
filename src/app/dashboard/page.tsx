@@ -302,13 +302,14 @@ export default function StudentDashboard() {
         }
       />
 
-      <div className={`mt-8 grid gap-6 md:grid-cols-2 ${isOnlineStudent ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
-        <Link href="/dashboard/class" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
+      {/* ── Bento stat grid — 2-col even on mobile ── */}
+      <div className={`mt-8 grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 ${isOnlineStudent ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
+        <Link href="/dashboard/class" className={cn(stitchPanelClass, "col-span-2 sm:col-span-1 transition hover:border-primary/12")}>
           <p className="stitch-kicker">Class Details</p>
-          <h2 className="mt-5 text-3xl text-foreground">
+          <h2 className="mt-4 text-2xl sm:text-3xl text-foreground">
             {studentRecord?.class?.name ?? "Not Assigned"}
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
             {studentRecord?.class?.board ?? "Board pending"} · Level{" "}
             {studentRecord?.class?.level ?? "-"}
           </p>
@@ -316,35 +317,36 @@ export default function StudentDashboard() {
         {isOnlineStudent ? null : (
           <Link href="/dashboard/attendance" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
             <p className="stitch-kicker">Attendance</p>
-            <p className="mt-5 font-heading text-5xl text-primary">
+            <p className="mt-4 font-heading text-4xl sm:text-5xl text-primary">
               {stats.attendanceRate}%
             </p>
-            <p className="mt-3 text-sm text-muted-foreground">View your attendance archive</p>
+            <p className="mt-2 text-xs sm:text-sm text-muted-foreground">View archive</p>
           </Link>
         )}
         <Link href="/dashboard/materials" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
           <p className="stitch-kicker">Materials</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{stats.materials}</p>
-          <p className="mt-3 text-sm text-muted-foreground">Published resources for your class</p>
+          <p className="mt-4 font-heading text-4xl sm:text-5xl text-foreground">{stats.materials}</p>
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground">Published resources</p>
         </Link>
         <Link href="/dashboard/settings" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
           <p className="stitch-kicker">Notifications</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{stats.notifications}</p>
-          <p className="mt-3 text-sm text-muted-foreground">Review profile and account details</p>
+          <p className="mt-4 font-heading text-4xl sm:text-5xl text-foreground">{stats.notifications}</p>
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground">Profile & account</p>
         </Link>
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
-        <div className={stitchPanelClass}>
+      {/* ── Current Studies + Quick Access — side by side on mobile too ── */}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
+        <div className={cn(stitchPanelClass, "col-span-2 xl:col-span-1")}>
           <p className="stitch-kicker">Current Studies</p>
-          <h2 className="mt-4 text-4xl text-foreground">
+          <h2 className="mt-4 text-2xl sm:text-4xl text-foreground">
             {leadCourse?.title ?? "No active course assigned"}
           </h2>
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className="mt-3 text-xs sm:text-sm text-muted-foreground">
             {leadCourse?.subject ??
               "Your active courses will appear here once enrollment is available."}
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col gap-2 sm:gap-3 sm:flex-row">
             <Link href="/dashboard/syllabus" className={stitchButtonClass}>
               View Syllabus
             </Link>
@@ -354,57 +356,59 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <div className={stitchPanelClass}>
+        {/* Quick Access — 2x2 icon grid on mobile, list on xl */}
+        <div className={cn(stitchPanelClass, "col-span-2 xl:col-span-1")}>
           <p className="stitch-kicker">Quick Access</p>
-          <div className="mt-6 grid gap-3">
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-1">
             {isOnlineStudent ? null : (
               <Link
                 href="/dashboard/attendance"
-                className={cn(stitchPanelSoftClass, "flex items-center justify-between transition hover:border-primary/12")}
+                className={cn(stitchPanelSoftClass, "flex flex-col items-center gap-2 py-4 text-center xl:flex-row xl:justify-between xl:text-left xl:py-3 transition hover:border-primary/12")}
               >
-                <span className="flex items-center gap-3 text-foreground">
-                  <CalendarCheck className="h-4 w-4 text-primary" />
-                  Attendance History
+                <span className="flex flex-col items-center gap-1.5 xl:flex-row xl:gap-3 text-foreground text-xs sm:text-sm">
+                  <CalendarCheck className="h-5 w-5 xl:h-4 xl:w-4 text-primary" />
+                  Attendance
                 </span>
-                <ChevronRight className="h-4 w-4 text-primary" />
+                <ChevronRight className="hidden xl:block h-4 w-4 text-primary" />
               </Link>
             )}
             <Link
               href="/dashboard/materials"
-              className={cn(stitchPanelSoftClass, "flex items-center justify-between transition hover:border-primary/12")}
+              className={cn(stitchPanelSoftClass, "flex flex-col items-center gap-2 py-4 text-center xl:flex-row xl:justify-between xl:text-left xl:py-3 transition hover:border-primary/12")}
             >
-              <span className="flex items-center gap-3 text-foreground">
-                <FileText className="h-4 w-4 text-primary" />
-                Study Materials
+              <span className="flex flex-col items-center gap-1.5 xl:flex-row xl:gap-3 text-foreground text-xs sm:text-sm">
+                <FileText className="h-5 w-5 xl:h-4 xl:w-4 text-primary" />
+                Materials
               </span>
-              <ChevronRight className="h-4 w-4 text-primary" />
+              <ChevronRight className="hidden xl:block h-4 w-4 text-primary" />
             </Link>
             <Link
               href="/dashboard/syllabus"
-              className={cn(stitchPanelSoftClass, "flex items-center justify-between transition hover:border-primary/12")}
+              className={cn(stitchPanelSoftClass, "flex flex-col items-center gap-2 py-4 text-center xl:flex-row xl:justify-between xl:text-left xl:py-3 transition hover:border-primary/12")}
             >
-              <span className="flex items-center gap-3 text-foreground">
-                <BookOpen className="h-4 w-4 text-primary" />
-                Curriculum Outline
+              <span className="flex flex-col items-center gap-1.5 xl:flex-row xl:gap-3 text-foreground text-xs sm:text-sm">
+                <BookOpen className="h-5 w-5 xl:h-4 xl:w-4 text-primary" />
+                Curriculum
               </span>
-              <ChevronRight className="h-4 w-4 text-primary" />
+              <ChevronRight className="hidden xl:block h-4 w-4 text-primary" />
             </Link>
             <Link
               href="/dashboard/settings"
-              className={cn(stitchPanelSoftClass, "flex items-center justify-between transition hover:border-primary/12")}
+              className={cn(stitchPanelSoftClass, "flex flex-col items-center gap-2 py-4 text-center xl:flex-row xl:justify-between xl:text-left xl:py-3 transition hover:border-primary/12")}
             >
-              <span className="flex items-center gap-3 text-foreground">
-                <Bell className="h-4 w-4 text-primary" />
-                Profile & Settings
+              <span className="flex flex-col items-center gap-1.5 xl:flex-row xl:gap-3 text-foreground text-xs sm:text-sm">
+                <Bell className="h-5 w-5 xl:h-4 xl:w-4 text-primary" />
+                Settings
               </span>
-              <ChevronRight className="h-4 w-4 text-primary" />
+              <ChevronRight className="hidden xl:block h-4 w-4 text-primary" />
             </Link>
           </div>
         </div>
       </div>
 
 
-      <div className={`mt-8 grid gap-6 ${isOnlineStudent ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,1fr)_380px]"}`}>
+      {/* ── Bottom section — 2-col on mobile for side-by-side feel ── */}
+      <div className={`mt-6 grid grid-cols-1 gap-3 sm:gap-6 ${isOnlineStudent ? "xl:grid-cols-1" : "md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_380px]"}`}>
         <div className={stitchPanelClass}>
           <div className="flex items-center justify-between">
             <h3 className="text-3xl text-foreground">Recent Materials</h3>

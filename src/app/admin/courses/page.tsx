@@ -140,7 +140,7 @@ function AdminCoursesPageInner() {
           />
         </div>
       ) : (
-        <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-3">
           {filtered.map((course) => (
             <article key={course.id} className={stitchPanelClass}>
               <div className="overflow-hidden rounded-[22px] border border-border">

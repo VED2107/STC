@@ -25,8 +25,8 @@ export function AnnouncementBadge() {
   return (
     <Link
       ref={badgeRef}
-      href="/admissions"
-      className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full border border-[#d4a017]/30 bg-linear-to-r from-[#fef9e7]/90 via-white/95 to-[#fef3c7]/90 px-5 py-2.5 shadow-[0_0_20px_rgba(212,160,23,0.12),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:border-[#d4a017]/50 hover:shadow-[0_0_32px_rgba(212,160,23,0.22),0_4px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 sm:gap-4 sm:px-6 sm:py-3"
+      href="/login"
+      className="group relative inline-flex items-center gap-2.5 overflow-hidden rounded-full border border-[#d4a017]/30 bg-linear-to-r from-[#fef9e7]/90 via-white/95 to-[#fef3c7]/90 px-4 py-2 shadow-[0_0_20px_rgba(212,160,23,0.12),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-500 hover:border-[#d4a017]/50 hover:shadow-[0_0_32px_rgba(212,160,23,0.22),0_4px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 sm:gap-3.5 sm:px-5 sm:py-2.5"
     >
       {/* Shimmer sweep */}
       <span className="pointer-events-none absolute inset-0 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite] bg-linear-to-r from-transparent via-[#d4a017]/10 to-transparent" />

@@ -180,7 +180,7 @@ export default function StudentAttendancePage() {
         </div>
       ) : null}
 
-      <div className="mt-10 grid gap-6 md:grid-cols-4">
+      <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 md:grid-cols-4">
         <div className={stitchPanelClass}>
           <p className="font-heading text-5xl text-primary">{rate}%</p>
           <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -207,7 +207,7 @@ export default function StudentAttendancePage() {
         </div>
       </div>
 
-      <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-10 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         {records.length === 0 ? (
           <div className="xl:col-span-2">
             <StitchEmptyState
