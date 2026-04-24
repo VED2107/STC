@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://snowbros.me"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://panel.snowbros.me"),
   title: {
     default: "STC Academy | The Modern Scholar",
     template: "%s | STC Academy",
@@ -90,12 +90,12 @@ export default function RootLayout({
         {/* Pre-connect to Supabase for faster API / storage requests */}
         <link
           rel="preconnect"
-          href="https://czwpbzvhodwkochhvjuw.supabase.co"
+          href={process.env.NEXT_PUBLIC_SUPABASE_URL}
           crossOrigin="anonymous"
         />
         <link
           rel="dns-prefetch"
-          href="https://czwpbzvhodwkochhvjuw.supabase.co"
+          href={process.env.NEXT_PUBLIC_SUPABASE_URL}
         />
         {/* Pre-connect to Google Fonts CDN (fonts are already preloaded by next/font but static assets load from gstatic) */}
         <link
