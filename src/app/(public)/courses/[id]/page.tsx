@@ -10,11 +10,11 @@ import {
   ExternalLink,
   FileText,
   GraduationCap,
-  Loader2,
   PlayCircle,
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import type { Course, Material } from "@/lib/types/database";
 import {
   stitchButtonClass,
@@ -266,7 +266,7 @@ export default function CourseDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <LoadingAnimation size="lg" />
       </div>
     );
   }

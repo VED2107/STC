@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   Download,
   Loader2,
@@ -257,7 +258,7 @@ export default function AdminQrCodesPage() {
   if (authLoading || role !== "admin") {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <LoadingAnimation size="lg" />
       </div>
     );
   }
@@ -345,7 +346,7 @@ export default function AdminQrCodesPage() {
           {/* Student grid */}
           {loading ? (
             <div className="flex min-h-40 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <LoadingAnimation size="md" />
             </div>
           ) : filteredStudents.length === 0 ? (
             <div className={cn(stitchPanelSoftClass, "text-center")}>

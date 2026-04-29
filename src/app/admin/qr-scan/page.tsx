@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -38,7 +39,7 @@ const QRScannerWidget = dynamic(() => import("@/components/qr-scanner"), {
   ssr: false,
   loading: () => (
     <div className="flex min-h-[250px] items-center justify-center rounded-xl bg-black/50">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <LoadingAnimation size="md" />
     </div>
   ),
 });
@@ -349,7 +350,7 @@ export default function QrScanPage() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <LoadingAnimation size="lg" />
       </div>
     );
   }

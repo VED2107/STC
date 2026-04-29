@@ -10,10 +10,10 @@ import {
   GraduationCap,
   IndianRupee,
   LibraryBig,
-  Loader2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   stitchButtonClass,
   stitchPanelClass,
@@ -204,7 +204,7 @@ export default function AdminDashboard() {
   if (!stats) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <LoadingAnimation size="lg" />
       </div>
     );
   }

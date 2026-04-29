@@ -2,10 +2,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, FileText, FolderOpen, Loader2 } from "lucide-react";
+import { ExternalLink, FileText, FolderOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -101,7 +102,7 @@ export default function StudentMaterialsPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <LoadingAnimation size="lg" />
       </div>
     );
   }

@@ -5,6 +5,12 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PREFIXES = ["/api/", "/auth/"];
 const PUBLIC_EXACT = new Set(["/", "/login"]);
 
+function hasSupabaseAuthCookie(request: NextRequest): boolean {
+  return request.cookies
+    .getAll()
+    .some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
+}
+
 function isPublicPage(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;
   for (const prefix of PUBLIC_PREFIXES) {
@@ -59,8 +65,9 @@ export async function updateSession(request: NextRequest) {
   // Still call getUser to refresh cookies if they exist, but skip
   // profile queries and redirects.
   if (isPublicPage(pathname)) {
-    // Refresh session cookie if present (no-op if no cookie)
-    await supabase.auth.getUser();
+    if (hasSupabaseAuthCookie(request)) {
+      await supabase.auth.getUser();
+    }
     return supabaseResponse;
   }
 

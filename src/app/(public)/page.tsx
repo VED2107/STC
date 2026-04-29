@@ -93,7 +93,7 @@ const differentiators = [
 export default function HomePage() {
   return (
     <div className="overflow-x-hidden">
-      {/* ── HERO ── */}
+      {/* HERO */}
       <section className="relative overflow-hidden bg-muted">
         <HeroMedia />
         <div className="relative mx-auto max-w-[1600px] px-6 py-28 md:px-12 md:py-36 xl:py-44">
@@ -139,7 +139,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── STATS ── */}
+      {/* STATS */}
       <section className="bg-white py-16 md:py-20">
         <div className="mx-auto grid max-w-[1600px] grid-cols-2 gap-10 px-6 text-center md:grid-cols-4 md:px-12">
           {stats.map((stat, index) => (
@@ -153,7 +153,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── DEPARTMENTS ── */}
+      {/* DEPARTMENTS */}
       <section className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
         <div className="mb-16 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <Reveal variant="mask-up" className="max-w-2xl">
@@ -209,7 +209,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── FOUNDATIONS ── */}
+      {/* FOUNDATIONS */}
       <section className="bg-muted py-24 md:py-32">
         <div className="mx-auto max-w-[1600px] px-6 md:px-12">
           <Reveal variant="mask-up" className="mx-auto max-w-3xl text-center">
@@ -243,7 +243,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── DIFFERENTIATORS ── */}
+      {/* DIFFERENTIATORS */}
       <section className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
         <Reveal variant="mask-up" className="text-center">
           <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">Why Choose STC</p>
@@ -275,7 +275,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
+      {/* CTA */}
       <section className="px-6 pb-24 md:px-12 md:pb-32">
         <Reveal variant="soft-zoom">
           <div className="relative mx-auto max-w-[1600px] overflow-hidden rounded-[28px] bg-primary px-8 py-14 md:px-16 md:py-20">

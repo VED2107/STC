@@ -7,11 +7,11 @@ import {
   AlertTriangle,
   CalendarCheck,
   CheckCircle2,
-  Loader2,
   XCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -153,7 +153,7 @@ export default function StudentAttendancePage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <LoadingAnimation size="lg" />
       </div>
     );
   }

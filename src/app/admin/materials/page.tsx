@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   Select,
   SelectContent,
@@ -377,7 +378,7 @@ function AdminMaterialsPageInner() {
 
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <LoadingAnimation size="md" />
               </div>
             ) : (
               <div className="mt-6 space-y-4">
@@ -635,7 +636,7 @@ export default function AdminMaterialsPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       }
     >

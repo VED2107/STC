@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   Select,
   SelectContent,
@@ -390,7 +391,7 @@ function AdminClassesPageInner() {
 
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       ) : classes.length === 0 ? (
         <div className="mt-10">
@@ -687,7 +688,7 @@ export default function AdminClassesPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       }
     >

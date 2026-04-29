@@ -1,5 +1,6 @@
 "use client";
 
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import { cn } from "@/lib/utils";
 
 /**
@@ -28,23 +29,7 @@ export function Skeleton({ className }: { className?: string }) {
 export function PageSkeleton({ variant = "default" }: { variant?: "default" | "dashboard" | "admin" | "public" | "login" }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 py-16">
-      {/* Animated STC logo placeholder */}
-      <div className="relative mb-10">
-        <div className="flex items-center gap-1">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-8 w-6 rounded-md bg-primary/10"
-              style={{
-                animation: `skeleton-pulse 1.4s ease-in-out ${i * 0.15}s infinite`,
-              }}
-            />
-          ))}
-        </div>
-        <div className="absolute -bottom-1 left-1/2 h-[2px] w-12 -translate-x-1/2 rounded-full bg-secondary/30"
-          style={{ animation: "skeleton-width 1.8s ease-in-out infinite" }}
-        />
-      </div>
+      <LoadingAnimation className="mb-8" size="lg" />
 
       {/* Variant-specific skeleton content */}
       {variant === "dashboard" ? <DashboardSkeletonContent /> : null}

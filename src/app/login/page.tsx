@@ -20,6 +20,7 @@ import {
   stitchInputClass,
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import { cn } from "@/lib/utils";
 import type { Profile, UserRole } from "@/lib/types/database";
 
@@ -678,7 +679,7 @@ function LoginPageInner() {
   if (bootstrapping) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingAnimation size="md" />
       </div>
     );
   }
@@ -1117,7 +1118,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       }
     >

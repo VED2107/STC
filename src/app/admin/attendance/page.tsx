@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   Select,
   SelectContent,
@@ -918,7 +919,7 @@ export default function AdminAttendancePage() {
           <div className="grid gap-4">
             {loading ? (
               <div className="col-span-full flex min-h-40 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <LoadingAnimation size="md" />
               </div>
             ) : filteredStudents.length === 0 ? (
               <div className={cn(stitchPanelSoftClass, "text-center")}>
