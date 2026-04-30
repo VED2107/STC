@@ -28,6 +28,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
+import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 
 const supabase = createClient();
 
@@ -36,7 +37,9 @@ function AdminMaterialsPageInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { role, user, loading: authLoading } = useAuth();
-  const [classes, setClasses] = useState<Class[]>([]);
+  const classesCacheKey =
+    role === "teacher" && user?.id ? `admin:materials:classes:teacher:${user.id}` : "admin:materials:classes:admin";
+  const [classes, setClasses] = useState<Class[]>(() => getAdminPageCache<Class[]>(classesCacheKey) ?? []);
   const [courses, setCourses] = useState<Course[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedClassId, setSelectedClassId] = useState("");
@@ -80,10 +83,14 @@ function AdminMaterialsPageInner() {
       return;
     }
 
-    if (role !== "admin" && role !== "teacher") return;
+    if (role !== "admin" && role !== "super_admin" && role !== "teacher") return;
 
     async function loadClasses() {
       if (role === "teacher" && user?.id) {
+        const cachedClasses = getAdminPageStorageCache<Class[]>(classesCacheKey);
+        if (cachedClasses) {
+          setClasses(cachedClasses);
+        }
         const { data: accessRows } = await supabase
           .from("teacher_class_access")
           .select("class_id")
@@ -103,22 +110,30 @@ function AdminMaterialsPageInner() {
           .select("*")
           .in("id", classIds)
           .order("sort_order");
-        setClasses((classData as Class[] | null) ?? []);
+        const nextClasses = (classData as Class[] | null) ?? [];
+        setClasses(nextClasses);
+        setAdminPageCache(classesCacheKey, nextClasses);
         return;
       }
 
+      const cachedClasses = getAdminPageStorageCache<Class[]>(classesCacheKey);
+      if (cachedClasses) {
+        setClasses(cachedClasses);
+      }
       const { data: classData } = await supabase
         .from("classes")
         .select("*")
         .order("sort_order");
-      setClasses((classData as Class[] | null) ?? []);
+      const nextClasses = (classData as Class[] | null) ?? [];
+      setClasses(nextClasses);
+      setAdminPageCache(classesCacheKey, nextClasses);
     }
 
     void loadClasses();
-  }, [role, router, user?.id, authLoading]);
+  }, [authLoading, classesCacheKey, role, router, user?.id]);
 
   useEffect(() => {
-    if (role !== "admin" && role !== "teacher") return;
+    if (role !== "admin" && role !== "super_admin" && role !== "teacher") return;
     if (searchParams?.get("create") === "1") {
       setDialogOpen(true);
       router.replace(pathname, { scroll: false });
@@ -136,6 +151,16 @@ function AdminMaterialsPageInner() {
       setSelectedCourseId("");
       return;
     }
+    const coursesCacheKey = `admin:materials:courses:${selectedClassId}`;
+    const cachedCourses = getAdminPageStorageCache<Course[]>(coursesCacheKey);
+    if (cachedCourses) {
+      setCourses(cachedCourses);
+      setSelectedCourseId((current) =>
+        current && cachedCourses.some((course) => course.id === current)
+          ? current
+          : (cachedCourses[0]?.id ?? ""),
+      );
+    }
     supabase
       .from("courses")
       .select("*")
@@ -143,6 +168,7 @@ function AdminMaterialsPageInner() {
       .order("title")
       .then((res: { data: unknown }) => {
         const nextCourses = (res.data as Course[] | null) ?? [];
+        setAdminPageCache(coursesCacheKey, nextCourses);
         setCourses(nextCourses);
         setSelectedCourseId((current) =>
           current && nextCourses.some((course) => course.id === current)
@@ -157,13 +183,22 @@ function AdminMaterialsPageInner() {
       setMaterials([]);
       return;
     }
-    setLoading(true);
+    const materialsCacheKey = `admin:materials:list:${selectedCourseId}`;
+    const cachedMaterials = getAdminPageStorageCache<Material[]>(materialsCacheKey);
+    if (cachedMaterials) {
+      setMaterials(cachedMaterials);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     const { data } = await supabase
       .from("materials")
       .select("*")
       .eq("course_id", selectedCourseId)
       .order("sort_order");
-    setMaterials((data as Material[] | null) ?? []);
+    const nextMaterials = (data as Material[] | null) ?? [];
+    setMaterials(nextMaterials);
+    setAdminPageCache(materialsCacheKey, nextMaterials);
     setLoading(false);
   }, [selectedCourseId]);
 

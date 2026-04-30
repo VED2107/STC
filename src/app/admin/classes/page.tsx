@@ -28,6 +28,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { getFeesStatusLabel } from "@/lib/student-fees";
+import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 
 const BOARDS: BoardType[] = ["GSEB", "NCERT"];
 const LEVELS: ClassLevel[] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "SSC", "HSC"];
@@ -45,14 +46,25 @@ interface ClassTeacherRow {
 }
 
 const supabase = createClient();
+const CLASSES_CACHE_KEY = "admin:classes-overview";
+
+interface ClassesOverviewCache {
+  classes: Class[];
+  studentCounts: Record<string, number>;
+  teacherNamesByClass: Record<string, string[]>;
+}
 
 function AdminClassesPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { role, loading: authLoading } = useAuth();
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState<Class[]>(
+    () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY)?.classes ?? [],
+  );
+  const [loading, setLoading] = useState(
+    () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY) === null,
+  );
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
@@ -60,8 +72,12 @@ function AdminClassesPageInner() {
   const [formBoard, setFormBoard] = useState<BoardType>("GSEB");
   const [formLevel, setFormLevel] = useState<ClassLevel>("1");
   const [formCapacity, setFormCapacity] = useState(String(DEFAULT_CLASS_CAPACITY));
-  const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
-  const [teacherNamesByClass, setTeacherNamesByClass] = useState<Record<string, string[]>>({});
+  const [studentCounts, setStudentCounts] = useState<Record<string, number>>(
+    () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY)?.studentCounts ?? {},
+  );
+  const [teacherNamesByClass, setTeacherNamesByClass] = useState<Record<string, string[]>>(
+    () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY)?.teacherNamesByClass ?? {},
+  );
   const [formError, setFormError] = useState("");
   const [draggingClassId, setDraggingClassId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
@@ -149,6 +165,14 @@ function AdminClassesPageInner() {
   }
 
   const loadClassData = useCallback(async () => {
+    const cachedOverview = getAdminPageStorageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY);
+    if (cachedOverview) {
+      setClasses(cachedOverview.classes);
+      setStudentCounts(cachedOverview.studentCounts);
+      setTeacherNamesByClass(cachedOverview.teacherNamesByClass);
+      setLoading(false);
+    }
+
     const [classesRes, studentsRes, classTeachersRes] = await Promise.all([
       supabase.from("classes").select("*").order("sort_order"),
       supabase.from("students").select("class_id, is_active").eq("is_active", true),
@@ -176,6 +200,11 @@ function AdminClassesPageInner() {
     setClasses(classRows);
     setStudentCounts(counts);
     setTeacherNamesByClass(normalizedTeachersMap);
+    setAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY, {
+      classes: classRows,
+      studentCounts: counts,
+      teacherNamesByClass: normalizedTeachersMap,
+    });
     setLoading(false);
   }, []);
 
@@ -192,12 +221,12 @@ function AdminClassesPageInner() {
       return;
     }
 
-    if (role !== "admin") return;
+    if (role !== "admin" && role !== "super_admin") return;
     void loadClassData();
   }, [role, router, loadClassData, authLoading]);
 
   useEffect(() => {
-    if (role !== "admin") return;
+    if (role !== "admin" && role !== "super_admin") return;
     if (searchParams?.get("create") === "1" && !dialogOpen) {
       setEditingClass(null);
       setFormName("");

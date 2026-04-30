@@ -35,6 +35,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
+  initialAuth?: {
+    session: Session | null;
+    user: User | null;
+    profile: Profile | null;
+  };
 }
 
 /** Stable singleton — never changes between renders */
@@ -44,21 +49,22 @@ const supabase = createClient();
  * Provides authentication state to the entire app.
  * Wraps Supabase auth listener + profile fetching.
  */
-export function AuthProvider({ children }: AuthProviderProps) {
-
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+export function AuthProvider({ children, initialAuth }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(initialAuth?.user ?? null);
+  const [profile, setProfile] = useState<Profile | null>(initialAuth?.profile ?? null);
+  const [session, setSession] = useState<Session | null>(initialAuth?.session ?? null);
+  const [loading, setLoading] = useState(
+    initialAuth ? Boolean(initialAuth.user && !initialAuth.profile) : true,
+  );
 
   /** Track previous user ID for cache cleanup on sign-out */
-  const prevUserIdRef = useRef<string | null>(null);
+  const prevUserIdRef = useRef<string | null>(initialAuth?.user?.id ?? null);
 
   /**
    * Keep a ref of the current profile so the onAuthStateChange listener
    * can check if profile is already loaded without triggering re-renders.
    */
-  const profileRef = useRef<Profile | null>(null);
+  const profileRef = useRef<Profile | null>(initialAuth?.profile ?? null);
 
   /** Fetch profile from Supabase for the current user */
   const fetchProfile = useCallback(
@@ -127,6 +133,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   useEffect(() => {
+    if (initialAuth?.profile) {
+      setCachedProfile(initialAuth.profile);
+    }
+  }, [initialAuth]);
+
+  useEffect(() => {
     /** Get initial session */
     const getInitialSession = async () => {
       try {
@@ -137,6 +149,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         prevUserIdRef.current = currentSession?.user?.id ?? null;
+
+        if (!currentSession?.user) {
+          setProfile(null);
+          profileRef.current = null;
+          return;
+        }
+
+        const currentUserId = currentSession.user.id;
+
+        if (profileRef.current && prevUserIdRef.current === currentUserId) {
+          setCachedProfile(profileRef.current);
+          return;
+        }
 
         if (currentSession?.user) {
           const cachedProfile = getCachedProfile(currentSession.user.id);
@@ -221,7 +246,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, initialAuth]);
 
   const role = profile?.role ?? null;
 

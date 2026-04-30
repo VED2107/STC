@@ -8,6 +8,7 @@ import Image from "next/image";
 import { ImageOff, Search, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -17,17 +18,21 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { TeacherFormDialog } from "@/components/admin/teacher-form-dialog";
+import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import type { Teacher } from "@/lib/types/database";
 
 const supabase = createClient();
+const TEACHERS_CACHE_KEY = "admin:teachers";
 
 function AdminTeachersPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { role, loading: authLoading } = useAuth();
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [teachers, setTeachers] = useState<Teacher[]>(
+    () => getAdminPageCache<Teacher[]>(TEACHERS_CACHE_KEY) ?? [],
+  );
+  const [loading, setLoading] = useState(() => getAdminPageCache<Teacher[]>(TEACHERS_CACHE_KEY) === null);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>();
@@ -44,9 +49,17 @@ function AdminTeachersPageInner() {
   }
 
   const fetchTeachers = useCallback(async () => {
-    setLoading(true);
+    const cachedTeachers = getAdminPageStorageCache<Teacher[]>(TEACHERS_CACHE_KEY);
+    if (cachedTeachers) {
+      setTeachers(cachedTeachers);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     const { data } = await supabase.from("teachers").select("*").order("name", { ascending: true });
-    setTeachers((data as Teacher[] | null) ?? []);
+    const nextTeachers = (data as Teacher[] | null) ?? [];
+    setTeachers(nextTeachers);
+    setAdminPageCache(TEACHERS_CACHE_KEY, nextTeachers);
     setLoading(false);
   }, []);
 
@@ -58,7 +71,7 @@ function AdminTeachersPageInner() {
       return;
     }
 
-    if (role === "admin") {
+    if (role === "admin" || role === "super_admin") {
       void fetchTeachers();
       return;
     }
@@ -70,7 +83,7 @@ function AdminTeachersPageInner() {
   }, [fetchTeachers, role, router, authLoading]);
 
   useEffect(() => {
-    if (role !== "admin") return;
+    if (role !== "admin" && role !== "super_admin") return;
     if (searchParams?.get("create") === "1" && !dialogOpen) {
       setEditingTeacher(undefined);
       setDialogOpen(true);
@@ -122,7 +135,7 @@ function AdminTeachersPageInner() {
 
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
-          <Users className="h-10 w-10 animate-pulse text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="mt-10">
@@ -245,7 +258,7 @@ export default function AdminTeachersPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center">
-          <Users className="h-10 w-10 animate-pulse text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       }
     >

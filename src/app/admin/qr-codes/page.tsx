@@ -31,6 +31,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import type { Class } from "@/lib/types/database";
+import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 
 interface StudentQrRow {
   student_id: string;
@@ -42,11 +43,14 @@ interface StudentQrRow {
 }
 
 const supabase = createClient();
+const QR_CLASSES_CACHE_KEY = "admin:qr:classes";
 
 export default function AdminQrCodesPage() {
   const router = useRouter();
   const { role, loading: authLoading } = useAuth();
-  const [classes, setClasses] = useState<Class[]>([]);
+  const [classes, setClasses] = useState<Class[]>(
+    () => getAdminPageCache<Class[]>(QR_CLASSES_CACHE_KEY) ?? [],
+  );
   const [selectedClassId, setSelectedClassId] = useState("");
   const [students, setStudents] = useState<StudentQrRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,7 +66,7 @@ export default function AdminQrCodesPage() {
   const [confirmRegenClass, setConfirmRegenClass] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && role !== "admin") {
+    if (!authLoading && role !== "admin" && role !== "super_admin") {
       router.push(role === "student" ? "/dashboard" : "/admin");
     }
   }, [role, authLoading, router]);
@@ -70,7 +74,14 @@ export default function AdminQrCodesPage() {
   // Load classes
   useEffect(() => {
     if (authLoading) return;
-    if (role !== "admin") return;
+    if (role !== "admin" && role !== "super_admin") return;
+    const cachedClasses = getAdminPageStorageCache<Class[]>(QR_CLASSES_CACHE_KEY);
+    if (cachedClasses) {
+      setClasses(cachedClasses);
+      if (cachedClasses.length > 0 && !selectedClassId) {
+        setSelectedClassId(cachedClasses[0].id);
+      }
+    }
     supabase
       .from("classes")
       .select("*")
@@ -78,6 +89,7 @@ export default function AdminQrCodesPage() {
       .then(({ data }: { data: Class[] | null }) => {
         const rows = data ?? [];
         setClasses(rows);
+        setAdminPageCache(QR_CLASSES_CACHE_KEY, rows);
         if (rows.length > 0 && !selectedClassId) {
           setSelectedClassId(rows[0].id);
         }
@@ -86,16 +98,25 @@ export default function AdminQrCodesPage() {
 
   const fetchStudents = useCallback(async () => {
     if (authLoading) return;
-    if (role !== "admin") return;
+    if (role !== "admin" && role !== "super_admin") return;
     if (!selectedClassId) return;
-    setLoading(true);
+    const studentsCacheKey = `admin:qr:students:${selectedClassId}`;
+    const cachedStudents = getAdminPageStorageCache<StudentQrRow[]>(studentsCacheKey);
+    if (cachedStudents) {
+      setStudents(cachedStudents);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setActionMessage("");
 
     try {
       const url = `/api/admin/qr-tokens?class_id=${encodeURIComponent(selectedClassId)}`;
       const res = await fetch(url);
       const json = (await res.json()) as { data?: StudentQrRow[] };
-      setStudents(json.data ?? []);
+      const nextStudents = json.data ?? [];
+      setStudents(nextStudents);
+      setAdminPageCache(studentsCacheKey, nextStudents);
     } catch {
       setStudents([]);
     } finally {
@@ -258,7 +279,7 @@ export default function AdminQrCodesPage() {
   );
   const withTokenCount = students.filter((s) => s.token).length;
 
-  if (authLoading || role !== "admin") {
+  if (authLoading || (role !== "admin" && role !== "super_admin")) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <LoadingAnimation size="lg" />

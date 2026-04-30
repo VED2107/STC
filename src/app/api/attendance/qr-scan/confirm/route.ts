@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!profile || (profile.role !== "teacher" && profile.role !== "admin")) {
+    if (!profile || (profile.role !== "teacher" && profile.role !== "admin" && profile.role !== "super_admin")) {
       return NextResponse.json(
         { error: "Only teachers and admins can confirm attendance" },
         { status: 403 },

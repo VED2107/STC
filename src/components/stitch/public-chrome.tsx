@@ -84,10 +84,11 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
   const { user, role, loading, signOut } = useAuth();
   const [studentType, setStudentType] = useState<StudentType | null>(null);
   const isRoleResolved = !user || !!role;
+  const isAdminRole = role === "admin" || role === "super_admin";
   const dashboardHref =
-    role === "admin" ? "/admin" : role === "teacher" ? "/admin/attendance" : "/dashboard";
+    isAdminRole ? "/admin" : role === "teacher" ? "/admin/attendance" : "/dashboard";
   const dashboardLabel =
-    role === "admin"
+    isAdminRole
       ? "Admin Dashboard"
       : role === "teacher"
         ? "Teacher Dashboard"
@@ -97,7 +98,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
       return publicNavLinks;
     }
 
-    if (role === "admin") {
+    if (isAdminRole) {
       return adminNavLinks;
     }
 
@@ -110,7 +111,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
     }
 
     return studentNavLinks;
-  }, [role, studentType, user]);
+  }, [isAdminRole, role, studentType, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -244,7 +245,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
             {!loading && isRoleResolved ? (
               user ? (
                 <Link href={dashboardHref} className={cn(buttonVariants({ size: "sm" }), "h-10 rounded-xl px-3")}>
-                  {role === "admin" ? "Admin" : role === "teacher" ? "Teacher" : "Student"}
+                  {isAdminRole ? "Admin" : role === "teacher" ? "Teacher" : "Student"}
                 </Link>
               ) : (
                 <Link

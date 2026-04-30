@@ -84,7 +84,7 @@ export default function StudentDashboard() {
       setLoading(true);
       setUserName(profile?.full_name || user.user_metadata?.full_name || user.email || "Scholar");
 
-      if (role === "admin" || role === "teacher") {
+      if (role === "admin" || role === "super_admin" || role === "teacher") {
         setLoading(false);
         return;
       }
@@ -232,7 +232,7 @@ export default function StudentDashboard() {
     );
   }
 
-  if (role === "admin" || role === "teacher") {
+  if (role === "admin" || role === "super_admin" || role === "teacher") {
     return (
       <div className="px-6 py-10 md:px-10">
         <div className={stitchPanelClass}>

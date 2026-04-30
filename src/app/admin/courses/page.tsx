@@ -8,6 +8,7 @@ import Image from "next/image";
 import { BookOpen, ImageOff, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -17,6 +18,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { CourseFormDialog } from "@/components/admin/course-form-dialog";
+import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import type { Course } from "@/lib/types/database";
 
 type CourseRow = Omit<Course, "class" | "teacher"> & {
@@ -26,14 +28,17 @@ type CourseRow = Omit<Course, "class" | "teacher"> & {
 };
 
 const supabase = createClient();
+const COURSES_CACHE_KEY = "admin:courses";
 
 function AdminCoursesPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { role, loading: authLoading } = useAuth();
-  const [courses, setCourses] = useState<CourseRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [courses, setCourses] = useState<CourseRow[]>(
+    () => getAdminPageCache<CourseRow[]>(COURSES_CACHE_KEY) ?? [],
+  );
+  const [loading, setLoading] = useState(() => getAdminPageCache<CourseRow[]>(COURSES_CACHE_KEY) === null);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<CourseRow | undefined>();
@@ -50,12 +55,20 @@ function AdminCoursesPageInner() {
   }
 
   const fetchCourses = useCallback(async () => {
-    setLoading(true);
+    const cachedCourses = getAdminPageStorageCache<CourseRow[]>(COURSES_CACHE_KEY);
+    if (cachedCourses) {
+      setCourses(cachedCourses);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     const { data } = await supabase
       .from("courses")
       .select("*, class:classes(name, board), teacher:teachers(name)")
       .order("created_at", { ascending: false });
-    setCourses((data as CourseRow[] | null) ?? []);
+    const nextCourses = (data as CourseRow[] | null) ?? [];
+    setCourses(nextCourses);
+    setAdminPageCache(COURSES_CACHE_KEY, nextCourses);
     setLoading(false);
   }, []);
 
@@ -67,7 +80,7 @@ function AdminCoursesPageInner() {
       return;
     }
 
-    if (role === "admin") {
+    if (role === "admin" || role === "super_admin") {
       void fetchCourses();
       return;
     }
@@ -79,7 +92,7 @@ function AdminCoursesPageInner() {
   }, [fetchCourses, role, router, authLoading]);
 
   useEffect(() => {
-    if (role !== "admin") return;
+    if (role !== "admin" && role !== "super_admin") return;
     if (searchParams?.get("create") === "1" && !dialogOpen) {
       setEditingCourse(undefined);
       setDialogOpen(true);
@@ -131,7 +144,7 @@ function AdminCoursesPageInner() {
 
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
-          <BookOpen className="h-10 w-10 animate-pulse text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="mt-10">
@@ -217,7 +230,7 @@ export default function AdminCoursesPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center">
-          <BookOpen className="h-10 w-10 animate-pulse text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       }
     >

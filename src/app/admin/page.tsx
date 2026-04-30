@@ -1,8 +1,5 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import {
   BookOpen,
   ClipboardList,
@@ -11,15 +8,14 @@ import {
   IndianRupee,
   LibraryBig,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { LoadingAnimation } from "@/components/ui/loading-animation";
+import { AdminNukeButton } from "@/components/admin/admin-nuke-button";
 import {
   stitchButtonClass,
   stitchPanelClass,
   stitchPanelSoftClass,
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
+import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { getFeesStatusLabel, hasFullPaymentMarked, isFullyPaid, isPartiallyPaid } from "@/lib/student-fees";
 
@@ -72,142 +68,114 @@ interface ClassRow {
   level: string;
 }
 
-const supabase = createClient();
+export default async function AdminDashboard() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-export default function AdminDashboard() {
-  const router = useRouter();
-  const { user, role, loading: authLoading } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [registry, setRegistry] = useState<RegistryRow[]>([]);
-  const [teachers, setTeachers] = useState<TeacherRow[]>([]);
-  const [courses, setCourses] = useState<CourseRow[]>([]);
-  const [classes, setClasses] = useState<ClassRow[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadDashboard() {
-      if (authLoading) {
-        return;
-      }
-
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      if (role === "teacher") {
-        router.push("/admin/attendance");
-        return;
-      }
-
-      if (role !== "admin") {
-        router.push("/dashboard");
-        return;
-      }
-
-      // Fire ALL queries in a single parallel batch — no sequential follow-ups
-      const [
-        studentCount,
-        courseCount,
-        teacherCount,
-        materialCount,
-        classCount,
-        attendanceCount,
-        registryRes,
-        teachersRes,
-        coursesRes,
-        classesRes,
-        feesRes,
-      ] = await Promise.all([
-        supabase.from("students").select("id", { count: "exact", head: true }),
-        supabase.from("courses").select("id", { count: "exact", head: true }),
-        supabase.from("teachers").select("id", { count: "exact", head: true }),
-        supabase.from("materials").select("id", { count: "exact", head: true }),
-        supabase.from("classes").select("id", { count: "exact", head: true }),
-        supabase.from("attendance").select("id", { count: "exact", head: true }),
-        supabase
-          .from("students")
-          .select(
-            "id, profile_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
-          )
-          .order("created_at", { ascending: false })
-          .order("enrollment_date", { ascending: false })
-          .limit(5),
-        supabase
-          .from("teachers")
-          .select("id, name, subject, qualification")
-          .order("created_at", { ascending: false })
-          .limit(4),
-        supabase
-          .from("courses")
-          .select("id, title, subject, class:classes(name, level)")
-          .order("created_at", { ascending: false })
-          .limit(4),
-        supabase
-          .from("classes")
-          .select("id, name, board, level")
-          .order("created_at", { ascending: false })
-          .limit(4),
-        // Fees stats — lightweight select in the same batch instead of a separate sequential call
-        supabase
-          .from("students")
-          .select("fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid"),
-      ]);
-
-      if (cancelled) {
-        return;
-      }
-
-      // Registry rows already have profile data joined — no auth-users API call needed
-      const registryRows = (registryRes.data as RegistryRow[] | null) ?? [];
-
-      // Compute fees stats from the parallel batch result
-      const feesRows = (feesRes.data ?? []) as Array<{
-        fees_full_payment_paid: boolean;
-        fees_installment1_paid: boolean;
-        fees_installment2_paid: boolean;
-      }>;
-      let feesPaid = 0;
-      let feesPartial = 0;
-      let feesNotPaid = 0;
-      for (const r of feesRows) {
-        if (isFullyPaid(r)) feesPaid++;
-        else if (isPartiallyPaid(r)) feesPartial++;
-        else feesNotPaid++;
-      }
-
-      setStats({
-        students: studentCount.count ?? 0,
-        courses: courseCount.count ?? 0,
-        teachers: teacherCount.count ?? 0,
-        materials: materialCount.count ?? 0,
-        classes: classCount.count ?? 0,
-        attendance: attendanceCount.count ?? 0,
-        feesPaid,
-        feesPartial,
-        feesNotPaid,
-      });
-      setRegistry(registryRows);
-      setTeachers((teachersRes.data as TeacherRow[] | null) ?? []);
-      setCourses((coursesRes.data as CourseRow[] | null) ?? []);
-      setClasses((classesRes.data as ClassRow[] | null) ?? []);
-    }
-
-    void loadDashboard();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authLoading, role, router, user]);
-
-  if (!stats) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingAnimation size="lg" />
-      </div>
-    );
+  if (!user) {
+    redirect("/login");
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.role === "teacher") {
+    redirect("/admin/attendance");
+  }
+
+  if (profile?.role !== "admin" && profile?.role !== "super_admin") {
+    redirect("/dashboard");
+  }
+
+  const [
+    studentCount,
+    courseCount,
+    teacherCount,
+    materialCount,
+    classCount,
+    attendanceCount,
+    registryRes,
+    teachersRes,
+    coursesRes,
+    classesRes,
+    feesRes,
+  ] = await Promise.all([
+    supabase.from("students").select("id", { count: "exact", head: true }),
+    supabase.from("courses").select("id", { count: "exact", head: true }),
+    supabase.from("teachers").select("id", { count: "exact", head: true }),
+    supabase.from("materials").select("id", { count: "exact", head: true }),
+    supabase.from("classes").select("id", { count: "exact", head: true }),
+    supabase.from("attendance").select("id", { count: "exact", head: true }),
+    supabase
+      .from("students")
+      .select(
+        "id, profile_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
+      )
+      .order("created_at", { ascending: false })
+      .order("enrollment_date", { ascending: false })
+      .limit(5),
+    supabase
+      .from("teachers")
+      .select("id, name, subject, qualification")
+      .order("created_at", { ascending: false })
+      .limit(4),
+    supabase
+      .from("courses")
+      .select("id, title, subject, class:classes(name, level)")
+      .order("created_at", { ascending: false })
+      .limit(4),
+    supabase
+      .from("classes")
+      .select("id, name, board, level")
+      .order("created_at", { ascending: false })
+      .limit(4),
+    supabase
+      .from("students")
+      .select("fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid"),
+  ]);
+
+  const registry = (registryRes.data as RegistryRow[] | null) ?? [];
+  const teachers = (teachersRes.data as TeacherRow[] | null) ?? [];
+  const courses = (coursesRes.data as CourseRow[] | null) ?? [];
+  const classes = (classesRes.data as ClassRow[] | null) ?? [];
+  const feesRows = (feesRes.data ?? []) as Array<{
+    fees_full_payment_paid: boolean;
+    fees_installment1_paid: boolean;
+    fees_installment2_paid: boolean;
+  }>;
+
+  let feesPaid = 0;
+  let feesPartial = 0;
+  let feesNotPaid = 0;
+
+  for (const row of feesRows) {
+    if (isFullyPaid(row)) {
+      feesPaid++;
+    } else if (isPartiallyPaid(row)) {
+      feesPartial++;
+    } else {
+      feesNotPaid++;
+    }
+  }
+
+  const stats: DashboardStats = {
+    students: studentCount.count ?? 0,
+    courses: courseCount.count ?? 0,
+    teachers: teacherCount.count ?? 0,
+    materials: materialCount.count ?? 0,
+    classes: classCount.count ?? 0,
+    attendance: attendanceCount.count ?? 0,
+    feesPaid,
+    feesPartial,
+    feesNotPaid,
+  };
+
+  const isSuperAdmin = profile?.role === "super_admin";
 
   const summaryCardClass = cn(
     stitchPanelSoftClass,
@@ -228,6 +196,7 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
+          <AdminNukeButton isAllowed={isSuperAdmin} />
           <Link href="/admin/teachers" className={stitchSecondaryButtonClass}>
             Add Teacher
           </Link>
@@ -237,22 +206,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Bento stat grid — 2-col on mobile ── */}
       <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <p className="stitch-kicker">Students</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.students}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Live registry count
-          </p>
-        </div>
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Teachers</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{stats.teachers}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Active faculty records
+            Institutional profiles currently active in your registry.
           </p>
         </div>
         <div className={summaryCardClass}>
@@ -260,128 +220,83 @@ export default function AdminDashboard() {
           <p className="stitch-kicker">Courses</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.courses}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Published curriculum units
+            Curriculum experiences published for scholars.
           </p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Attendance Records</p>
+          <p className="stitch-kicker">Attendance</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.attendance}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Total saved sessions
-          </p>
-        </div>
-      </div>
-
-      {/* Fees Summary — 2-col on mobile */}
-      <div className="mt-4 sm:mt-6 grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3">
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Fees Fully Paid</p>
-          <p className="mt-5 font-heading text-5xl text-green-600">{stats.feesPaid}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Full payment or both installments
+            Recorded daily logs across all current classes.
           </p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Partially Paid</p>
-          <p className="mt-5 font-heading text-5xl text-amber-600">{stats.feesPartial}</p>
+          <p className="stitch-kicker">Materials</p>
+          <p className="mt-5 font-heading text-5xl text-foreground">{stats.materials}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Installments in progress
-          </p>
-        </div>
-        <div className={cn(summaryCardClass, "col-span-2 md:col-span-1")}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" /> Not Paid</p>
-          <p className="mt-5 font-heading text-5xl text-red-500">{stats.feesNotPaid}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            No payment received
+            Learning assets currently available in the archive.
           </p>
         </div>
       </div>
 
-      <div className="mt-6 sm:mt-10 grid gap-3 sm:gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
         <div className={stitchPanelClass}>
-          <div className="flex flex-col gap-4 border-b border-black/6 pb-5 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-3 border-b border-black/6 pb-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-5xl italic text-primary">Recently Added Students</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Student registry entries created through the admin workspace.
-              </p>
+              <p className="stitch-kicker">Recent Registry</p>
+              <h2 className="mt-2 text-3xl italic text-primary">Latest Students</h2>
             </div>
-            <div className="flex gap-3">
-              <Link href="/admin/students" className={stitchSecondaryButtonClass}>
-                Manage Students
-              </Link>
-              <Link href="/admin/classes" className={stitchButtonClass}>
-                Manage Classes
-              </Link>
-            </div>
+            <Link href="/admin/students" className="text-xs uppercase tracking-[0.2em] text-secondary">
+              View Registry
+            </Link>
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left">
-              <thead className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                <tr>
-                  <th className="pb-4 font-medium">Participant</th>
-                  <th className="pb-4 font-medium">Class</th>
-                  <th className="pb-4 font-medium">Course Access</th>
-                  <th className="pb-4 font-medium">Status</th>
-                  <th className="pb-4 font-medium">Fees</th>
-                  <th className="pb-4 font-medium">Enrolled</th>
+            <table className="min-w-full border-separate border-spacing-y-3">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                  <th className="pb-2 pr-4 font-medium">Student</th>
+                  <th className="pb-2 pr-4 font-medium">Program</th>
+                  <th className="pb-2 pr-4 font-medium">Fee Status</th>
+                  <th className="pb-2 font-medium">Enrolled</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/6">
+              <tbody>
                 {registry.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-8 text-sm text-muted-foreground">
-                      No students added yet.
+                    <td colSpan={4} className="rounded-3xl border border-dashed border-black/8 px-4 py-10 text-center text-sm text-muted-foreground">
+                      No student entries found yet.
                     </td>
                   </tr>
                 ) : (
                   registry.map((row) => (
-                    <tr key={row.id}>
-                      <td className="py-4">
-                        <p className="text-base text-foreground">
-                          {row.profile?.full_name || "Unnamed Scholar"}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {row.profile?.phone || "No contact"}
-                        </p>
+                    <tr key={row.id} className="rounded-[26px] bg-white/85 shadow-[0_16px_32px_-28px_rgba(26,28,29,0.28)]">
+                      <td className="rounded-l-[26px] px-4 py-4">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{row.profile?.full_name ?? "Unnamed student"}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{row.profile?.phone ?? "No phone added"}</p>
+                        </div>
                       </td>
-                      <td className="py-4 text-sm text-muted-foreground">
-                        {row.class?.name ?? "Independent Study"}
-                        <div className="mt-1 text-xs text-muted-foreground">{row.class?.board ?? "STC"}</div>
+                      <td className="px-4 py-4 text-sm text-muted-foreground">
+                        <div className="space-y-1">
+                          <p className="font-medium text-foreground">{row.class?.name ?? "Assignment Pending"}</p>
+                          <p>{row.class?.board ?? row.student_type ?? "No program selected"}</p>
+                          {row.enrollments?.[0]?.course?.title ? (
+                            <p className="text-xs text-secondary">{row.enrollments[0].course.title}</p>
+                          ) : null}
+                        </div>
                       </td>
-                      <td className="py-4 text-sm text-muted-foreground">
-                        {row.student_type === "online"
-                          ? (row.enrollments ?? [])
-                              .filter((entry) => entry.status === "active")
-                              .map((entry) => entry.course?.title)
-                              .filter((value): value is string => Boolean(value))
-                              .join(", ") || "No purchased course"
-                          : "Class resources"}
-                      </td>
-                      <td className="py-4">
+                      <td className="px-4 py-4">
                         <span
                           className={cn(
-                            "rounded-full px-3 py-1 text-xs",
-                            row.is_active ? "bg-accent text-accent-foreground" : "bg-destructive/10 text-destructive",
-                          )}
-                        >
-                          {row.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="py-4">
-                        <span
-                          className={cn(
-                            "rounded-full px-3 py-1 text-xs",
+                            "inline-flex rounded-full px-3 py-1 text-xs font-medium",
                             isFullyPaid(row)
                               ? "bg-green-100 text-green-700"
                               : isPartiallyPaid(row)
                                 ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700",
+                                : "bg-rose-100 text-rose-700",
                           )}
                         >
                           {getFeesStatusLabel(row)}
@@ -393,7 +308,7 @@ export default function AdminDashboard() {
                           <p className="mt-1 text-xs text-muted-foreground">₹{row.fees_amount.toLocaleString("en-IN")}</p>
                         )}
                       </td>
-                      <td className="py-4 text-sm text-muted-foreground">
+                      <td className="rounded-r-[26px] py-4 text-sm text-muted-foreground">
                         {new Date(row.enrollment_date).toLocaleDateString("en-IN")}
                       </td>
                     </tr>
@@ -445,11 +360,37 @@ export default function AdminDashboard() {
               </Link>
             </div>
           </div>
+
+          <div className={stitchPanelClass}>
+            <p className="stitch-kicker">Fee Snapshot</p>
+            <div className="mt-5 grid gap-3">
+              <div className={cn(linkedPanelClass, "flex items-center justify-between")}>
+                <span className="flex items-center gap-3 text-foreground">
+                  <IndianRupee className="h-4 w-4 text-green-600" />
+                  Fully Paid
+                </span>
+                <span className="text-sm font-semibold text-green-700">{stats.feesPaid}</span>
+              </div>
+              <div className={cn(linkedPanelClass, "flex items-center justify-between")}>
+                <span className="flex items-center gap-3 text-foreground">
+                  <IndianRupee className="h-4 w-4 text-amber-600" />
+                  Partially Paid
+                </span>
+                <span className="text-sm font-semibold text-amber-700">{stats.feesPartial}</span>
+              </div>
+              <div className={cn(linkedPanelClass, "flex items-center justify-between")}>
+                <span className="flex items-center gap-3 text-foreground">
+                  <IndianRupee className="h-4 w-4 text-rose-600" />
+                  Not Paid
+                </span>
+                <span className="text-sm font-semibold text-rose-700">{stats.feesNotPaid}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Bottom panels — 2-col on mobile, 3 on xl ── */}
-      <div className="mt-6 sm:mt-10 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-6 xl:grid-cols-3">
         <div className={cn(stitchPanelClass, "col-span-2 xl:col-span-1")}>
           <div className="flex items-center justify-between">
             <h3 className="text-3xl italic text-primary">Latest Teachers</h3>

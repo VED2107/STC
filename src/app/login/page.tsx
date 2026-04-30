@@ -156,7 +156,7 @@ function OtpDeliveryPanel({
 }
 
 function getRoleHome(role: UserRole): string {
-  if (role === "admin") return "/admin";
+  if (role === "admin" || role === "super_admin") return "/admin";
   if (role === "teacher") return "/admin/attendance";
   return "/dashboard";
 }
@@ -195,7 +195,10 @@ async function resolvePostLoginPath(userId: string): Promise<string> {
   }
 
   const resolvedRole =
-    profile?.role === "admin" || profile?.role === "teacher" || profile?.role === "student"
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.role === "teacher" ||
+    profile?.role === "student"
       ? profile.role
       : cachedRole ?? "student";
 

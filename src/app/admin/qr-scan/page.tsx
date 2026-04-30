@@ -141,7 +141,7 @@ export default function QrScanPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (role !== "teacher" && role !== "admin") return;
+    if (role !== "teacher" && role !== "admin" && role !== "super_admin") return;
     const supabase = createClient();
 
     async function loadBaseData() {
@@ -356,7 +356,7 @@ export default function QrScanPage() {
     );
   }
 
-  if (role !== "teacher" && role !== "admin") {
+  if (role !== "teacher" && role !== "admin" && role !== "super_admin") {
     return null;
   }
 

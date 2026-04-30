@@ -93,7 +93,7 @@ export async function updateSession(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (profile?.role !== "admin" && profile?.role !== "teacher") {
+    if (profile?.role !== "admin" && profile?.role !== "super_admin" && profile?.role !== "teacher") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);

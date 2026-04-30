@@ -34,6 +34,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
+import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 
 type AttendanceStatus = "present" | "absent";
 
@@ -79,13 +80,29 @@ interface AllStudentRow {
   class: { name: string } | null;
 }
 
+interface AttendanceBaseCache {
+  classes: Class[];
+  courses: CourseForAttendance[];
+}
+
+interface AttendanceSessionCache {
+  students: StudentForAttendance[];
+  records: AttendanceRecord[];
+}
+
 const supabase = createClient();
 
 export default function AdminAttendancePage() {
   const router = useRouter();
   const { role, user, loading: authLoading } = useAuth();
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [courses, setCourses] = useState<CourseForAttendance[]>([]);
+  const attendanceBaseCacheKey =
+    role === "teacher" && user?.id ? `admin:attendance:base:teacher:${user.id}` : "admin:attendance:base:admin";
+  const [classes, setClasses] = useState<Class[]>(
+    () => getAdminPageCache<AttendanceBaseCache>(attendanceBaseCacheKey)?.classes ?? [],
+  );
+  const [courses, setCourses] = useState<CourseForAttendance[]>(
+    () => getAdminPageCache<AttendanceBaseCache>(attendanceBaseCacheKey)?.courses ?? [],
+  );
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -118,11 +135,17 @@ export default function AdminAttendancePage() {
       return;
     }
 
-    if (role !== "admin" && role !== "teacher") return;
+    if (role !== "admin" && role !== "super_admin" && role !== "teacher") return;
 
 
     async function loadBaseData() {
       try {
+        const cachedBase = getAdminPageStorageCache<AttendanceBaseCache>(attendanceBaseCacheKey);
+        if (cachedBase) {
+          setClasses(cachedBase.classes);
+          setCourses(cachedBase.courses);
+        }
+
         if (role === "teacher" && user?.id) {
           const { data: accessRows, error: accessError } = await supabase
             .from("teacher_class_access")
@@ -160,8 +183,14 @@ export default function AdminAttendancePage() {
             throw coursesRes.error;
           }
 
-          setClasses((classesRes.data as Class[] | null) ?? []);
-          setCourses((coursesRes.data as CourseForAttendance[] | null) ?? []);
+          const nextClasses = (classesRes.data as Class[] | null) ?? [];
+          const nextCourses = (coursesRes.data as CourseForAttendance[] | null) ?? [];
+          setClasses(nextClasses);
+          setCourses(nextCourses);
+          setAdminPageCache<AttendanceBaseCache>(attendanceBaseCacheKey, {
+            classes: nextClasses,
+            courses: nextCourses,
+          });
           return;
         }
 
@@ -181,8 +210,14 @@ export default function AdminAttendancePage() {
           throw coursesRes.error;
         }
 
-        setClasses((classesRes.data as Class[] | null) ?? []);
-        setCourses((coursesRes.data as CourseForAttendance[] | null) ?? []);
+        const nextClasses = (classesRes.data as Class[] | null) ?? [];
+        const nextCourses = (coursesRes.data as CourseForAttendance[] | null) ?? [];
+        setClasses(nextClasses);
+        setCourses(nextCourses);
+        setAdminPageCache<AttendanceBaseCache>(attendanceBaseCacheKey, {
+          classes: nextClasses,
+          courses: nextCourses,
+        });
       } catch (error) {
         console.error("Failed to load attendance base data:", error);
         setClasses([]);
@@ -194,7 +229,7 @@ export default function AdminAttendancePage() {
     }
 
     void loadBaseData();
-  }, [role, router, user?.id, authLoading]);
+  }, [attendanceBaseCacheKey, authLoading, role, router, user?.id]);
 
   const selectableClasses = useMemo(() => {
     if (!selectedCourseId) {
@@ -241,7 +276,16 @@ export default function AdminAttendancePage() {
     }
 
     const requestId = ++requestSequenceRef.current;
-    setLoading(true);
+    const attendanceSessionCacheKey = `admin:attendance:session:${selectedClassId}:${selectedCourseId || "none"}:${date}`;
+    const cachedSession = getAdminPageStorageCache<AttendanceSessionCache>(attendanceSessionCacheKey);
+    if (cachedSession) {
+      setStudents(cachedSession.students);
+      setRecords(cachedSession.records);
+      studentCacheRef.current[selectedClassId] = cachedSession.students;
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setSaved(false);
     setSaveError("");
     setActionError("");
@@ -340,6 +384,10 @@ export default function AdminAttendancePage() {
       });
 
       setRecords(normalizedRecords);
+      setAdminPageCache<AttendanceSessionCache>(attendanceSessionCacheKey, {
+        students: fetchedStudents,
+        records: normalizedRecords,
+      });
       if (((existing as AttendanceRecord[] | null) ?? []).length > 0) {
         setEditingSaved(false);
       }
@@ -582,6 +630,16 @@ export default function AdminAttendancePage() {
   // Load all students (for the dropdown) on first interaction
   async function loadAllStudents() {
     if (allStudentsLoaded) return;
+    const allStudentsCacheKey =
+      role === "teacher" && user?.id
+        ? `admin:attendance:all-students:teacher:${user.id}`
+        : "admin:attendance:all-students:admin";
+    const cachedAllStudents = getAdminPageStorageCache<AllStudentRow[]>(allStudentsCacheKey);
+    if (cachedAllStudents) {
+      setAllStudentsList(cachedAllStudents);
+      setAllStudentsLoaded(true);
+      return;
+    }
 
 
     let query = supabase
@@ -599,6 +657,7 @@ export default function AdminAttendancePage() {
       const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map((r) => r.class_id);
       if (classIds.length === 0) {
         setAllStudentsList([]);
+        setAdminPageCache(allStudentsCacheKey, []);
         setAllStudentsLoaded(true);
         return;
       }
@@ -612,6 +671,7 @@ export default function AdminAttendancePage() {
       }),
     );
     setAllStudentsList(rows);
+    setAdminPageCache(allStudentsCacheKey, rows);
     setAllStudentsLoaded(true);
   }
 

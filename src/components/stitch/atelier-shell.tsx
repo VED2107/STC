@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BookCopy,
@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { setAdminPageCache } from "@/lib/admin-page-cache";
 import { cn } from "@/lib/utils";
 
 type ShellArea = "admin" | "student";
@@ -88,6 +89,7 @@ const onlineStudentLinks = [
 
 export function AtelierShell({ area, children }: AtelierShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, profile, signOut } = useAuth();
   const isTeacherArea = area === "admin" && profile?.role === "teacher";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -106,6 +108,105 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "Scholar";
+
+  useEffect(() => {
+    const linksToPrefetch =
+      area === "admin"
+        ? (isTeacherArea ? teacherLinks : adminLinks)
+        : isOnlineStudent
+          ? onlineStudentLinks
+          : studentLinks;
+
+    for (const link of linksToPrefetch) {
+      if (link.href !== pathname) {
+        router.prefetch(link.href);
+      }
+    }
+  }, [area, isOnlineStudent, isTeacherArea, pathname, router]);
+
+  useEffect(() => {
+    if (area !== "admin" || !profile?.role) {
+      return;
+    }
+
+    const profileRole = profile.role;
+    let cancelled = false;
+
+    async function warmAdminCaches() {
+      const supabase = createClient();
+
+      if (profileRole === "teacher" && user?.id) {
+        const { data: accessRows } = await supabase
+          .from("teacher_class_access")
+          .select("class_id")
+          .eq("teacher_profile_id", user.id);
+
+        if (cancelled) return;
+
+        const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map((row) => row.class_id);
+        if (classIds.length === 0) return;
+
+        const [{ data: classes }, { data: courses }, { data: syllabusData }] = await Promise.all([
+          supabase.from("classes").select("*").in("id", classIds).order("sort_order"),
+          supabase.from("courses").select("id, title, subject, class_id").in("class_id", classIds).order("title"),
+          supabase.from("syllabus").select("*, class:classes(*)").in("class_id", classIds).order("subject"),
+        ]);
+
+        if (cancelled) return;
+
+        setAdminPageCache(`admin:materials:classes:teacher:${user.id}`, classes ?? []);
+        setAdminPageCache(`admin:attendance:base:teacher:${user.id}`, {
+          classes: classes ?? [],
+          courses: courses ?? [],
+        });
+        setAdminPageCache(`admin:syllabus:teacher:${user.id}`, {
+          classes: classes ?? [],
+          syllabi: syllabusData ?? [],
+        });
+        return;
+      }
+
+      if (profileRole !== "admin" && profileRole !== "super_admin") {
+        return;
+      }
+
+      const [{ data: teachers }, { data: classes }, { data: courses }, { data: syllabusData }] = await Promise.all([
+        supabase.from("teachers").select("*").order("name", { ascending: true }),
+        supabase.from("classes").select("*").order("sort_order"),
+        supabase
+          .from("courses")
+          .select("*, class:classes(name, board), teacher:teachers(name)")
+          .order("created_at", { ascending: false }),
+        supabase.from("syllabus").select("*, class:classes(*)").order("subject"),
+      ]);
+
+      if (cancelled) return;
+
+      setAdminPageCache("admin:teachers", teachers ?? []);
+      setAdminPageCache("admin:courses", courses ?? []);
+      setAdminPageCache("admin:materials:classes:admin", classes ?? []);
+      setAdminPageCache("admin:qr:classes", classes ?? []);
+      setAdminPageCache("admin:attendance:base:admin", {
+        classes: classes ?? [],
+        courses: ((courses ?? []) as Array<{ id: string; title: string; subject: string; class_id: string }>).map((course) => ({
+          id: course.id,
+          title: course.title,
+          subject: course.subject,
+          class_id: course.class_id,
+        })),
+      });
+      setAdminPageCache("admin:syllabus:admin", {
+        classes: classes ?? [],
+        syllabi: syllabusData ?? [],
+      });
+    }
+
+    void warmAdminCaches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [area, profile?.role, user?.id]);
 
   useEffect(() => {
     let cancelled = false;

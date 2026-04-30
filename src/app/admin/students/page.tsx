@@ -7,6 +7,7 @@ import { Download, FileSpreadsheet, Search, Users } from "lucide-react";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -19,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { StudentFormDialog } from "@/components/admin/student-form-dialog";
 import { CsvUploadDialog } from "@/components/admin/csv-upload-dialog";
+import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import {
   getFeesStatusLabel,
   hasFullPaymentMarked,
@@ -59,8 +61,15 @@ function AdminStudentsPageInner() {
   const pathname = usePathname();
   const { role, user, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
-  const [students, setStudents] = useState<StudentRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const studentsCacheKey = role === "teacher" && user?.id
+    ? `admin:students:teacher:${user.id}`
+    : "admin:students:admin";
+  const [students, setStudents] = useState<StudentRow[]>(
+    () => getAdminPageCache<StudentRow[]>(studentsCacheKey) ?? [],
+  );
+  const [loading, setLoading] = useState(
+    () => getAdminPageCache<StudentRow[]>(studentsCacheKey) === null,
+  );
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
@@ -80,7 +89,13 @@ function AdminStudentsPageInner() {
   }
 
   const fetchStudents = useCallback(async () => {
-    setLoading(true);
+    const cachedStudents = getAdminPageStorageCache<StudentRow[]>(studentsCacheKey);
+    if (cachedStudents) {
+      setStudents(cachedStudents);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
     if (role === "teacher" && user?.id) {
       const { data: accessRows } = await supabase
@@ -107,14 +122,15 @@ function AdminStudentsPageInner() {
         .order("created_at", { ascending: false })
         .order("enrollment_date", { ascending: false });
 
-      const enrolledStudents = ((data as Omit<StudentRow, "rowKind">[] | null) ?? []).map(
+      const nextEnrolledStudents = ((data as Omit<StudentRow, "rowKind">[] | null) ?? []).map(
         (student) => ({
           ...student,
           rowKind: "enrolled" as const,
         }),
       );
 
-      setStudents(enrolledStudents);
+      setStudents(nextEnrolledStudents);
+      setAdminPageCache(studentsCacheKey, nextEnrolledStudents);
       setLoading(false);
       return;
     }
@@ -166,14 +182,16 @@ function AdminStudentsPageInner() {
         enrollments: [],
       }));
 
-    setStudents([...pendingStudents, ...enrolledStudents]);
+    const nextStudents = [...pendingStudents, ...enrolledStudents];
+    setStudents(nextStudents);
+    setAdminPageCache(studentsCacheKey, nextStudents);
     setLoading(false);
-  }, [role, user]);
+  }, [role, studentsCacheKey, user]);
 
   useEffect(() => {
     if (authLoading) return;
 
-    if (role === "admin" || role === "teacher") {
+    if (role === "admin" || role === "super_admin" || role === "teacher") {
       void fetchStudents();
       return;
     }
@@ -184,7 +202,7 @@ function AdminStudentsPageInner() {
   }, [fetchStudents, role, router, authLoading]);
 
   useEffect(() => {
-    if (role !== "admin") return;
+    if (role !== "admin" && role !== "super_admin") return;
     if (searchParams?.get("create") === "1") {
       setEditingStudent(null);
       setInitialProfileId(null);
@@ -462,7 +480,7 @@ function AdminStudentsPageInner() {
 
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
-          <Users className="h-10 w-10 animate-pulse text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="mt-10">
@@ -706,7 +724,7 @@ export default function AdminStudentsPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center">
-          <Users className="h-10 w-10 animate-pulse text-primary" />
+          <LoadingAnimation size="lg" />
         </div>
       }
     >

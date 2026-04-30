@@ -27,6 +27,7 @@ import {
   stitchPanelClass,
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
+import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 
 interface SyllabusUnit {
   title: string;
@@ -35,14 +36,28 @@ interface SyllabusUnit {
 
 const supabase = createClient();
 
+interface SyllabusCache {
+  classes: Class[];
+  syllabi: (Syllabus & { class?: Class })[];
+}
+
 function AdminSyllabusPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { role, user, loading: authLoading } = useAuth();
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [syllabi, setSyllabi] = useState<(Syllabus & { class?: Class })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const syllabusCacheKey = role === "teacher" && user?.id
+    ? `admin:syllabus:teacher:${user.id}`
+    : "admin:syllabus:admin";
+  const [classes, setClasses] = useState<Class[]>(
+    () => getAdminPageCache<SyllabusCache>(syllabusCacheKey)?.classes ?? [],
+  );
+  const [syllabi, setSyllabi] = useState<(Syllabus & { class?: Class })[]>(
+    () => getAdminPageCache<SyllabusCache>(syllabusCacheKey)?.syllabi ?? [],
+  );
+  const [loading, setLoading] = useState(
+    () => getAdminPageCache<SyllabusCache>(syllabusCacheKey) === null,
+  );
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSyllabus, setEditingSyllabus] = useState<Syllabus | null>(null);
@@ -66,6 +81,13 @@ function AdminSyllabusPageInner() {
   }
 
   const fetchData = useCallback(async () => {
+    const cachedSyllabus = getAdminPageStorageCache<SyllabusCache>(syllabusCacheKey);
+    if (cachedSyllabus) {
+      setClasses(cachedSyllabus.classes);
+      setSyllabi(cachedSyllabus.syllabi);
+      setLoading(false);
+    }
+
     if (authLoading) return;
 
     if (role === "student") {
@@ -73,7 +95,7 @@ function AdminSyllabusPageInner() {
       return;
     }
 
-    if (role !== "admin" && role !== "teacher") {
+    if (role !== "admin" && role !== "super_admin" && role !== "teacher") {
       return;
     }
 
@@ -105,20 +127,32 @@ function AdminSyllabusPageInner() {
           .order("subject"),
       ]);
 
-      setClasses((classData as Class[] | null) ?? []);
-      setSyllabi((syllabusData as (Syllabus & { class?: Class })[] | null) ?? []);
-      setLoading(false);
-      return;
-    }
+        const nextClasses = (classData as Class[] | null) ?? [];
+        const nextSyllabi = (syllabusData as (Syllabus & { class?: Class })[] | null) ?? [];
+        setClasses(nextClasses);
+        setSyllabi(nextSyllabi);
+        setAdminPageCache<SyllabusCache>(syllabusCacheKey, {
+          classes: nextClasses,
+          syllabi: nextSyllabi,
+        });
+        setLoading(false);
+        return;
+      }
 
     const [{ data: classData }, { data: syllabusData }] = await Promise.all([
       supabase.from("classes").select("*").order("sort_order"),
       supabase.from("syllabus").select("*, class:classes(*)").order("subject"),
     ]);
-    setClasses((classData as Class[] | null) ?? []);
-    setSyllabi((syllabusData as (Syllabus & { class?: Class })[] | null) ?? []);
+    const nextClasses = (classData as Class[] | null) ?? [];
+    const nextSyllabi = (syllabusData as (Syllabus & { class?: Class })[] | null) ?? [];
+    setClasses(nextClasses);
+    setSyllabi(nextSyllabi);
+    setAdminPageCache<SyllabusCache>(syllabusCacheKey, {
+      classes: nextClasses,
+      syllabi: nextSyllabi,
+    });
     setLoading(false);
-  }, [role, router, user, authLoading]);
+  }, [authLoading, role, router, syllabusCacheKey, user]);
 
   useEffect(() => {
     void fetchData();
@@ -130,7 +164,7 @@ function AdminSyllabusPageInner() {
   }, [classes, formClassId]);
 
   useEffect(() => {
-    if (role !== "admin" && role !== "teacher") return;
+    if (role !== "admin" && role !== "super_admin" && role !== "teacher") return;
     if (searchParams?.get("create") === "1" && !dialogOpen) {
       setEditingSyllabus(null);
       setFormClassId("");

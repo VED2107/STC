@@ -1,6 +1,6 @@
 /** Shared TypeScript types for the STC platform */
 
-export type UserRole = "student" | "teacher" | "admin";
+export type UserRole = "student" | "teacher" | "admin" | "super_admin";
 export type AttendanceStatus = "present" | "absent";
 export type MaterialType = "pdf" | "notes" | "video" | "link";
 export type NotificationChannel = "whatsapp" | "sms";
@@ -12,6 +12,7 @@ export type StudentType = "tuition" | "online";
 export interface Profile {
   id: string;
   full_name: string;
+  email: string | null;
   phone: string;
   role: UserRole;
   avatar_url: string | null;

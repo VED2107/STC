@@ -56,7 +56,7 @@ async function getActor() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || (profile.role !== "teacher" && profile.role !== "admin")) {
+  if (!profile || (profile.role !== "teacher" && profile.role !== "admin" && profile.role !== "super_admin")) {
     return {
       error: NextResponse.json(
         { error: "Only teachers and admins can manage attendance sessions" },
@@ -65,7 +65,7 @@ async function getActor() {
     };
   }
 
-  return { user, role: profile.role as "teacher" | "admin" };
+  return { user, role: profile.role as "teacher" | "admin" | "super_admin" };
 }
 
 function todayInIndia() {

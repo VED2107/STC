@@ -8,7 +8,7 @@ function isSafeRedirect(value: string | null) {
 }
 
 function resolveDashboardPath(role: string | null | undefined) {
-  if (role === "admin") return "/admin";
+  if (role === "admin" || role === "super_admin") return "/admin";
   if (role === "teacher") return "/admin/attendance";
   return "/dashboard";
 }

@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    if (profile?.role !== "admin" && profile?.role !== "super_admin") {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
