@@ -27,8 +27,12 @@ import {
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
-import { getFeesStatusLabel } from "@/lib/student-fees";
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
+import {
+  buildStudentExportRows,
+  studentExportHeaders,
+  type StudentAttendanceSummary,
+} from "@/lib/student-export";
 
 const BOARDS: BoardType[] = ["GSEB", "NCERT"];
 const LEVELS: ClassLevel[] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "SSC", "HSC"];
@@ -83,59 +87,75 @@ function AdminClassesPageInner() {
   const [reordering, setReordering] = useState(false);
   const [exportingClassId, setExportingClassId] = useState<string | null>(null);
 
-  const classExportHeaders = [
-    { key: "name", label: "Name" },
-    { key: "phone", label: "Phone" },
-    { key: "email", label: "Email" },
-    { key: "studentType", label: "Student Type" },
-    { key: "status", label: "Status" },
-    { key: "feesAmount", label: "Fees Amount (INR)" },
-    { key: "fullPayment", label: "Full Payment Marked" },
-    { key: "installment1", label: "Installment 1" },
-    { key: "installment2", label: "Installment 2" },
-    { key: "feesStatus", label: "Fees Status" },
-    { key: "enrollmentDate", label: "Enrollment Date" },
-  ];
-
   async function exportClassStudents(classId: string, className: string, format: "csv" | "xlsx") {
     setExportingClassId(classId);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("students")
-        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email)")
+        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), enrollments(status, course:courses(title))")
         .eq("class_id", classId)
         .order("created_at", { ascending: false });
 
-      const rows = ((data ?? []) as Array<{
-        profile: { full_name: string; phone: string; email?: string | null } | null;
-        student_type: string;
+      if (error) {
+        throw error;
+      }
+
+      const typedRows = ((data ?? []) as Array<{
+        id: string;
+        profile_id: string;
+        enrollment_date: string;
         is_active: boolean;
+        student_type: "tuition" | "online";
         fees_amount: number;
         fees_full_payment_paid: boolean;
         fees_installment1_paid: boolean;
         fees_installment2_paid: boolean;
-        enrollment_date: string;
-      }>).map((s) => {
-        return {
-          name: s.profile?.full_name ?? "Unnamed",
-          phone: s.profile?.phone ?? "N/A",
-          email: s.profile?.email ?? "N/A",
-          studentType: s.student_type === "tuition" ? "Tuition" : "Online",
-          status: s.is_active ? "Active" : "Inactive",
-          feesAmount: s.fees_amount ?? 0,
-          fullPayment: s.fees_full_payment_paid ? "Yes" : "No",
-          installment1: s.fees_installment1_paid ? "Paid" : "Not Paid",
-          installment2: s.fees_installment2_paid ? "Paid" : "Not Paid",
-          feesStatus: getFeesStatusLabel(s),
-          enrollmentDate: new Date(s.enrollment_date).toLocaleDateString("en-IN"),
-        };
-      });
+        profile: { full_name: string; phone: string; email?: string | null; avatar_url?: string | null } | null;
+        class: { name: string; board: string } | null;
+        enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
+      }>).map((student) => ({
+        ...student,
+        rowKind: "enrolled" as const,
+      }));
+
+      const studentIds = typedRows.map((student) => student.id);
+      const attendanceByStudentId: Record<string, StudentAttendanceSummary> = {};
+      if (studentIds.length > 0) {
+        const { data: attendanceData, error: attendanceError } = await supabase
+          .from("attendance")
+          .select("student_id, status, date")
+          .in("student_id", studentIds)
+          .order("date", { ascending: false });
+
+        if (attendanceError) {
+          throw attendanceError;
+        }
+
+        for (const row of ((attendanceData as Array<{ student_id: string; status: string; date: string }> | null) ?? [])) {
+          if (!attendanceByStudentId[row.student_id]) {
+            attendanceByStudentId[row.student_id] = {
+              presentCount: 0,
+              absentCount: 0,
+              totalSessions: 0,
+              lastAttendanceDate: row.date,
+            };
+          }
+          attendanceByStudentId[row.student_id].totalSessions += 1;
+          if (row.status === "present") {
+            attendanceByStudentId[row.student_id].presentCount += 1;
+          } else {
+            attendanceByStudentId[row.student_id].absentCount += 1;
+          }
+        }
+      }
+
+      const rows = buildStudentExportRows(typedRows, attendanceByStudentId);
 
       const filename = `${className.replace(/\s+/g, "_")}_students_${new Date().toISOString().split("T")[0]}`;
       if (format === "csv") {
-        downloadCSV(rows, classExportHeaders, filename);
+        downloadCSV(rows, studentExportHeaders, filename);
       } else {
-        await downloadXLSX(rows, classExportHeaders, filename);
+        await downloadXLSX(rows, studentExportHeaders, filename);
       }
     } finally {
       setExportingClassId(null);

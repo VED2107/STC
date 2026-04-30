@@ -460,6 +460,7 @@ const BULK_TEMPLATE_HEADERS = [
   { key: "phone", label: "Phone" },
   { key: "email", label: "Email" },
   { key: "student_type", label: "Student Type" },
+  { key: "photo_file", label: "Photo File" },
 ];
 
 const SAMPLE_ROW = {
@@ -467,6 +468,7 @@ const SAMPLE_ROW = {
   phone: "9876543210",
   email: "johndoe@example.com",
   student_type: "tuition",
+  photo_file: "john-doe.jpg",
 };
 
 export function downloadBulkTemplateCSV() {

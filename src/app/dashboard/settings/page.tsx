@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
+import Image from "next/image";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bell, UserCircle2 } from "lucide-react";
@@ -20,6 +21,7 @@ interface StudentSettingsData {
   fullName: string;
   phone: string;
   parentPhone: string | null;
+  avatarUrl: string | null;
   role: string;
   notifications: number;
   studentType: "tuition" | "online" | null;
@@ -53,7 +55,7 @@ function StudentSettingsPageInner() {
     const [{ data: profile }, { data: student }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, phone, parent_phone, role")
+        .select("full_name, phone, parent_phone, avatar_url, role")
         .eq("id", user.id)
         .single(),
       supabase
@@ -78,6 +80,7 @@ function StudentSettingsPageInner() {
       fullName: profile?.full_name ?? "",
       phone: profile?.phone ?? "",
       parentPhone: profile?.parent_phone ?? null,
+      avatarUrl: profile?.avatar_url ?? null,
       role: profile?.role ?? "student",
       notifications: notificationsCount ?? 0,
       studentType: (student?.student_type as "tuition" | "online" | undefined) ?? null,
@@ -222,6 +225,32 @@ function StudentSettingsPageInner() {
         </div>
 
         <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
+          <div className={stitchPanelClass}>
+            <p className="stitch-kicker">Student Photo</p>
+            <div className="mt-6 flex items-center gap-4">
+              {data?.avatarUrl ? (
+                <div className="relative h-20 w-20 overflow-hidden rounded-full border border-border">
+                  <Image
+                    src={data.avatarUrl}
+                    alt={data.fullName || "Student photo"}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full border border-dashed border-border bg-muted/30">
+                  <UserCircle2 className="h-10 w-10 text-muted-foreground" />
+                </div>
+              )}
+              <div>
+                <h3 className="text-2xl text-foreground">Profile Photo</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Admin bulk upload photos will appear here automatically.
+                </p>
+              </div>
+            </div>
+          </div>
           <div className={stitchPanelClass}>
             <UserCircle2 className="h-6 w-6 text-primary" />
             <h3 className="mt-6 text-3xl text-foreground">Role</h3>

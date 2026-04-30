@@ -3,7 +3,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Download, FileSpreadsheet, Search, Users } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, Search, Users } from "lucide-react";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,6 +27,12 @@ import {
   isFullyPaid,
   isPartiallyPaid,
 } from "@/lib/student-fees";
+import {
+  buildStudentExportRows,
+  studentExportHeaders,
+  type StudentAttendanceSummary,
+} from "@/lib/student-export";
+import { generateStudentFormPDF } from "@/lib/student-form-pdf";
 
 interface StudentRow {
   rowKind: "enrolled" | "pending";
@@ -41,7 +47,7 @@ interface StudentRow {
   fees_full_payment_paid: boolean;
   fees_installment1_paid: boolean;
   fees_installment2_paid: boolean;
-  profile: { full_name: string; phone: string; email?: string | null } | null;
+  profile: { full_name: string; phone: string; email?: string | null; avatar_url?: string | null } | null;
   class: { name: string; board: string } | null;
   enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
 }
@@ -51,6 +57,7 @@ type PendingProfileRow = {
   full_name: string;
   phone: string;
   email?: string | null;
+  avatar_url?: string | null;
   created_at?: string;
 };
 
@@ -116,7 +123,7 @@ function AdminStudentsPageInner() {
       const { data } = await supabase
         .from("students")
         .select(
-          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email), class:classes(name, board), enrollments(status, course:courses(title))"
+          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), enrollments(status, course:courses(title))"
         )
         .in("class_id", classIds)
         .order("created_at", { ascending: false })
@@ -139,13 +146,13 @@ function AdminStudentsPageInner() {
       supabase
         .from("students")
         .select(
-          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email), class:classes(name, board), enrollments(status, course:courses(title))"
+          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), enrollments(status, course:courses(title))"
         )
         .order("created_at", { ascending: false })
         .order("enrollment_date", { ascending: false }),
       supabase
         .from("profiles")
-        .select("id, full_name, phone, email, created_at")
+        .select("id, full_name, phone, email, avatar_url, created_at")
         .eq("role", "student")
         .order("created_at", { ascending: false }),
     ]);
@@ -177,6 +184,7 @@ function AdminStudentsPageInner() {
           full_name: profile.full_name,
           phone: profile.phone,
           email: profile.email,
+          avatar_url: profile.avatar_url,
         },
         class: null,
         enrollments: [],
@@ -238,82 +246,41 @@ function AdminStudentsPageInner() {
     (student) => !isFullyPaid(student) && !isPartiallyPaid(student),
   ).length;
 
-  const studentExportHeaders = [
-    { key: "name", label: "Name" },
-    { key: "phone", label: "Phone" },
-    { key: "email", label: "Email" },
-    { key: "studentId", label: "Student ID" },
-    { key: "className", label: "Class" },
-    { key: "board", label: "Board" },
-    { key: "accessType", label: "Access Type" },
-    { key: "status", label: "Status" },
-    { key: "courses", label: "Courses" },
-    { key: "feesAmount", label: "Fees Amount (INR)" },
-    { key: "feesFullPayment", label: "Full Payment Marked" },
-    { key: "feesInstallment1", label: "Installment 1" },
-    { key: "feesInstallment2", label: "Installment 2" },
-    { key: "feesStatus", label: "Fees Status" },
-    { key: "enrollmentDate", label: "Enrollment Date" },
-  ];
+  async function loadAttendanceSummary(studentIds: string[]) {
+    if (studentIds.length === 0) {
+      return {} as Record<string, StudentAttendanceSummary>;
+    }
 
-  function buildExportRows() {
-    return filtered.map((student, index) => ({
-      name: student.profile?.full_name || "Unnamed",
-      phone: student.profile?.phone || "N/A",
-      email: student.profile?.email || "N/A",
-      studentId:
-        student.rowKind === "enrolled" && student.enrollment_date
-          ? `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`
-          : "Pending",
-      className: student.class?.name ?? "Awaiting assignment",
-      board: student.class?.board ?? "Pending",
-      accessType:
-        student.rowKind === "pending"
-          ? "Awaiting enrollment"
-          : student.student_type === "tuition"
-            ? "Tuition"
-            : "Online",
-      status:
-        student.rowKind === "pending"
-          ? "Pending Enrollment"
-          : student.is_active
-            ? "Active"
-            : "Pending Review",
-      courses:
-        student.rowKind === "pending"
-          ? "No purchased course"
-          : student.student_type === "online"
-            ? (student.enrollments ?? [])
-                .filter((entry) => entry.status === "active")
-                .map((entry) => entry.course?.title)
-                .filter(Boolean)
-                .join("; ") || "No purchased course"
-            : "Class resources",
-      feesAmount: student.rowKind === "pending" ? 0 : student.fees_amount ?? 0,
-      feesFullPayment:
-        student.rowKind === "pending"
-          ? "No"
-          : student.fees_full_payment_paid
-            ? "Yes"
-            : "No",
-      feesInstallment1:
-        student.rowKind === "pending"
-          ? "Not Enrolled"
-          : student.fees_installment1_paid
-            ? "Paid"
-            : "Not Paid",
-      feesInstallment2:
-        student.rowKind === "pending"
-          ? "Not Enrolled"
-          : student.fees_installment2_paid
-            ? "Paid"
-            : "Not Paid",
-      feesStatus:
-        student.rowKind === "pending" ? "Pending enrollment" : getFeesStatusLabel(student),
-      enrollmentDate: student.enrollment_date
-        ? new Date(student.enrollment_date).toLocaleDateString("en-IN")
-        : "Pending",
-    }));
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("student_id, status, date")
+      .in("student_id", studentIds)
+      .order("date", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    const summary: Record<string, StudentAttendanceSummary> = {};
+    for (const row of ((data as Array<{ student_id: string; status: string; date: string }> | null) ?? [])) {
+      if (!summary[row.student_id]) {
+        summary[row.student_id] = {
+          presentCount: 0,
+          absentCount: 0,
+          totalSessions: 0,
+          lastAttendanceDate: row.date,
+        };
+      }
+
+      summary[row.student_id].totalSessions += 1;
+      if (row.status === "present") {
+        summary[row.student_id].presentCount += 1;
+      } else {
+        summary[row.student_id].absentCount += 1;
+      }
+    }
+
+    return summary;
   }
 
   function getExportFilename() {
@@ -325,19 +292,39 @@ function AdminStudentsPageInner() {
     return `all_students_${today}`;
   }
 
-  function handleDownloadCSV() {
+  async function handleDownloadCSV() {
+    const enrolledIds = filtered
+      .filter((student) => student.rowKind === "enrolled")
+      .map((student) => student.id);
+    const attendanceByStudentId = await loadAttendanceSummary(enrolledIds);
     downloadCSV(
-      buildExportRows(),
+      buildStudentExportRows(filtered, attendanceByStudentId),
       studentExportHeaders,
       getExportFilename(),
     );
   }
 
   async function handleDownloadXLSX() {
+    const enrolledIds = filtered
+      .filter((student) => student.rowKind === "enrolled")
+      .map((student) => student.id);
+    const attendanceByStudentId = await loadAttendanceSummary(enrolledIds);
     await downloadXLSX(
-      buildExportRows(),
+      buildStudentExportRows(filtered, attendanceByStudentId),
       studentExportHeaders,
       getExportFilename(),
+    );
+  }
+
+  async function handleDownloadForm() {
+    const enrolledIds = filtered
+      .filter((student) => student.rowKind === "enrolled")
+      .map((student) => student.id);
+    const attendanceByStudentId = await loadAttendanceSummary(enrolledIds);
+    await generateStudentFormPDF(
+      filtered,
+      attendanceByStudentId,
+      getExportFilename() + "_form",
     );
   }
 
@@ -421,7 +408,7 @@ function AdminStudentsPageInner() {
             <button
               type="button"
               className={cn(stitchSecondaryButtonClass, "gap-2")}
-              onClick={handleDownloadCSV}
+              onClick={() => void handleDownloadCSV()}
               disabled={filtered.length === 0}
               title="Download as CSV"
             >
@@ -437,6 +424,16 @@ function AdminStudentsPageInner() {
             >
               <Download className="h-4 w-4" />
               Excel
+            </button>
+            <button
+              type="button"
+              className={cn(stitchSecondaryButtonClass, "gap-2")}
+              onClick={() => void handleDownloadForm()}
+              disabled={filtered.length === 0}
+              title="Download student form as PDF with photo and full details"
+            >
+              <FileText className="h-4 w-4" />
+              Form
             </button>
           </div>
         </div>
