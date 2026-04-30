@@ -111,6 +111,8 @@ export async function bulkUploadStudents(
         userId = profileByPhone.get(phone) ?? null;
       }
 
+      const matchedExistingAuthUser = Boolean(userId);
+
       // If user already has a profile, SKIP — they already exist in the system
       if (userId && existingProfileIds.has(userId)) {
         results.push({
@@ -162,6 +164,43 @@ export async function bulkUploadStudents(
 
         userId = newUser.user.id;
         // Add to our maps so subsequent duplicate rows in the same CSV are caught
+        if (email) authUserByEmail.set(email, userId);
+        if (phone) profileByPhone.set(phone, userId);
+      } else if (matchedExistingAuthUser) {
+        const updatePayload: {
+          email?: string;
+          phone?: string;
+          password: string;
+          email_confirm?: boolean;
+          phone_confirm?: boolean;
+          user_metadata: { full_name: string; phone: string };
+        } = {
+          password: DEFAULT_PASSWORD,
+          user_metadata: { full_name: name, phone },
+        };
+
+        if (email) {
+          updatePayload.email = email;
+          updatePayload.email_confirm = true;
+        }
+        if (phone && !email) {
+          updatePayload.phone = phone;
+          updatePayload.phone_confirm = true;
+        }
+
+        const { error: updateError } = await admin.auth.admin.updateUserById(userId, updatePayload);
+
+        if (updateError) {
+          results.push({
+            row: rowNum,
+            name,
+            success: false,
+            error: `Auth update failed: ${updateError.message}`,
+          });
+          totalFailed++;
+          continue;
+        }
+
         if (email) authUserByEmail.set(email, userId);
         if (phone) profileByPhone.set(phone, userId);
       }
