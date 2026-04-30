@@ -75,18 +75,12 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
         return;
       }
 
-      // Normalize column names
+      // Normalize column names — only the 4 fields we need
       const normalized = rows.map((row) => ({
         full_name: row["full_name"] || row["name"] || row["fullname"] || row["student_name"] || "",
-        email: row["email"] || row["e-mail"] || "",
-        phone: row["phone"] || row["mobile"] || row["phone_number"] || "",
-        class_name: row["class_name"] || row["class"] || row["className"] || "",
-        student_type: row["student_type"] || row["type"] || "tuition",
-        fees_amount: row["fees_amount"] || row["fees"] || row["fee"] || row["fees_amount_(inr)"] || "0",
-        fees_full_payment_paid:
-          row["fees_full_payment_paid"] || row["full_payment_paid"] || row["full_payment"] || "no",
-        fees_installment1_paid: row["fees_installment1_paid"] || row["installment_1_paid"] || row["inst1"] || "no",
-        fees_installment2_paid: row["fees_installment2_paid"] || row["installment_2_paid"] || row["inst2"] || "no",
+        phone: row["phone"] || row["mobile"] || row["phone_number"] || row["number"] || row["contact"] || "",
+        email: row["email"] || row["e-mail"] || row["email_address"] || "",
+        student_type: row["student_type"] || row["type"] || row["student-type"] || "tuition",
       }));
 
       setParsedRows(normalized);
@@ -130,7 +124,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
             Bulk Student Registration
           </DialogTitle>
           <DialogDescription>
-            Download the template, fill in student details, then upload to register students in bulk.
+            Download the template, fill in student details (Name, Phone, Email, Student Type), then upload to register students in bulk.
             Default password for all registered students: <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">STC@123</code>
           </DialogDescription>
         </DialogHeader>
@@ -139,7 +133,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
         <div className="rounded-lg border border-border bg-muted/30 p-4">
           <p className="text-sm font-medium text-foreground">Step 1: Download Template</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Download the template with all required columns, fill in student details, and upload below.
+            Download the template with the required columns: <strong>Name, Phone, Email, Student Type</strong>. Fill in student details and upload below.
           </p>
           <div className="mt-3 flex gap-2">
             <Button
@@ -216,11 +210,9 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
                   <tr>
                     <th className="px-3 py-2 font-medium">#</th>
                     <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Email</th>
                     <th className="px-3 py-2 font-medium">Phone</th>
-                    <th className="px-3 py-2 font-medium">Class</th>
+                    <th className="px-3 py-2 font-medium">Email</th>
                     <th className="px-3 py-2 font-medium">Type</th>
-                    <th className="px-3 py-2 font-medium">Fees</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -228,11 +220,9 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
                     <tr key={i}>
                       <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
                       <td className="px-3 py-1.5">{row.full_name || "—"}</td>
-                      <td className="px-3 py-1.5 text-muted-foreground">{row.email || "—"}</td>
                       <td className="px-3 py-1.5 text-muted-foreground">{row.phone || "—"}</td>
-                      <td className="px-3 py-1.5 text-muted-foreground">{row.class_name || "—"}</td>
+                      <td className="px-3 py-1.5 text-muted-foreground">{row.email || "—"}</td>
                       <td className="px-3 py-1.5 text-muted-foreground">{row.student_type || "—"}</td>
-                      <td className="px-3 py-1.5 text-muted-foreground">₹{row.fees_amount || "0"}</td>
                     </tr>
                   ))}
                 </tbody>

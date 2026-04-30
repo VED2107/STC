@@ -83,7 +83,7 @@ const supabase = createClient();
 
 export default function AdminAttendancePage() {
   const router = useRouter();
-  const { role, user } = useAuth();
+  const { role, user, loading: authLoading } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [courses, setCourses] = useState<CourseForAttendance[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState("");
@@ -111,6 +111,8 @@ export default function AdminAttendancePage() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (role === "student") {
       router.push("/dashboard");
       return;
@@ -192,7 +194,7 @@ export default function AdminAttendancePage() {
     }
 
     void loadBaseData();
-  }, [role, router, user?.id]);
+  }, [role, router, user?.id, authLoading]);
 
   const selectableClasses = useMemo(() => {
     if (!selectedCourseId) {
@@ -702,12 +704,14 @@ export default function AdminAttendancePage() {
 
   function handleHistoryCSV() {
     const slug = selectedHistoryStudentName.replace(/\s+/g, "_") || "student";
-    downloadCSV(buildHistoryExportRows(), historyExportHeaders, `attendance_history_${slug}`);
+    const today = new Date().toISOString().split("T")[0];
+    downloadCSV(buildHistoryExportRows(), historyExportHeaders, `${slug}_attendance_${today}`);
   }
 
   async function handleHistoryXLSX() {
     const slug = selectedHistoryStudentName.replace(/\s+/g, "_") || "student";
-    await downloadXLSX(buildHistoryExportRows(), historyExportHeaders, `attendance_history_${slug}`);
+    const today = new Date().toISOString().split("T")[0];
+    await downloadXLSX(buildHistoryExportRows(), historyExportHeaders, `${slug}_attendance_${today}`);
   }
 
   const filteredAllStudents = allStudentsList.filter((student) =>

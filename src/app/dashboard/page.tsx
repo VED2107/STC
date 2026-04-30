@@ -75,13 +75,13 @@ export default function StudentDashboard() {
     let cancelled = false;
 
     const run = async () => {
-      setLoading(true);
       if (authLoading || cancelled) return;
       if (!user) {
         router.push("/login");
         return;
       }
 
+      setLoading(true);
       setUserName(profile?.full_name || user.user_metadata?.full_name || user.email || "Scholar");
 
       if (role === "admin" || role === "teacher") {

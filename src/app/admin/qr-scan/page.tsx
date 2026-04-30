@@ -140,6 +140,7 @@ export default function QrScanPage() {
   }, [authLoading, role, router]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (role !== "teacher" && role !== "admin") return;
     const supabase = createClient();
 
@@ -202,7 +203,7 @@ export default function QrScanPage() {
     }
 
     void loadBaseData();
-  }, [role, user?.id]);
+  }, [authLoading, role, user?.id]);
 
   useEffect(() => {
     if (!selectedClassId && classes.length > 0) {

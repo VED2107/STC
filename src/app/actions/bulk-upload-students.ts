@@ -6,14 +6,9 @@ const DEFAULT_PASSWORD = "STC@123";
 
 export interface BulkStudentRow {
   full_name: string;
-  email: string;
   phone: string;
-  class_name: string;
+  email: string;
   student_type: string;
-  fees_amount: string;
-  fees_full_payment_paid: string;
-  fees_installment1_paid: string;
-  fees_installment2_paid: string;
 }
 
 export interface BulkUploadResult {
@@ -31,11 +26,6 @@ export interface BulkUploadResponse {
   totalSkipped: number;
 }
 
-function parseBool(val: string): boolean {
-  const lower = (val ?? "").trim().toLowerCase();
-  return ["yes", "true", "1", "paid"].includes(lower);
-}
-
 export async function bulkUploadStudents(
   rows: BulkStudentRow[],
 ): Promise<BulkUploadResponse> {
@@ -51,17 +41,6 @@ export async function bulkUploadStudents(
     };
   }
 
-  // Pre-fetch all classes to map class_name → class_id
-  const { data: allClasses } = await admin
-    .from("classes")
-    .select("id, name, board, level")
-    .order("sort_order");
-
-  const classMap = new Map<string, string>();
-  for (const cls of (allClasses ?? []) as { id: string; name: string }[]) {
-    classMap.set(cls.name.toLowerCase().trim(), cls.id);
-  }
-
   // Pre-fetch all existing auth users ONCE (not per row) for email matching
   const { data: existingUsersData } = await admin.auth.admin.listUsers();
   const allAuthUsers = existingUsersData?.users ?? [];
@@ -72,13 +51,18 @@ export async function bulkUploadStudents(
     }
   }
 
-  // Pre-fetch all existing student profile_ids to detect already-enrolled students
-  const { data: existingStudentRows } = await admin
-    .from("students")
-    .select("profile_id");
-  const enrolledProfileIds = new Set(
-    ((existingStudentRows ?? []) as { profile_id: string }[]).map((s) => s.profile_id),
-  );
+  // Pre-fetch all existing profiles to detect duplicates by phone or existing profiles
+  const { data: existingProfiles } = await admin
+    .from("profiles")
+    .select("id, phone, role");
+  const profileByPhone = new Map<string, string>();
+  const existingProfileIds = new Set<string>();
+  for (const p of (existingProfiles ?? []) as { id: string; phone: string; role: string }[]) {
+    existingProfileIds.add(p.id);
+    if (p.phone) {
+      profileByPhone.set(p.phone.trim(), p.id);
+    }
+  }
 
   const results: BulkUploadResult[] = [];
   let totalSuccess = 0;
@@ -106,19 +90,6 @@ export async function bulkUploadStudents(
       continue;
     }
 
-    const className = (row.class_name ?? "").trim().toLowerCase();
-    const classId = classMap.get(className);
-    if (!classId) {
-      results.push({
-        row: rowNum,
-        name,
-        success: false,
-        error: `Class "${row.class_name}" not found. Available: ${[...classMap.keys()].join(", ")}`,
-      });
-      totalFailed++;
-      continue;
-    }
-
     const studentType = (row.student_type ?? "tuition").trim().toLowerCase();
     if (!["tuition", "online"].includes(studentType)) {
       results.push({
@@ -131,23 +102,23 @@ export async function bulkUploadStudents(
       continue;
     }
 
-    const feesAmount = parseInt(row.fees_amount || "0", 10) || 0;
-    const fullPaymentPaid = parseBool(row.fees_full_payment_paid);
-    const inst1Paid = fullPaymentPaid || parseBool(row.fees_installment1_paid);
-    const inst2Paid = fullPaymentPaid || parseBool(row.fees_installment2_paid);
-
     try {
       // Check if user already exists by email (from pre-fetched map)
       let userId = email ? (authUserByEmail.get(email) ?? null) : null;
 
-      // If user exists AND is already enrolled as a student, SKIP — don't overwrite
-      if (userId && enrolledProfileIds.has(userId)) {
+      // Also check by phone if no email match
+      if (!userId && phone) {
+        userId = profileByPhone.get(phone) ?? null;
+      }
+
+      // If user already has a profile, SKIP — they already exist in the system
+      if (userId && existingProfileIds.has(userId)) {
         results.push({
           row: rowNum,
           name,
           success: true,
           skipped: true,
-          error: "Already enrolled — existing data preserved",
+          error: "Already registered — existing data preserved",
         });
         totalSkipped++;
         continue;
@@ -192,9 +163,12 @@ export async function bulkUploadStudents(
         userId = newUser.user.id;
         // Add to our maps so subsequent duplicate rows in the same CSV are caught
         if (email) authUserByEmail.set(email, userId);
+        if (phone) profileByPhone.set(phone, userId);
       }
 
       // Ensure profile exists with role = student
+      // The handle_new_user trigger already creates a profile on auth user creation,
+      // but we upsert to make sure the data is correct
       const { error: profileError } = await admin
         .from("profiles")
         .upsert(
@@ -219,32 +193,12 @@ export async function bulkUploadStudents(
         continue;
       }
 
-      // Create student record (we already checked they're not enrolled above)
-      const { error: studentError } = await admin.from("students").insert({
-        profile_id: userId,
-        class_id: classId,
-        student_type: studentType,
-        enrollment_date: new Date().toISOString().split("T")[0],
-        is_active: true,
-        fees_amount: feesAmount,
-        fees_full_payment_paid: fullPaymentPaid,
-        fees_installment1_paid: inst1Paid,
-        fees_installment2_paid: inst2Paid,
-      });
-
-      if (studentError) {
-        results.push({
-          row: rowNum,
-          name,
-          success: false,
-          error: `Student creation failed: ${studentError.message}`,
-        });
-        totalFailed++;
-        continue;
-      }
-
       // Track in our set so subsequent duplicate rows are caught
-      enrolledProfileIds.add(userId);
+      existingProfileIds.add(userId);
+
+      // Student record is NOT created here because class_id is NOT NULL in the DB.
+      // The admin can assign class + enroll via the student form dialog later.
+      // These students will appear as "Pending Enrollment" in the admin panel.
 
       results.push({ row: rowNum, name, success: true });
       totalSuccess++;

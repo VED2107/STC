@@ -25,7 +25,7 @@ function AdminTeachersPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { role } = useAuth();
+  const { role, loading: authLoading } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -51,6 +51,8 @@ function AdminTeachersPageInner() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (role === "teacher") {
       router.push("/admin/attendance");
       return;
@@ -65,7 +67,7 @@ function AdminTeachersPageInner() {
       router.push("/dashboard");
       return;
     }
-  }, [fetchTeachers, role, router]);
+  }, [fetchTeachers, role, router, authLoading]);
 
   useEffect(() => {
     if (role !== "admin") return;

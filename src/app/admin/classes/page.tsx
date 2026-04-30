@@ -50,7 +50,7 @@ function AdminClassesPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { role } = useAuth();
+  const { role, loading: authLoading } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -70,6 +70,7 @@ function AdminClassesPageInner() {
   const classExportHeaders = [
     { key: "name", label: "Name" },
     { key: "phone", label: "Phone" },
+    { key: "email", label: "Email" },
     { key: "studentType", label: "Student Type" },
     { key: "status", label: "Status" },
     { key: "feesAmount", label: "Fees Amount (INR)" },
@@ -85,12 +86,12 @@ function AdminClassesPageInner() {
     try {
       const { data } = await supabase
         .from("students")
-        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone)")
+        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email)")
         .eq("class_id", classId)
         .order("created_at", { ascending: false });
 
       const rows = ((data ?? []) as Array<{
-        profile: { full_name: string; phone: string } | null;
+        profile: { full_name: string; phone: string; email?: string | null } | null;
         student_type: string;
         is_active: boolean;
         fees_amount: number;
@@ -102,6 +103,7 @@ function AdminClassesPageInner() {
         return {
           name: s.profile?.full_name ?? "Unnamed",
           phone: s.profile?.phone ?? "N/A",
+          email: s.profile?.email ?? "N/A",
           studentType: s.student_type === "tuition" ? "Tuition" : "Online",
           status: s.is_active ? "Active" : "Inactive",
           feesAmount: s.fees_amount ?? 0,
@@ -178,6 +180,8 @@ function AdminClassesPageInner() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (role === "teacher") {
       router.push("/admin/attendance");
       return;
@@ -190,7 +194,7 @@ function AdminClassesPageInner() {
 
     if (role !== "admin") return;
     void loadClassData();
-  }, [role, router, loadClassData]);
+  }, [role, router, loadClassData, authLoading]);
 
   useEffect(() => {
     if (role !== "admin") return;

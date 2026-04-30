@@ -43,7 +43,6 @@ export default function StudentSyllabusPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchSyllabi = useCallback(async () => {
-    setLoading(true);
     if (authLoading) {
       return;
     }
@@ -52,6 +51,7 @@ export default function StudentSyllabusPage() {
       return;
     }
 
+    setLoading(true);
     const { data: student } = await supabase
       .from("students")
       .select("id, class_id, student_type")

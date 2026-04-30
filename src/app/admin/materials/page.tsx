@@ -35,7 +35,7 @@ function AdminMaterialsPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { role, user } = useAuth();
+  const { role, user, loading: authLoading } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -73,6 +73,8 @@ function AdminMaterialsPageInner() {
   }
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (role === "student") {
       router.push("/dashboard");
       return;
@@ -113,7 +115,7 @@ function AdminMaterialsPageInner() {
     }
 
     void loadClasses();
-  }, [role, router, user?.id]);
+  }, [role, router, user?.id, authLoading]);
 
   useEffect(() => {
     if (role !== "admin" && role !== "teacher") return;

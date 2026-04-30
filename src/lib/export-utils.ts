@@ -405,9 +405,19 @@ async function readZipEntries(data: Uint8Array): Promise<{ path: string; data: U
     const nameStart = offset + 30;
     const path = decoder.decode(data.subarray(nameStart, nameStart + nameLen));
     const dataStart = nameStart + nameLen + extraLen;
+    const rawBytes = data.subarray(dataStart, dataStart + compSize);
 
     if (compMethod === 0) {
-      entries.push({ path, data: data.subarray(dataStart, dataStart + compSize) });
+      // Stored (no compression)
+      entries.push({ path, data: rawBytes });
+    } else if (compMethod === 8) {
+      // DEFLATE — decompress using browser DecompressionStream API
+      try {
+        const decompressed = await decompressDeflateRaw(rawBytes);
+        entries.push({ path, data: decompressed });
+      } catch {
+        // Skip entries that fail to decompress
+      }
     }
     offset = dataStart + compSize;
   }
@@ -415,30 +425,48 @@ async function readZipEntries(data: Uint8Array): Promise<{ path: string; data: U
   return entries;
 }
 
+async function decompressDeflateRaw(compressed: Uint8Array): Promise<Uint8Array> {
+  const ds = new DecompressionStream("deflate-raw");
+  const writer = ds.writable.getWriter();
+  const reader = ds.readable.getReader();
+
+  // Write compressed data and close
+  void writer.write(new Uint8Array(compressed) as unknown as BufferSource).then(() => writer.close());
+
+  // Read all decompressed chunks
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLength += value.length;
+  }
+
+  // Concatenate chunks
+  const result = new Uint8Array(totalLength);
+  let pos = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, pos);
+    pos += chunk.length;
+  }
+  return result;
+}
+
 // ─── Bulk Upload Template ──────────────────────────────────────────
 
 const BULK_TEMPLATE_HEADERS = [
   { key: "full_name", label: "Full Name" },
-  { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
-  { key: "class_name", label: "Class Name" },
+  { key: "email", label: "Email" },
   { key: "student_type", label: "Student Type" },
-  { key: "fees_amount", label: "Fees Amount (INR)" },
-  { key: "fees_full_payment_paid", label: "Full Payment Marked" },
-  { key: "fees_installment1_paid", label: "Installment 1 Paid" },
-  { key: "fees_installment2_paid", label: "Installment 2 Paid" },
 ];
 
 const SAMPLE_ROW = {
   full_name: "John Doe",
-  email: "johndoe@example.com",
   phone: "9876543210",
-  class_name: "Class 5 - GSEB",
+  email: "johndoe@example.com",
   student_type: "tuition",
-  fees_amount: "5000",
-  fees_full_payment_paid: "no",
-  fees_installment1_paid: "no",
-  fees_installment2_paid: "no",
 };
 
 export function downloadBulkTemplateCSV() {

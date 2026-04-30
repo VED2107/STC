@@ -56,7 +56,6 @@ export default function StudentAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0 });
   const fetchAttendance = useCallback(async () => {
-    setLoading(true);
     if (authLoading) {
       return;
     }
@@ -65,6 +64,7 @@ export default function StudentAttendancePage() {
       return;
     }
 
+    setLoading(true);
     const { data: student } = await supabase
       .from("students")
       .select("id, student_type")

@@ -39,7 +39,7 @@ function AdminSyllabusPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { role, user } = useAuth();
+  const { role, user, loading: authLoading } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [syllabi, setSyllabi] = useState<(Syllabus & { class?: Class })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +66,8 @@ function AdminSyllabusPageInner() {
   }
 
   const fetchData = useCallback(async () => {
+    if (authLoading) return;
+
     if (role === "student") {
       router.push("/dashboard");
       return;
@@ -116,7 +118,7 @@ function AdminSyllabusPageInner() {
     setClasses((classData as Class[] | null) ?? []);
     setSyllabi((syllabusData as (Syllabus & { class?: Class })[] | null) ?? []);
     setLoading(false);
-  }, [role, router, user]);
+  }, [role, router, user, authLoading]);
 
   useEffect(() => {
     void fetchData();

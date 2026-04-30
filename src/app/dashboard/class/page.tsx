@@ -39,7 +39,6 @@ export default function StudentClassPage() {
   const [courses, setCourses] = useState<CourseRow[]>([]);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     if (authLoading) {
       return;
     }
@@ -48,6 +47,7 @@ export default function StudentClassPage() {
       return;
     }
 
+    setLoading(true);
     const { data: student } = await supabase
       .from("students")
       .select("id, student_type, class:classes(id, name, board, level)")

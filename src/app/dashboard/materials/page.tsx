@@ -39,7 +39,6 @@ export default function StudentMaterialsPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchMaterials = useCallback(async () => {
-    setLoading(true);
     if (authLoading) {
       return;
     }
@@ -48,6 +47,7 @@ export default function StudentMaterialsPage() {
       return;
     }
 
+    setLoading(true);
     const { data: student } = await supabase
       .from("students")
       .select("id, class_id, student_type, class:classes(name)")

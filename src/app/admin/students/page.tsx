@@ -57,7 +57,7 @@ const supabase = createClient();
 function AdminStudentsPageInner() {
   const router = useRouter();
   const pathname = usePathname();
-  const { role, user } = useAuth();
+  const { role, user, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,6 +171,8 @@ function AdminStudentsPageInner() {
   }, [role, user]);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (role === "admin" || role === "teacher") {
       void fetchStudents();
       return;
@@ -179,7 +181,7 @@ function AdminStudentsPageInner() {
     if (role === "student") {
       router.push("/dashboard");
     }
-  }, [fetchStudents, role, router]);
+  }, [fetchStudents, role, router, authLoading]);
 
   useEffect(() => {
     if (role !== "admin") return;
@@ -221,6 +223,7 @@ function AdminStudentsPageInner() {
   const studentExportHeaders = [
     { key: "name", label: "Name" },
     { key: "phone", label: "Phone" },
+    { key: "email", label: "Email" },
     { key: "studentId", label: "Student ID" },
     { key: "className", label: "Class" },
     { key: "board", label: "Board" },
@@ -239,6 +242,7 @@ function AdminStudentsPageInner() {
     return filtered.map((student, index) => ({
       name: student.profile?.full_name || "Unnamed",
       phone: student.profile?.phone || "N/A",
+      email: student.profile?.email || "N/A",
       studentId:
         student.rowKind === "enrolled" && student.enrollment_date
           ? `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`
@@ -294,11 +298,20 @@ function AdminStudentsPageInner() {
     }));
   }
 
+  function getExportFilename() {
+    const today = new Date().toISOString().split("T")[0];
+    if (filtered.length === 1 && filtered[0].profile?.full_name) {
+      const name = filtered[0].profile.full_name.replace(/\s+/g, "_");
+      return `${name}_${today}`;
+    }
+    return `all_students_${today}`;
+  }
+
   function handleDownloadCSV() {
     downloadCSV(
       buildExportRows(),
       studentExportHeaders,
-      `students_${new Date().toISOString().split("T")[0]}`,
+      getExportFilename(),
     );
   }
 
@@ -306,7 +319,7 @@ function AdminStudentsPageInner() {
     await downloadXLSX(
       buildExportRows(),
       studentExportHeaders,
-      `students_${new Date().toISOString().split("T")[0]}`,
+      getExportFilename(),
     );
   }
 

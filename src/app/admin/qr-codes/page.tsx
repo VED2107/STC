@@ -69,6 +69,7 @@ export default function AdminQrCodesPage() {
 
   // Load classes
   useEffect(() => {
+    if (authLoading) return;
     if (role !== "admin") return;
     supabase
       .from("classes")
@@ -81,9 +82,11 @@ export default function AdminQrCodesPage() {
           setSelectedClassId(rows[0].id);
         }
       });
-  }, [role, selectedClassId]);
+  }, [authLoading, role, selectedClassId]);
 
   const fetchStudents = useCallback(async () => {
+    if (authLoading) return;
+    if (role !== "admin") return;
     if (!selectedClassId) return;
     setLoading(true);
     setActionMessage("");
@@ -98,7 +101,7 @@ export default function AdminQrCodesPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClassId]);
+  }, [authLoading, role, selectedClassId]);
 
   useEffect(() => {
     void fetchStudents();

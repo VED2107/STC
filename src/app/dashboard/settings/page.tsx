@@ -41,7 +41,6 @@ function StudentSettingsPageInner() {
   const isStudentPhoneLocked = data?.role === "student" && Boolean(data?.phone.trim());
 
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
-    if (!options?.silent) setLoading(true);
     if (authLoading) {
       return;
     }
@@ -50,6 +49,7 @@ function StudentSettingsPageInner() {
       return;
     }
 
+    if (!options?.silent) setLoading(true);
     const [{ data: profile }, { data: student }] = await Promise.all([
       supabase
         .from("profiles")

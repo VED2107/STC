@@ -54,6 +54,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /** Track previous user ID for cache cleanup on sign-out */
   const prevUserIdRef = useRef<string | null>(null);
 
+  /**
+   * Keep a ref of the current profile so the onAuthStateChange listener
+   * can check if profile is already loaded without triggering re-renders.
+   */
+  const profileRef = useRef<Profile | null>(null);
+
   /** Fetch profile from Supabase for the current user */
   const fetchProfile = useCallback(
     async (userId: string) => {
@@ -84,6 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (user) {
       const p = await fetchProfile(user.id);
       setProfile(p);
+      profileRef.current = p;
     }
   }, [user, fetchProfile]);
 
@@ -100,6 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Clear local state right away
       setUser(null);
       setProfile(null);
+      profileRef.current = null;
       setSession(null);
 
       // Fire server-side session clear (don't block on it)
@@ -135,11 +143,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (cachedProfile) {
             setProfile(cachedProfile);
+            profileRef.current = cachedProfile;
             setLoading(false);
           }
 
           const p = await fetchProfile(currentSession.user.id);
           setProfile(p);
+          profileRef.current = p;
         }
       } catch (err) {
         console.error("Session fetch error:", err);
@@ -154,22 +164,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, newSession: Session | null) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-
-      if (event === "SIGNED_IN" && newSession?.user) {
-        prevUserIdRef.current = newSession.user.id;
-        const cachedProfile = getCachedProfile(newSession.user.id);
-        if (cachedProfile) {
-          setProfile(cachedProfile);
-          setLoading(false);
-        } else {
-          setLoading(true);
-        }
-        const p = await fetchProfile(newSession.user.id);
-        setProfile(p);
-        setLoading(false);
-      }
 
       if (event === "SIGNED_OUT") {
         const prevUserId = prevUserIdRef.current;
@@ -178,8 +172,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
           clearCachedStudentType(prevUserId);
         }
         prevUserIdRef.current = null;
+        setUser(null);
         setProfile(null);
+        profileRef.current = null;
+        setSession(null);
         setLoading(false);
+        return;
+      }
+
+      if (event === "SIGNED_IN" && newSession?.user) {
+        prevUserIdRef.current = newSession.user.id;
+        setSession(newSession);
+        setUser(newSession.user);
+
+        const cachedProfile = getCachedProfile(newSession.user.id);
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+          profileRef.current = cachedProfile;
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
+        const p = await fetchProfile(newSession.user.id);
+        setProfile(p);
+        profileRef.current = p;
+        setLoading(false);
+        return;
+      }
+
+      // TOKEN_REFRESHED, USER_UPDATED, etc.
+      // Update session and user but NEVER clear the profile.
+      // The profile/role stays stable — no flickering.
+      if (newSession?.user) {
+        setSession(newSession);
+        setUser(newSession.user);
+        prevUserIdRef.current = newSession.user.id;
+
+        // If profile isn't loaded yet (edge case), fetch it
+        if (!profileRef.current) {
+          const p = await fetchProfile(newSession.user.id);
+          setProfile(p);
+          profileRef.current = p;
+          setLoading(false);
+        }
       }
     });
 
