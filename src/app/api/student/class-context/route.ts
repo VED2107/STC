@@ -59,9 +59,9 @@ export async function GET() {
     }
 
     const courses =
-      ((enrollmentRows as Array<{
+      ((enrollmentRows as unknown as Array<{
         course: { id: string; title: string; subject: string; class_id?: string | null } | null;
-      }> | null) ?? [])
+      }>) ?? [])
         .map((entry) => entry.course)
         .filter(
           (
