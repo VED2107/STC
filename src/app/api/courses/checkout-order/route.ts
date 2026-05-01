@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const [courseRes, profileRes] = await Promise.all([
       supabase
         .from("courses")
-        .select("id, title, class_id, fee_inr, is_active")
+        .select("id, title, class_id, fee_inr, is_active, is_online_only")
         .eq("id", courseId)
         .maybeSingle(),
       supabase
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
         .maybeSingle(),
     ]);
 
-    if (courseRes.error || !courseRes.data || !courseRes.data.is_active) {
+    if (courseRes.error || !courseRes.data || !courseRes.data.is_active || !courseRes.data.is_online_only) {
       return NextResponse.json({ error: "Course is not available for purchase" }, { status: 404 });
     }
     if (!profileRes.data || profileRes.data.role !== "student") {

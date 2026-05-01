@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BookCopy,
@@ -50,7 +50,7 @@ const adminLinks = [
   { href: "/admin/students", label: "Institutional Registry", icon: Users },
   { href: "/admin/teachers", label: "Faculty", icon: GraduationCap },
   { href: "/admin/classes", label: "Academic Structures", icon: LibraryBig },
-  { href: "/admin/courses", label: "Curriculum", icon: BookOpen },
+  { href: "/admin/subjects", label: "Subjects", icon: BookOpen },
   { href: "/admin/attendance", label: "Attendance", icon: ClipboardList },
   { href: "/admin/qr-codes", label: "QR Codes", icon: QrCode },
   { href: "/admin/qr-scan", label: "QR Scanner", icon: ScanLine },
@@ -89,7 +89,6 @@ const onlineStudentLinks = [
 
 export function AtelierShell({ area, children }: AtelierShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, profile, signOut } = useAuth();
   const isTeacherArea = area === "admin" && profile?.role === "teacher";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -108,21 +107,6 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "Scholar";
-
-  useEffect(() => {
-    const linksToPrefetch =
-      area === "admin"
-        ? (isTeacherArea ? teacherLinks : adminLinks)
-        : isOnlineStudent
-          ? onlineStudentLinks
-          : studentLinks;
-
-    for (const link of linksToPrefetch) {
-      if (link.href !== pathname) {
-        router.prefetch(link.href);
-      }
-    }
-  }, [area, isOnlineStudent, isTeacherArea, pathname, router]);
 
   useEffect(() => {
     if (area !== "admin" || !profile?.role) {
@@ -175,7 +159,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
         supabase.from("classes").select("*").order("sort_order"),
         supabase
           .from("courses")
-          .select("*, class:classes(name, board), teacher:teachers(name)")
+          .select("*, class:classes(name, board)")
           .order("created_at", { ascending: false }),
         supabase.from("syllabus").select("*, class:classes(*)").order("subject"),
       ]);
@@ -340,8 +324,8 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
           ? { label: "+ Create Teacher", href: "/admin/teachers?create=1" }
           : pathname.startsWith("/admin/students")
             ? { label: "+ Add Student", href: "/admin/students?create=1" }
-            : pathname.startsWith("/admin/courses")
-              ? { label: "+ Add Course", href: "/admin/courses?create=1" }
+            : pathname.startsWith("/admin/courses") || pathname.startsWith("/admin/subjects")
+              ? { label: "+ Add Subject", href: "/admin/subjects?create=1" }
               : pathname.startsWith("/admin/classes")
                 ? { label: "+ Add Class", href: "/admin/classes?create=1" }
                 : pathname.startsWith("/admin/materials")

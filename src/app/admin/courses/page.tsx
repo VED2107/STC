@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { BookOpen, ImageOff, Search } from "lucide-react";
+import { BookOpen, ImageOff, RefreshCw, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
@@ -23,8 +23,6 @@ import type { Course } from "@/lib/types/database";
 
 type CourseRow = Omit<Course, "class" | "teacher"> & {
   class: { name: string; board: string } | null;
-  teacher: { name: string } | null;
-  teacher_id?: string;
 };
 
 const supabase = createClient();
@@ -40,6 +38,8 @@ function AdminCoursesPageInner() {
   );
   const [loading, setLoading] = useState(() => getAdminPageCache<CourseRow[]>(COURSES_CACHE_KEY) === null);
   const [search, setSearch] = useState("");
+  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<CourseRow | undefined>();
 
@@ -64,10 +64,19 @@ function AdminCoursesPageInner() {
     }
     const { data } = await supabase
       .from("courses")
-      .select("*, class:classes(name, board), teacher:teachers(name)")
+      .select("*, class:classes(name, board)")
+      .eq("is_online_only", true)
       .order("created_at", { ascending: false });
     const nextCourses = (data as CourseRow[] | null) ?? [];
+    const nextSubjects = Array.from(
+      new Set(
+        nextCourses
+          .map((course) => course.subject?.trim())
+          .filter((subject): subject is string => Boolean(subject)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
     setCourses(nextCourses);
+    setSubjectOptions(nextSubjects);
     setAdminPageCache(COURSES_CACHE_KEY, nextCourses);
     setLoading(false);
   }, []);
@@ -107,6 +116,9 @@ function AdminCoursesPageInner() {
   }
 
   const filtered = courses.filter((course) => {
+    if (selectedSubject && course.subject.trim().toLowerCase() !== selectedSubject.toLowerCase()) {
+      return false;
+    }
     const haystack = `${course.title} ${course.subject}`.toLowerCase();
     return haystack.includes(search.toLowerCase());
   });
@@ -115,9 +127,9 @@ function AdminCoursesPageInner() {
     <div className="px-6 py-8 md:px-10">
       <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <StitchSectionHeader
-          eyebrow="Curriculum Atelier"
-          title="Manage Courses"
-          description="Shape the academy's published curriculum, assign scholars, and refine subject pathways for every board and class."
+          eyebrow="Online Subject Atelier"
+          title="Manage Subjects"
+          description="Create free online subjects with a class label for display only, without mixing them into offline tuition class access."
         />
         <div className="flex w-full max-w-xl gap-3">
           <div className="relative flex-1">
@@ -126,9 +138,21 @@ function AdminCoursesPageInner() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className={cn(stitchInputClass, "pl-11")}
-              placeholder="Search course titles..."
+              placeholder="Search course or subject..."
             />
           </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-3 text-sm text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => {
+              setSelectedSubject("");
+              void fetchCourses();
+            }}
+            disabled={loading}
+          >
+            <RefreshCw className={cn("h-4 w-4", loading ? "animate-spin" : "")} />
+            Load Courses
+          </button>
           <button
             type="button"
             className={stitchButtonClass}
@@ -142,6 +166,40 @@ function AdminCoursesPageInner() {
         </div>
       </div>
 
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button
+          type="button"
+          className={cn(
+            "rounded-full border px-4 py-2 text-sm transition",
+            !selectedSubject
+              ? "border-primary bg-primary text-white"
+              : "border-border bg-background text-foreground hover:bg-muted",
+          )}
+          onClick={() => setSelectedSubject("")}
+        >
+          All Courses
+        </button>
+        {subjectOptions.map((subject) => {
+          const active = selectedSubject.toLowerCase() === subject.toLowerCase();
+
+          return (
+            <button
+              key={subject}
+              type="button"
+              className={cn(
+                "rounded-full border px-4 py-2 text-sm transition",
+                active
+                  ? "border-primary bg-primary text-white"
+                  : "border-border bg-background text-foreground hover:bg-muted",
+              )}
+              onClick={() => setSelectedSubject(subject)}
+            >
+              {subject}
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
           <LoadingAnimation size="lg" />
@@ -150,8 +208,8 @@ function AdminCoursesPageInner() {
         <div className="mt-10">
           <StitchEmptyState
             icon={BookOpen}
-            title="No Courses Published"
-            description="Add the first curriculum entry to start building the digital atelier."
+            title="No Online Subjects Published"
+            description="Add the first online subject to start building the student course library."
           />
         </div>
       ) : (
@@ -188,7 +246,6 @@ function AdminCoursesPageInner() {
               <p className="mt-4 text-sm leading-7 text-muted-foreground">{course.description}</p>
               <div className="mt-6 text-sm text-muted-foreground">
                 <p>Subject: {course.subject}</p>
-                <p className="mt-2">Teacher: {course.teacher?.name ?? "Unassigned"}</p>
                 <p className="mt-2">Fee: INR {Number(course.fee_inr ?? 0).toLocaleString("en-IN")}</p>
               </div>
               <div className="mt-8 flex gap-3">

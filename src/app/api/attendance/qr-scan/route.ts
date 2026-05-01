@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 import { sendCheckInMessage, sendCheckoutMessage } from "@/lib/whatsapp";
 
 interface MarkAttendanceRpcRow {
@@ -53,6 +54,35 @@ export async function POST(request: NextRequest) {
         { error: "Missing token or sessionId" },
         { status: 400 },
       );
+    }
+
+    if (profile.role === "teacher") {
+      const admin = createAdminClient();
+      const [{ data: session }, { data: subjectAccessRows }] = await Promise.all([
+        admin
+          .from("attendance_sessions")
+          .select("id, class_id, subject, course_id")
+          .eq("id", sessionId)
+          .maybeSingle(),
+        admin
+          .from("teacher_subject_access")
+          .select("class_id, subject")
+          .eq("teacher_profile_id", user.id),
+      ]);
+
+      if (!session || !(session as { course_id: string | null }).course_id) {
+        return NextResponse.json({ error: "Teachers can scan only assigned subject sessions" }, { status: 403 });
+      }
+
+      const allowedSubjectKeys = new Set(
+        ((subjectAccessRows as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) =>
+          buildTeacherSubjectAccessKey(row.class_id, row.subject),
+        ),
+      );
+
+      if (!allowedSubjectKeys.has(buildTeacherSubjectAccessKey((session as { class_id: string }).class_id, (session as { subject: string }).subject))) {
+        return NextResponse.json({ error: "You do not have access to this subject session" }, { status: 403 });
+      }
     }
 
     const { data, error } = await supabase.rpc("mark_attendance", {

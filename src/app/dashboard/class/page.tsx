@@ -29,6 +29,12 @@ interface CourseRow {
   subject: string;
 }
 
+interface SyllabusRow {
+  id: string;
+  class_id: string;
+  subject: string;
+}
+
 const supabase = createClient();
 
 export default function StudentClassPage() {
@@ -69,14 +75,18 @@ export default function StudentClassPage() {
         .filter((entry): entry is CourseRow => Boolean(entry));
       setCourses(rows);
     } else if (typedStudent?.class?.id) {
-      const { data: courseData } = await supabase
-        .from("courses")
-        .select("id, title, subject")
+      const { data: syllabusData } = await supabase
+        .from("syllabus")
+        .select("id, class_id, subject")
         .eq("class_id", typedStudent.class.id)
-        .eq("is_active", true)
-        .order("title");
+        .order("subject");
 
-      setCourses((courseData as CourseRow[] | null) ?? []);
+      const rows = (((syllabusData as SyllabusRow[] | null) ?? []).map((entry) => ({
+        id: entry.id,
+        title: entry.subject,
+        subject: entry.subject,
+      })));
+      setCourses(rows);
     } else {
       setCourses([]);
     }
@@ -116,7 +126,7 @@ export default function StudentClassPage() {
         description={
           classRecord.student_type === "online"
             ? "Review your purchased courses and linked class context."
-            : "Review your assigned board, class level, and currently active course structure."
+            : "Review your assigned board, class level, and currently active subject structure."
         }
       />
 
@@ -134,7 +144,7 @@ export default function StudentClassPage() {
           </p>
         </div>
         <div className={cn(stitchPanelClass, "col-span-2 md:col-span-1")}>
-          <p className="stitch-kicker">Active Courses</p>
+          <p className="stitch-kicker">{classRecord.student_type === "online" ? "Purchased Courses" : "Active Subjects"}</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{courses.length}</p>
         </div>
       </div>
@@ -142,7 +152,7 @@ export default function StudentClassPage() {
       <div className="mt-10 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
         <div className={stitchPanelClass}>
           <div className="flex items-center justify-between">
-            <h2 className="text-3xl text-foreground">Course Structure</h2>
+            <h2 className="text-3xl text-foreground">{classRecord.student_type === "online" ? "Course Structure" : "Subject Structure"}</h2>
             <Link href="/dashboard/syllabus" className={stitchSecondaryButtonClass}>
               View Syllabus
             </Link>
@@ -151,7 +161,9 @@ export default function StudentClassPage() {
           {courses.length === 0 ? (
             <div className={cn(stitchPanelSoftClass, "mt-6")}>
               <p className="text-sm text-muted-foreground">
-                No active courses are assigned to your class yet.
+                {classRecord.student_type === "online"
+                  ? "No purchased courses are active on your account yet."
+                  : "No active subjects are assigned to your class yet."}
               </p>
             </div>
           ) : (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 
 interface SessionRow {
   id: string;
@@ -91,13 +92,19 @@ export async function GET() {
     .order("starts_at", { ascending: true });
 
   if (actor.role === "teacher") {
-    const { data: accessRows, error: accessError } = await admin
-      .from("teacher_class_access")
-      .select("class_id")
-      .eq("teacher_profile_id", actor.user.id);
+    const [{ data: accessRows, error: accessError }, { data: subjectAccessRows, error: subjectAccessError }] = await Promise.all([
+      admin
+        .from("teacher_class_access")
+        .select("class_id")
+        .eq("teacher_profile_id", actor.user.id),
+      admin
+        .from("teacher_subject_access")
+        .select("class_id, subject")
+        .eq("teacher_profile_id", actor.user.id),
+    ]);
 
-    if (accessError) {
-      return NextResponse.json({ error: accessError.message }, { status: 500 });
+    if (accessError || subjectAccessError) {
+      return NextResponse.json({ error: accessError?.message ?? subjectAccessError?.message ?? "Unable to load teacher access" }, { status: 500 });
     }
 
     const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map(
@@ -109,6 +116,23 @@ export async function GET() {
     }
 
     sessionQuery = sessionQuery.in("class_id", classIds);
+
+    const allowedSubjectKeys = new Set(
+      ((subjectAccessRows as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) =>
+        buildTeacherSubjectAccessKey(row.class_id, row.subject),
+      ),
+    );
+
+    const { data, error } = await sessionQuery;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      data: (((data as unknown as SessionRow[] | null) ?? []).filter((row) =>
+        allowedSubjectKeys.has(buildTeacherSubjectAccessKey(row.class_id, row.subject)),
+      )).map((row) => serializeSession(row)),
+    });
   }
 
   const { data, error } = await sessionQuery;
@@ -131,11 +155,13 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
     classId?: string;
     courseId?: string | null;
+    subject?: string | null;
     date?: string;
   };
 
   const classId = body.classId?.trim();
   const courseId = body.courseId?.trim() || null;
+  const requestedSubject = body.subject?.trim() || "";
   const sessionDate = body.date?.trim() || todayInIndia();
 
   if (!classId) {
@@ -145,12 +171,19 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
 
   if (actor.role === "teacher") {
-    const { data: access } = await admin
-      .from("teacher_class_access")
-      .select("class_id")
-      .eq("teacher_profile_id", actor.user.id)
-      .eq("class_id", classId)
-      .maybeSingle();
+    const [{ data: access }, { data: subjectAccessRows }] = await Promise.all([
+      admin
+        .from("teacher_class_access")
+        .select("class_id")
+        .eq("teacher_profile_id", actor.user.id)
+        .eq("class_id", classId)
+        .maybeSingle(),
+      admin
+        .from("teacher_subject_access")
+        .select("class_id, subject")
+        .eq("teacher_profile_id", actor.user.id)
+        .eq("class_id", classId),
+    ]);
 
     if (!access) {
       return NextResponse.json(
@@ -158,9 +191,50 @@ export async function POST(request: NextRequest) {
         { status: 403 },
       );
     }
+
+    if (!courseId && !requestedSubject) {
+      return NextResponse.json(
+        { error: "Teachers must select an assigned subject" },
+        { status: 403 },
+      );
+    }
+
+    const allowedSubjectKeys = new Set(
+      ((subjectAccessRows as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) =>
+        buildTeacherSubjectAccessKey(row.class_id, row.subject),
+      ),
+    );
+
+    const allowedSubject =
+      courseId
+        ? await (async () => {
+            const { data: teacherCourse, error: teacherCourseError } = await admin
+              .from("courses")
+              .select("id, class_id, subject, title")
+              .eq("id", courseId)
+              .single();
+
+            if (teacherCourseError || !teacherCourse) {
+              return { error: NextResponse.json({ error: "Course not found" }, { status: 404 }) };
+            }
+
+            return { subject: (teacherCourse as { subject: string }).subject };
+          })()
+        : { subject: requestedSubject };
+
+    if ("error" in allowedSubject) {
+      return allowedSubject.error;
+    }
+
+    if (!allowedSubjectKeys.has(buildTeacherSubjectAccessKey(classId, allowedSubject.subject))) {
+      return NextResponse.json(
+        { error: "You do not have access to this subject for the selected class" },
+        { status: 403 },
+      );
+    }
   }
 
-  let subject = "General Attendance";
+  let subject = requestedSubject || "General Attendance";
 
   if (courseId) {
     const { data: course, error: courseError } = await admin
@@ -193,7 +267,9 @@ export async function POST(request: NextRequest) {
 
   existingQuery = courseId
     ? existingQuery.eq("course_id", courseId)
-    : existingQuery.is("course_id", null);
+    : requestedSubject
+      ? existingQuery.is("course_id", null).eq("subject", requestedSubject)
+      : existingQuery.is("course_id", null);
 
   const { data: existing, error: existingError } = await existingQuery.maybeSingle();
 

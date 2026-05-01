@@ -283,6 +283,40 @@ function AdminStudentsPageInner() {
     return summary;
   }
 
+  async function loadClassSubjects(classIds: string[]) {
+    if (classIds.length === 0) {
+      return {} as Record<string, string[]>;
+    }
+
+    const { data, error } = await supabase
+      .from("courses")
+      .select("class_id, subject")
+      .in("class_id", classIds)
+      .order("subject", { ascending: true });
+
+    if (error) {
+      console.error("Failed to load class subjects for student form", error);
+      return {} as Record<string, string[]>;
+    }
+
+    const subjectMap: Record<string, string[]> = {};
+
+    for (const row of (data as Array<{ class_id: string | null; subject: string | null }> | null) ?? []) {
+      const classId = row.class_id?.trim();
+      const subject = row.subject?.trim();
+
+      if (!classId || !subject) continue;
+
+      const subjects = subjectMap[classId] ?? [];
+      if (!subjects.includes(subject)) {
+        subjects.push(subject);
+      }
+      subjectMap[classId] = subjects;
+    }
+
+    return subjectMap;
+  }
+
   function getExportFilename() {
     const today = new Date().toISOString().split("T")[0];
     if (filtered.length === 1 && filtered[0].profile?.full_name) {
@@ -317,13 +351,18 @@ function AdminStudentsPageInner() {
   }
 
   async function handleDownloadForm() {
-    const enrolledIds = filtered
-      .filter((student) => student.rowKind === "enrolled")
-      .map((student) => student.id);
-    const attendanceByStudentId = await loadAttendanceSummary(enrolledIds);
+    const classIds = Array.from(
+      new Set(
+        filtered
+          .map((student) => student.class_id)
+          .filter((classId): classId is string => Boolean(classId)),
+      ),
+    );
+    const classSubjectsByClassId = await loadClassSubjects(classIds);
+
     await generateStudentFormPDF(
       filtered,
-      attendanceByStudentId,
+      classSubjectsByClassId,
       getExportFilename() + "_form",
     );
   }
@@ -383,7 +422,7 @@ function AdminStudentsPageInner() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 className={cn(stitchInputClass, "pl-11")}
-                placeholder="Filter by name, phone, email, or course..."
+                placeholder="Filter by name, phone, email, or subject..."
               />
             </div>
             <button
@@ -430,7 +469,7 @@ function AdminStudentsPageInner() {
               className={cn(stitchSecondaryButtonClass, "gap-2")}
               onClick={() => void handleDownloadForm()}
               disabled={filtered.length === 0}
-              title="Download student form as PDF with photo and full details"
+              title="Download student form as PDF"
             >
               <FileText className="h-4 w-4" />
               Form
@@ -515,7 +554,7 @@ function AdminStudentsPageInner() {
                   <th className="pb-4 font-medium">Student ID</th>
                   <th className="pb-4 font-medium">Class Level</th>
                   <th className="pb-4 font-medium">Academic Board</th>
-                  <th className="pb-4 font-medium">Course Access</th>
+                  <th className="pb-4 font-medium">Subject Access</th>
                   <th className="pb-4 font-medium">Access Type</th>
                   <th className="pb-4 font-medium">Status</th>
                   <th className="pb-4 font-medium">Fees</th>
@@ -546,14 +585,14 @@ function AdminStudentsPageInner() {
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
                       {student.rowKind === "pending"
-                        ? "No purchased course"
+                        ? "No online course"
                         : student.student_type === "online"
                           ? (student.enrollments ?? [])
                               .filter((entry) => entry.status === "active")
                               .map((entry) => entry.course?.title)
                               .filter((value): value is string => Boolean(value))
-                              .join(", ") || "No purchased course"
-                          : "Class resources"}
+                              .join(", ") || "No online course"
+                          : "Free class subjects"}
                     </td>
                     <td className="py-4">
                       <span

@@ -3,19 +3,27 @@ import { ArrowRight, BookOpen, Brain, Building2, Flame, GraduationCap, Microscop
 import { Reveal } from "@/components/stitch/reveal";
 import { HeroMedia } from "@/components/stitch/hero-media";
 import { AnnouncementBadge } from "@/components/stitch/announcement-badge";
+import { createClient } from "@/lib/supabase/server";
 
-const stats = [
-  { value: "99%", label: "Passing Students" },
-  { value: "30:1", label: "Student-Teacher Ratio" },
-  { value: "15 yrs+", label: "Teaching Experience" },
-  { value: "30+", label: "Top University Admits" },
-];
+type HomeTeacherRow = {
+  id: string;
+  name: string;
+  subject: string;
+  qualification: string;
+};
+
+type HomeCourseRow = {
+  id: string;
+  title: string;
+  subject: string;
+  class?: { name: string; board: string } | null;
+};
 
 const departments = [
   {
     title: "Primary",
     description: "Curiosity-led foundations for Classes 1 to 5 with reading, numeracy, and confidence building.",
-    href: "/courses?level=primary",
+    href: "/online-courses?level=primary",
     icon: GraduationCap,
     accent: "bg-[#d0e9d4]/55 text-[#374c3d]",
     className: "md:col-span-8",
@@ -23,7 +31,7 @@ const departments = [
   {
     title: "Middle",
     description: "Analytical growth for Classes 6 to 8 across science, mathematics, and language mastery.",
-    href: "/courses?level=middle",
+    href: "/online-courses?level=middle",
     icon: Building2,
     accent: "bg-[#eef2ff] text-[#3651a5]",
     className: "md:col-span-4",
@@ -31,7 +39,7 @@ const departments = [
   {
     title: "SSC",
     description: "Board-prep discipline and exam confidence for secondary milestones.",
-    href: "/courses?level=ssc",
+    href: "/online-courses?level=ssc",
     icon: Flame,
     accent: "bg-[#fff2dc] text-[#9a6500]",
     className: "md:col-span-4",
@@ -39,7 +47,7 @@ const departments = [
   {
     title: "11th / HSC",
     description: "Senior academic tracks for science and commerce, with optional competitive-exam focus.",
-    href: "/courses?level=hsc",
+    href: "/online-courses?level=hsc",
     icon: Microscope,
     accent: "bg-[#f7edf1] text-[#9a4767]",
     className: "md:col-span-4",
@@ -47,7 +55,7 @@ const departments = [
   {
     title: "JEE / NEET",
     description: "Focused preparation pathways layered into HSC study with precision mentoring.",
-    href: "/courses?level=hsc",
+    href: "/online-courses?level=hsc",
     icon: Brain,
     accent: "bg-[#f1edff] text-[#6a4bc4]",
     className: "md:col-span-4",
@@ -56,16 +64,16 @@ const departments = [
 
 const foundations = [
   {
-    title: "NCERT Pathway",
+    title: "CBSE Pathway",
     description: "Rigorous concept-building aligned with national competitive examinations and logic-first problem solving.",
-    cta: "Explore NCERT Courses",
-    href: "/courses",
+    cta: "Explore CBSE Courses",
+    href: "/online-courses",
   },
   {
     title: "GSEB Pathway",
     description: "Regional board excellence with local context, mentorship, and strong exam-orientation.",
     cta: "Explore GSEB Courses",
-    href: "/courses",
+    href: "/online-courses",
   },
 ];
 
@@ -90,7 +98,32 @@ const differentiators = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+  const [teacherCountRes, courseCountRes, materialCountRes, classCountRes, teachersRes, coursesRes] = await Promise.all([
+    supabase.from("teachers").select("id", { count: "exact", head: true }),
+    supabase.from("courses").select("id", { count: "exact", head: true }).eq("is_online_only", true).eq("is_active", true),
+    supabase.from("materials").select("id", { count: "exact", head: true }),
+    supabase.from("classes").select("id", { count: "exact", head: true }),
+    supabase.from("teachers").select("id, name, subject, qualification").order("created_at", { ascending: false }).limit(3),
+    supabase
+      .from("courses")
+      .select("id, title, subject, class:classes(name, board)")
+      .eq("is_online_only", true)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(4),
+  ]);
+
+  const stats = [
+    { value: String(courseCountRes.count ?? 0), label: "Active Online Subjects" },
+    { value: String(teacherCountRes.count ?? 0), label: "Faculty Mentors" },
+    { value: String(materialCountRes.count ?? 0), label: "Published Materials" },
+    { value: String(classCountRes.count ?? 0), label: "Academic Structures" },
+  ];
+  const latestTeachers = (teachersRes.data as HomeTeacherRow[] | null) ?? [];
+  const latestCourses = (coursesRes.data as HomeCourseRow[] | null) ?? [];
+
   return (
     <div className="overflow-x-hidden">
       {/* HERO */}
@@ -130,7 +163,7 @@ export default function HomePage() {
                 <Link href="/about-us" className="stitch-press rounded-xl bg-primary px-8 py-4 text-center text-base font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(26,28,29,0.35)] sm:text-lg md:px-10 md:py-5">
                   Begin Your Inquiry
                 </Link>
-                <Link href="/courses" className="stitch-press rounded-xl bg-accent px-8 py-4 text-center text-base font-semibold text-accent-foreground transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(26,28,29,0.12)] sm:text-lg md:px-10 md:py-5">
+                <Link href="/online-courses" className="stitch-press rounded-xl bg-accent px-8 py-4 text-center text-base font-semibold text-accent-foreground transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(26,28,29,0.12)] sm:text-lg md:px-10 md:py-5">
                   View Curriculum
                 </Link>
               </div>
@@ -167,7 +200,7 @@ export default function HomePage() {
             </p>
           </Reveal>
           <Reveal delay={120} variant="fade">
-            <Link href="/courses" className="inline-flex items-center gap-2 border-b border-secondary pb-1 text-sm font-semibold text-secondary transition hover:gap-3">
+            <Link href="/online-courses" className="inline-flex items-center gap-2 border-b border-secondary pb-1 text-sm font-semibold text-secondary transition hover:gap-3">
               Explore full directory
               <ArrowRight className="h-4 w-4" />
             </Link>
@@ -272,6 +305,76 @@ export default function HomePage() {
               </Reveal>
             );
           })}
+        </div>
+      </section>
+
+      <section className="bg-muted py-24 md:py-32">
+        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+          <div className="grid gap-10 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+            <Reveal variant="mask-up">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">Live From The Academy</p>
+                <h2 className="mt-4 text-4xl font-light text-primary sm:text-5xl md:text-6xl">
+                  Fresh additions from the <span className="italic text-secondary">admin desk</span>
+                </h2>
+                <p className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
+                  Newly published online subjects and recently added faculty now surface here automatically from the live academy records.
+                </p>
+              </div>
+            </Reveal>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <Reveal delay={80} variant="soft-zoom">
+                <div className="stitch-panel h-full">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-3xl italic text-primary">Latest Subjects</h3>
+                    <Link href="/online-courses" className="text-xs uppercase tracking-[0.2em] text-secondary">
+                      View All
+                    </Link>
+                  </div>
+                  <div className="mt-6 space-y-3">
+                    {latestCourses.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No online subjects published yet.</p>
+                    ) : (
+                      latestCourses.map((course) => (
+                        <Link key={course.id} href={`/online-courses/${course.id}`} className="block rounded-[20px] border border-black/5 bg-white/80 px-4 py-4 transition hover:border-primary/20">
+                          <p className="text-base text-foreground">{course.title}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {course.subject} · {course.class?.name ?? "Independent"} · {course.class?.board ?? "STC"}
+                          </p>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </Reveal>
+
+              <Reveal delay={140} variant="soft-zoom">
+                <div className="stitch-panel h-full">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-3xl italic text-primary">Latest Faculty</h3>
+                    <Link href="/faculty" className="text-xs uppercase tracking-[0.2em] text-secondary">
+                      View All
+                    </Link>
+                  </div>
+                  <div className="mt-6 space-y-3">
+                    {latestTeachers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No faculty profiles added yet.</p>
+                    ) : (
+                      latestTeachers.map((teacher) => (
+                        <Link key={teacher.id} href="/faculty" className="block rounded-[20px] border border-black/5 bg-white/80 px-4 py-4 transition hover:border-primary/20">
+                          <p className="text-base text-foreground">{teacher.name}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {teacher.subject} · {teacher.qualification}
+                          </p>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </Reveal>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -34,6 +34,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import type { Class } from "@/lib/types/database";
+import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 
 const QRScannerWidget = dynamic(() => import("@/components/qr-scanner"), {
   ssr: false,
@@ -49,6 +50,12 @@ interface CourseForScanner {
   title: string;
   subject: string;
   class_id: string;
+  course_id: string | null;
+}
+
+interface SyllabusSubjectRow {
+  class_id: string;
+  subject: string;
 }
 
 interface AttendanceSession {
@@ -114,6 +121,51 @@ function playFeedback(status: ScanResult["status"]) {
   }
 }
 
+function normalizeSubjectName(subject: string | null | undefined) {
+  return (subject ?? "").trim().toLowerCase();
+}
+
+function buildSyntheticSubjectId(classId: string, subject: string) {
+  return `subject::${classId}::${normalizeSubjectName(subject)}`;
+}
+
+function mergeScannerSubjects(
+  courseRows: Array<{ id: string; title: string; subject: string; class_id: string }>,
+  syllabusRows: SyllabusSubjectRow[],
+) {
+  const merged: CourseForScanner[] = [];
+  const seen = new Set<string>();
+
+  for (const course of courseRows) {
+    const key = `${course.class_id}::${normalizeSubjectName(course.subject)}`;
+    seen.add(key);
+    merged.push({
+      id: course.id,
+      title: course.title,
+      subject: course.subject,
+      class_id: course.class_id,
+      course_id: course.id,
+    });
+  }
+
+  for (const row of syllabusRows) {
+    const normalizedSubject = normalizeSubjectName(row.subject);
+    if (!row.class_id || !normalizedSubject) continue;
+    const key = `${row.class_id}::${normalizedSubject}`;
+    if (seen.has(key)) continue;
+    merged.push({
+      id: buildSyntheticSubjectId(row.class_id, row.subject),
+      title: row.subject.trim(),
+      subject: row.subject.trim(),
+      class_id: row.class_id,
+      course_id: null,
+    });
+    seen.add(key);
+  }
+
+  return merged.sort((left, right) => left.title.localeCompare(right.title));
+}
+
 export default function QrScanPage() {
   const router = useRouter();
   const { role, loading: authLoading, user } = useAuth();
@@ -146,60 +198,101 @@ export default function QrScanPage() {
 
     async function loadBaseData() {
       if (role === "teacher" && user?.id) {
-        const { data: accessRows, error: accessError } = await supabase
-          .from("teacher_class_access")
-          .select("class_id")
-          .eq("teacher_profile_id", user.id);
+        const [{ data: accessRows, error: accessError }, { data: subjectAccessRows, error: subjectAccessError }] = await Promise.all([
+          supabase
+            .from("teacher_class_access")
+            .select("class_id")
+            .eq("teacher_profile_id", user.id),
+          supabase
+            .from("teacher_subject_access")
+            .select("class_id, subject")
+            .eq("teacher_profile_id", user.id),
+        ]);
 
-        if (accessError) {
+        if (accessError || subjectAccessError) {
           setScannerError("Unable to load your assigned classes.");
           return;
         }
+
+        const allowedSubjectKeys = new Set(
+          ((subjectAccessRows as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) =>
+            buildTeacherSubjectAccessKey(row.class_id, row.subject),
+          ),
+        );
+        const allowedClassIds = new Set(
+          ((subjectAccessRows as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) => row.class_id),
+        );
 
         const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map(
           (row) => row.class_id,
         );
 
-        if (classIds.length === 0) {
+        if (classIds.length === 0 || allowedSubjectKeys.size === 0) {
           setClasses([]);
           setCourses([]);
           return;
         }
 
-        const [classesRes, coursesRes] = await Promise.all([
+        const [classesRes, coursesRes, syllabusRes] = await Promise.all([
           supabase.from("classes").select("*").in("id", classIds).order("sort_order"),
           supabase
             .from("courses")
             .select("id, title, subject, class_id")
+            .eq("is_online_only", false)
             .in("class_id", classIds)
             .order("title"),
+          supabase
+            .from("syllabus")
+            .select("class_id, subject")
+            .in("class_id", classIds)
+            .order("subject"),
         ]);
 
-        if (classesRes.error || coursesRes.error) {
+        if (classesRes.error || coursesRes.error || syllabusRes.error) {
           setScannerError("Unable to load scanner setup.");
           return;
         }
 
-        setClasses((classesRes.data as Class[] | null) ?? []);
-        setCourses((coursesRes.data as CourseForScanner[] | null) ?? []);
+        setClasses(
+          ((classesRes.data as Class[] | null) ?? []).filter((item) =>
+            allowedClassIds.has(item.id),
+          ),
+        );
+        setCourses(
+          mergeScannerSubjects(
+            (((coursesRes.data as Array<{ id: string; title: string; subject: string; class_id: string }> | null) ?? []).filter((course) =>
+              allowedSubjectKeys.has(buildTeacherSubjectAccessKey(course.class_id, course.subject)),
+            )),
+            (((syllabusRes.data as SyllabusSubjectRow[] | null) ?? []).filter((row) =>
+              allowedSubjectKeys.has(buildTeacherSubjectAccessKey(row.class_id, row.subject)),
+            )),
+          ),
+        );
         return;
       }
 
-      const [classesRes, coursesRes] = await Promise.all([
+      const [classesRes, coursesRes, syllabusRes] = await Promise.all([
         supabase.from("classes").select("*").order("sort_order"),
         supabase
           .from("courses")
           .select("id, title, subject, class_id")
+          .eq("is_online_only", false)
           .order("title"),
+        supabase.from("syllabus").select("class_id, subject").order("subject"),
       ]);
 
-      if (classesRes.error || coursesRes.error) {
+      if (classesRes.error || coursesRes.error || syllabusRes.error) {
         setScannerError("Unable to load scanner setup.");
         return;
       }
 
       setClasses((classesRes.data as Class[] | null) ?? []);
-      setCourses((coursesRes.data as CourseForScanner[] | null) ?? []);
+      setCourses(
+        mergeScannerSubjects(
+          (coursesRes.data as Array<{ id: string; title: string; subject: string; class_id: string }> | null) ?? [],
+          (syllabusRes.data as SyllabusSubjectRow[] | null) ?? [],
+        ),
+      );
     }
 
     void loadBaseData();
@@ -215,16 +308,28 @@ export default function QrScanPage() {
     () => courses.filter((course) => course.class_id === selectedClassId),
     [courses, selectedClassId],
   );
+  const selectedCourse =
+    selectedCourseId === "general"
+      ? null
+      : classCourses.find((course) => course.id === selectedCourseId) ?? null;
+  const selectedResolvedCourseId =
+    selectedCourseId === "general" ? null : (selectedCourse?.course_id ?? null);
+  const selectedSubjectName = selectedCourse?.subject?.trim() ?? "";
 
   useEffect(() => {
+    if (role === "teacher" && selectedCourseId === "general" && classCourses.length > 0) {
+      setSelectedCourseId(classCourses[0].id);
+      return;
+    }
+
     const currentValueIsValid =
-      selectedCourseId === "general" ||
+      (role !== "teacher" && selectedCourseId === "general") ||
       classCourses.some((course) => course.id === selectedCourseId);
 
     if (!currentValueIsValid) {
-      setSelectedCourseId("general");
+      setSelectedCourseId(role === "teacher" ? (classCourses[0]?.id ?? "") : "general");
     }
-  }, [classCourses, selectedCourseId]);
+  }, [classCourses, role, selectedCourseId]);
 
   const loadTodaySessions = useCallback(async () => {
     const res = await fetch("/api/attendance/sessions");
@@ -236,16 +341,23 @@ export default function QrScanPage() {
     }
 
     const sessions = json.data ?? [];
-    const desiredCourseId = selectedCourseId === "general" ? null : selectedCourseId;
+    const desiredCourseId =
+      role === "teacher" ? selectedResolvedCourseId : selectedResolvedCourseId;
 
     const matched =
       sessions.find(
-        (session) =>
-          session.classId === selectedClassId && session.courseId === desiredCourseId,
+        (session) => {
+          if (session.classId !== selectedClassId) return false;
+          if (session.courseId !== desiredCourseId) return false;
+          if (!desiredCourseId && selectedSubjectName) {
+            return session.subject.trim().toLowerCase() === selectedSubjectName.toLowerCase();
+          }
+          return true;
+        },
       ) ?? null;
 
     setActiveSession(matched);
-  }, [selectedClassId, selectedCourseId]);
+  }, [role, selectedClassId, selectedResolvedCourseId, selectedSubjectName]);
 
   useEffect(() => {
     if (!selectedClassId) return;
@@ -255,6 +367,10 @@ export default function QrScanPage() {
   const prepareSession = useCallback(async () => {
     if (!selectedClassId) {
       setScanError("Select a class before starting the scan session.");
+      return;
+    }
+    if (role === "teacher" && !selectedCourseId) {
+      setScanError("Select your assigned subject before starting the scan session.");
       return;
     }
 
@@ -267,7 +383,8 @@ export default function QrScanPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         classId: selectedClassId,
-        courseId: selectedCourseId === "general" ? null : selectedCourseId,
+        courseId: selectedResolvedCourseId,
+        subject: selectedSubjectName || null,
       }),
     });
 
@@ -283,7 +400,7 @@ export default function QrScanPage() {
     setActiveSession(json.session);
     setLatestResult(null);
     setScanError("");
-  }, [selectedClassId, selectedCourseId]);
+  }, [role, selectedClassId, selectedResolvedCourseId, selectedSubjectName, selectedCourseId]);
 
   /** Ignore re-reads of the exact same QR token within this window (ms). */
   const SAME_TOKEN_DEBOUNCE_MS = 5000;
@@ -343,10 +460,6 @@ export default function QrScanPage() {
   );
 
   const selectedClass = classes.find((item) => item.id === selectedClassId) ?? null;
-  const selectedCourse =
-    selectedCourseId === "general"
-      ? null
-      : classCourses.find((course) => course.id === selectedCourseId) ?? null;
 
   if (authLoading) {
     return (
@@ -403,15 +516,15 @@ export default function QrScanPage() {
 
               <Select
                 value={selectedCourseId}
-                onValueChange={(value) => setSelectedCourseId(value ?? "general")}
+                onValueChange={(value) => setSelectedCourseId(value ?? (role === "teacher" ? "" : "general"))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Choose subject">
-                    {selectedCourse ? `${selectedCourse.title} (${selectedCourse.subject})` : "General Attendance"}
+                    {selectedCourse ? `${selectedCourse.title} (${selectedCourse.subject})` : role === "teacher" ? "Choose subject" : "General Attendance"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="general">General Attendance</SelectItem>
+                  {role === "teacher" ? null : <SelectItem value="general">General Attendance</SelectItem>}
                   {classCourses.map((course) => (
                     <SelectItem key={course.id} value={course.id}>
                       {course.title} ({course.subject})

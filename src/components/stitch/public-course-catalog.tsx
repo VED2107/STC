@@ -161,7 +161,7 @@ export function PublicCourseCatalog({
       ) : (
         <div className="grid grid-cols-1 gap-8 md:grid-cols-12 lg:gap-10">
           {featured ? (
-            <Link href={`/courses/${featured.id}`} className="group md:col-span-8">
+            <Link href={`/online-courses/${featured.id}`} className="group md:col-span-8">
               <article className="stitch-panel flex h-full flex-col overflow-hidden md:flex-row">
                 <div className="relative h-72 md:h-auto md:w-1/2">
                   {featured.thumbnail_url ? (
@@ -214,7 +214,7 @@ export function PublicCourseCatalog({
           ) : null}
 
           {remaining.map((course) => (
-            <Link key={course.id} href={`/courses/${course.id}`} className="group md:col-span-4">
+            <Link key={course.id} href={`/online-courses/${course.id}`} className="group md:col-span-4">
               <article className="stitch-panel h-full p-8 transition group-hover:-translate-y-1">
                 <div className="flex items-start justify-between">
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-secondary">

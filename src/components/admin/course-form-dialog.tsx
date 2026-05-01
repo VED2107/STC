@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import type { Class, Teacher, Course } from "@/lib/types/database";
+import type { Class, Course } from "@/lib/types/database";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
 
 interface CourseFormDialogProps {
@@ -40,13 +40,11 @@ export function CourseFormDialog({
 }: CourseFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
   const [classId, setClassId] = useState("");
-  const [teacherId, setTeacherId] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [videoLink, setVideoLink] = useState("");
   const [feeInr, setFeeInr] = useState("0");
@@ -56,7 +54,6 @@ export function CourseFormDialog({
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const selectedClass = classes.find((item) => item.id === classId) ?? null;
-  const selectedTeacher = teachers.find((item) => item.id === teacherId) ?? null;
 
   useEffect(() => {
     if (open) {
@@ -64,16 +61,12 @@ export function CourseFormDialog({
       supabase.from("classes").select("*").order("sort_order").then((res: { data: unknown }) => {
         if (res.data) setClasses(res.data as Class[]);
       });
-      supabase.from("teachers").select("*").order("name").then((res: { data: unknown }) => {
-        if (res.data) setTeachers(res.data as Teacher[]);
-      });
 
       if (editCourse) {
         setTitle(editCourse.title || "");
         setDescription(editCourse.description || "");
         setSubject(editCourse.subject || "");
         setClassId(editCourse.class_id || "");
-        setTeacherId((editCourse as Record<string, string>).teacher_id || "");
         setIsActive(editCourse.is_active ?? true);
         setVideoLink((editCourse as Record<string, string | null>).video_link || "");
         setFeeInr(String((editCourse as Record<string, number | null>).fee_inr ?? 0));
@@ -83,7 +76,7 @@ export function CourseFormDialog({
         setThumbnailFile(null);
       } else {
         setTitle(""); setDescription(""); setSubject("");
-        setClassId(""); setTeacherId(""); setIsActive(true);
+        setClassId(""); setIsActive(true);
         setVideoLink("");
         setFeeInr("0");
         setPdfUrl(null);
@@ -147,7 +140,8 @@ export function CourseFormDialog({
       description,
       subject,
       class_id: classId || null,
-      teacher_id: teacherId || null,
+      is_online_only: true,
+      teacher_id: null,
       is_active: isActive,
       video_link: videoLink.trim() ? videoLink.trim() : null,
       fee_inr: normalizedFee,
@@ -243,20 +237,25 @@ export function CourseFormDialog({
         <DialogHeader>
           <DialogTitle>{editCourse?.id ? "Edit Course" : "New Course"}</DialogTitle>
           <DialogDescription>
-            {editCourse?.id ? "Update the course details." : "Create a new course for a class."}
+            {editCourse?.id
+              ? "Update the online course details."
+              : "Create a free online subject using a class label for display only, without mixing it into offline class access."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="cf-title">Title</Label>
+            <Label htmlFor="cf-title">Course</Label>
             <Input id="cf-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
           </div>
           <div className="space-y-2">
             <Label htmlFor="cf-subject">Subject</Label>
             <Input id="cf-subject" value={subject} onChange={(e) => setSubject(e.target.value)} required />
+            <p className="text-xs text-muted-foreground">
+              This subject label is for the online course record only.
+            </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cf-fee">Course Fee (₹)</Label>
+            <Label htmlFor="cf-fee">Online Student Fee (₹)</Label>
             <Input
               id="cf-fee"
               inputMode="numeric"
@@ -264,6 +263,9 @@ export function CourseFormDialog({
               onChange={(e) => setFeeInr(e.target.value.replace(/[^0-9]/g, ""))}
               placeholder="0"
             />
+            <p className="text-xs text-muted-foreground">
+              This fee applies to online students who buy this course. Tuition students do not need to buy it.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="cf-desc">Description</Label>
@@ -302,41 +304,27 @@ export function CourseFormDialog({
               <p className="text-xs text-muted-foreground">Current PDF attached.</p>
             ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Class</Label>
-              <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select class">
-                    {selectedClass
-                      ? `${selectedClass.name} (${selectedClass.board})`
-                      : undefined}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name} ({c.board})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Teacher</Label>
-              <Select value={teacherId} onValueChange={(v) => v && setTeacherId(v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select teacher">
-                    {selectedTeacher ? selectedTeacher.name : undefined}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>Show Under Class</Label>
+            <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select class">
+                  {selectedClass
+                    ? `${selectedClass.name} (${selectedClass.board})`
+                    : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.board})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              This only shows which class the online subject belongs under for students. It does not assign teachers or mix with offline tuition class access.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <input

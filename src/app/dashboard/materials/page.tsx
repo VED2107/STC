@@ -74,16 +74,22 @@ export default function StudentMaterialsPage() {
     } else {
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select("course_id")
+        .select("course:courses(class_id)")
         .eq("student_id", typedStudent.id)
         .eq("status", "active");
-      const courseIds = ((enrollments as { course_id: string }[] | null) ?? []).map((row) => row.course_id);
+      const classIds = Array.from(
+        new Set(
+          ((enrollments as { course?: { class_id?: string } | null }[] | null) ?? [])
+            .map((row) => row.course?.class_id)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
 
-      if (courseIds.length > 0) {
+      if (classIds.length > 0) {
         const response = await supabase
           .from("materials")
           .select("id, title, type, file_url, course:courses(title)")
-          .in("course_id", courseIds)
+          .in("class_id", classIds)
           .order("sort_order");
         data = (response.data as MaterialRow[] | null) ?? [];
       } else {

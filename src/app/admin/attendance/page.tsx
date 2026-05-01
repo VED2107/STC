@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
+import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 
 type AttendanceStatus = "present" | "absent";
 
@@ -48,6 +49,7 @@ interface CourseForAttendance {
   title: string;
   subject: string;
   class_id: string;
+  course_id: string | null;
 }
 
 interface AttendanceRecord {
@@ -85,12 +87,62 @@ interface AttendanceBaseCache {
   courses: CourseForAttendance[];
 }
 
+interface SyllabusSubjectRow {
+  class_id: string;
+  subject: string;
+}
+
 interface AttendanceSessionCache {
   students: StudentForAttendance[];
   records: AttendanceRecord[];
 }
 
 const supabase = createClient();
+
+function normalizeSubjectName(subject: string | null | undefined) {
+  return (subject ?? "").trim().toLowerCase();
+}
+
+function buildSyntheticSubjectId(classId: string, subject: string) {
+  return `subject::${classId}::${normalizeSubjectName(subject)}`;
+}
+
+function mergeAttendanceSubjects(
+  courseRows: Array<{ id: string; title: string; subject: string; class_id: string }>,
+  syllabusRows: SyllabusSubjectRow[],
+) {
+  const merged: CourseForAttendance[] = [];
+  const seen = new Set<string>();
+
+  for (const course of courseRows) {
+    const key = `${course.class_id}::${normalizeSubjectName(course.subject)}`;
+    seen.add(key);
+    merged.push({
+      id: course.id,
+      title: course.title,
+      subject: course.subject,
+      class_id: course.class_id,
+      course_id: course.id,
+    });
+  }
+
+  for (const row of syllabusRows) {
+    const normalizedSubject = normalizeSubjectName(row.subject);
+    if (!row.class_id || !normalizedSubject) continue;
+    const key = `${row.class_id}::${normalizedSubject}`;
+    if (seen.has(key)) continue;
+    merged.push({
+      id: buildSyntheticSubjectId(row.class_id, row.subject),
+      title: row.subject.trim(),
+      subject: row.subject.trim(),
+      class_id: row.class_id,
+      course_id: null,
+    });
+    seen.add(key);
+  }
+
+  return merged.sort((left, right) => left.title.localeCompare(right.title));
+}
 
 export default function AdminAttendancePage() {
   const router = useRouter();
@@ -126,6 +178,12 @@ export default function AdminAttendancePage() {
   const [selectedHistoryStudentClassName, setSelectedHistoryStudentClassName] = useState("");
   const [historyRecords, setHistoryRecords] = useState<HistoryRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const selectedCourse =
+    courses.find((course) => course.id === selectedCourseId) ?? null;
+  const selectedClass =
+    classes.find((item) => item.id === selectedClassId) ?? null;
+  const selectedResolvedCourseId = selectedCourse?.course_id ?? null;
+  const selectedSubjectName = selectedCourse?.subject?.trim() ?? "";
 
   useEffect(() => {
     if (authLoading) return;
@@ -147,10 +205,36 @@ export default function AdminAttendancePage() {
         }
 
         if (role === "teacher" && user?.id) {
-          const { data: accessRows, error: accessError } = await supabase
-            .from("teacher_class_access")
-            .select("class_id")
-            .eq("teacher_profile_id", user.id);
+          const [{ data: accessRows, error: accessError }, { data: subjectAccessRows, error: subjectAccessError }] = await Promise.all([
+            supabase
+              .from("teacher_class_access")
+              .select("class_id")
+              .eq("teacher_profile_id", user.id),
+            supabase
+              .from("teacher_subject_access")
+              .select("class_id, subject")
+              .eq("teacher_profile_id", user.id),
+          ]);
+
+          if (accessError || subjectAccessError) {
+            throw accessError ?? subjectAccessError;
+          }
+
+          if (!subjectAccessRows || subjectAccessRows.length === 0) {
+            setClasses([]);
+            setCourses([]);
+            setActionError("No subject access is assigned for this teacher yet.");
+            return;
+          }
+
+          const allowedSubjectKeys = new Set(
+            ((subjectAccessRows as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) =>
+              buildTeacherSubjectAccessKey(row.class_id, row.subject),
+            ),
+          );
+          const allowedClassIds = new Set(
+            ((subjectAccessRows as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) => row.class_id),
+          );
 
           if (accessError) {
             throw accessError;
@@ -166,13 +250,19 @@ export default function AdminAttendancePage() {
             return;
           }
 
-          const [classesRes, coursesRes] = await Promise.all([
+          const [classesRes, coursesRes, syllabusRes] = await Promise.all([
             supabase.from("classes").select("*").in("id", classIds).order("sort_order"),
             supabase
               .from("courses")
               .select("id, title, subject, class_id")
+              .eq("is_online_only", false)
               .in("class_id", classIds)
               .order("title"),
+            supabase
+              .from("syllabus")
+              .select("class_id, subject")
+              .in("class_id", classIds)
+              .order("subject"),
           ]);
 
           if (classesRes.error) {
@@ -183,8 +273,20 @@ export default function AdminAttendancePage() {
             throw coursesRes.error;
           }
 
-          const nextClasses = (classesRes.data as Class[] | null) ?? [];
-          const nextCourses = (coursesRes.data as CourseForAttendance[] | null) ?? [];
+          if (syllabusRes.error) {
+            throw syllabusRes.error;
+          }
+
+          const nextClasses = ((classesRes.data as Class[] | null) ?? []).filter((item) =>
+            allowedClassIds.has(item.id),
+          );
+          const filteredCourseRows = ((coursesRes.data as Array<{ id: string; title: string; subject: string; class_id: string }> | null) ?? []).filter((course) =>
+            allowedSubjectKeys.has(buildTeacherSubjectAccessKey(course.class_id, course.subject)),
+          );
+          const filteredSyllabusRows = ((syllabusRes.data as SyllabusSubjectRow[] | null) ?? []).filter((row) =>
+            allowedSubjectKeys.has(buildTeacherSubjectAccessKey(row.class_id, row.subject)),
+          );
+          const nextCourses = mergeAttendanceSubjects(filteredCourseRows, filteredSyllabusRows);
           setClasses(nextClasses);
           setCourses(nextCourses);
           setAdminPageCache<AttendanceBaseCache>(attendanceBaseCacheKey, {
@@ -194,12 +296,14 @@ export default function AdminAttendancePage() {
           return;
         }
 
-        const [classesRes, coursesRes] = await Promise.all([
+        const [classesRes, coursesRes, syllabusRes] = await Promise.all([
           supabase.from("classes").select("*").order("sort_order"),
           supabase
             .from("courses")
             .select("id, title, subject, class_id")
+            .eq("is_online_only", false)
             .order("title"),
+          supabase.from("syllabus").select("class_id, subject").order("subject"),
         ]);
 
         if (classesRes.error) {
@@ -210,8 +314,15 @@ export default function AdminAttendancePage() {
           throw coursesRes.error;
         }
 
+        if (syllabusRes.error) {
+          throw syllabusRes.error;
+        }
+
         const nextClasses = (classesRes.data as Class[] | null) ?? [];
-        const nextCourses = (coursesRes.data as CourseForAttendance[] | null) ?? [];
+        const nextCourses = mergeAttendanceSubjects(
+          (coursesRes.data as Array<{ id: string; title: string; subject: string; class_id: string }> | null) ?? [],
+          (syllabusRes.data as SyllabusSubjectRow[] | null) ?? [],
+        );
         setClasses(nextClasses);
         setCourses(nextCourses);
         setAdminPageCache<AttendanceBaseCache>(attendanceBaseCacheKey, {
@@ -224,32 +335,21 @@ export default function AdminAttendancePage() {
         setCourses([]);
         setStudents([]);
         setRecords([]);
-        setActionError("Unable to load classes and courses right now.");
+        setActionError("Unable to load classes and subjects right now.");
       }
     }
 
     void loadBaseData();
   }, [attendanceBaseCacheKey, authLoading, role, router, user?.id]);
 
-  const selectableClasses = useMemo(() => {
-    if (!selectedCourseId) {
-      return classes;
-    }
-
-    const allowedClassIds = new Set(
-      courses
-        .filter((course) => course.id === selectedCourseId)
-        .map((course) => course.class_id)
-    );
-
-    return classes.filter((item) => allowedClassIds.has(item.id));
-  }, [classes, courses, selectedCourseId]);
+  const classCourses = useMemo(
+    () => courses.filter((course) => course.class_id === selectedClassId),
+    [courses, selectedClassId],
+  );
 
   useEffect(() => {
-    const nextClassId = selectableClasses[0]?.id ?? "";
-    const stillValid = selectableClasses.some((item) => item.id === selectedClassId);
-
     if (!selectedClassId) {
+      const nextClassId = classes[0]?.id ?? "";
       setSelectedClassId(nextClassId);
       if (!nextClassId) {
         setStudents([]);
@@ -258,16 +358,45 @@ export default function AdminAttendancePage() {
       return;
     }
 
+    const stillValid = classes.some((item) => item.id === selectedClassId);
     if (!stillValid) {
+      const nextClassId = classes[0]?.id ?? "";
       setSelectedClassId(nextClassId);
       if (!nextClassId) {
         setStudents([]);
         setRecords([]);
       }
     }
-  }, [selectableClasses, selectedClassId]);
+  }, [classes, selectedClassId]);
+
+  useEffect(() => {
+    if (!selectedClassId) {
+      setSelectedCourseId("");
+      return;
+    }
+
+    const currentValueIsValid = classCourses.some((course) => course.id === selectedCourseId);
+    if (currentValueIsValid) {
+      return;
+    }
+
+    if (role === "teacher") {
+      setSelectedCourseId(classCourses[0]?.id ?? "");
+      return;
+    }
+
+    setSelectedCourseId("");
+  }, [classCourses, role, selectedClassId, selectedCourseId]);
 
   const fetchStudents = useCallback(async () => {
+    if (role === "teacher" && !selectedCourseId) {
+      setStudents([]);
+      setRecords([]);
+      setLoading(false);
+      setActionError("Select your assigned subject before loading attendance.");
+      return;
+    }
+
     if (!selectedClassId) {
       setStudents([]);
       setRecords([]);
@@ -310,9 +439,11 @@ export default function AdminAttendancePage() {
         .eq("class_id", selectedClassId)
         .eq("session_date", date);
 
-      sessionQuery = selectedCourseId
-        ? sessionQuery.eq("course_id", selectedCourseId)
-        : sessionQuery.is("course_id", null);
+      sessionQuery = selectedResolvedCourseId
+        ? sessionQuery.eq("course_id", selectedResolvedCourseId)
+        : selectedSubjectName
+          ? sessionQuery.is("course_id", null).eq("subject", selectedSubjectName)
+          : sessionQuery.is("course_id", null);
 
       const [
         { data: studentData, error: studentError },
@@ -343,8 +474,8 @@ export default function AdminAttendancePage() {
           .eq("date", date)
           .is("session_id", null);
 
-        attendanceQuery = selectedCourseId
-          ? attendanceQuery.eq("course_id", selectedCourseId)
+        attendanceQuery = selectedResolvedCourseId
+          ? attendanceQuery.eq("course_id", selectedResolvedCourseId)
           : attendanceQuery.is("course_id", null);
       }
 
@@ -403,7 +534,7 @@ export default function AdminAttendancePage() {
         setLoading(false);
       }
     }
-  }, [selectedClassId, date, selectedCourseId]);
+  }, [date, role, selectedClassId, selectedResolvedCourseId, selectedSubjectName, selectedCourseId]);
 
   useEffect(() => {
     void fetchStudents();
@@ -460,12 +591,12 @@ export default function AdminAttendancePage() {
 
   function handleClearCourse() {
     if (!selectedCourseId) {
-      setActionError("Choose a course first before clearing it.");
+      setActionError("Choose a subject first before clearing it.");
       return;
     }
 
     if (!editingSaved) {
-      setActionError("Click Edit Saved Attendance before changing the course selection.");
+      setActionError("Click Edit Saved Attendance before changing the subject selection.");
       return;
     }
 
@@ -475,6 +606,10 @@ export default function AdminAttendancePage() {
 
   async function handleSave() {
     if (!selectedClassId || !user?.id || records.length === 0) return;
+    if (role === "teacher" && !selectedCourseId) {
+      setActionError("Teachers must choose an assigned subject before saving attendance.");
+      return;
+    }
     setSaveError("");
     setActionError("");
     setSaving(true);
@@ -485,7 +620,8 @@ export default function AdminAttendancePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         classId: selectedClassId,
-        courseId: selectedCourseId || null,
+        courseId: selectedResolvedCourseId,
+        subject: selectedSubjectName || null,
         date,
       }),
     });
@@ -513,8 +649,8 @@ export default function AdminAttendancePage() {
       .is("session_id", null)
       .in("student_id", studentIds);
 
-    legacySyncQuery = selectedCourseId
-      ? legacySyncQuery.eq("course_id", selectedCourseId)
+    legacySyncQuery = selectedResolvedCourseId
+      ? legacySyncQuery.eq("course_id", selectedResolvedCourseId)
       : legacySyncQuery.is("course_id", null);
 
     const { error: legacySyncError } = await legacySyncQuery;
@@ -530,7 +666,7 @@ export default function AdminAttendancePage() {
       session_id: sessionId,
       student_id: record.student_id,
       class_id: selectedClassId,
-      course_id: selectedCourseId || null,
+      course_id: selectedResolvedCourseId,
       date,
       status: record.status,
       late_minutes:
@@ -559,11 +695,6 @@ export default function AdminAttendancePage() {
     );
   }
 
-  const selectedCourse =
-    courses.find((course) => course.id === selectedCourseId) ?? null;
-  const selectedClass =
-    classes.find((item) => item.id === selectedClassId) ?? null;
-
   const normalizedSearch = search.toLowerCase().trim();
 
   const filteredStudents = students.filter((student) =>
@@ -588,7 +719,7 @@ export default function AdminAttendancePage() {
     { key: "remarks", label: "Remarks" },
     { key: "date", label: "Date" },
     { key: "batch", label: "Batch" },
-    { key: "course", label: "Course" },
+    { key: "course", label: "Subject" },
   ];
 
   function buildAttendanceExportRows() {
@@ -602,7 +733,7 @@ export default function AdminAttendancePage() {
         remarks: record.remarks ?? "",
         date: new Date(date).toLocaleDateString("en-IN"),
         batch: selectedClass?.name ?? "N/A",
-        course: selectedCourse?.title ?? "General",
+        course: selectedSubjectName || selectedCourse?.title || "General",
       };
     });
   }
@@ -651,7 +782,7 @@ export default function AdminAttendancePage() {
     // Teachers only see their assigned classes
     if (role === "teacher" && user?.id) {
       const { data: accessRows } = await supabase
-        .from("teacher_class_access")
+        .from("teacher_subject_access")
         .select("class_id")
         .eq("teacher_profile_id", user.id);
       const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map((r) => r.class_id);
@@ -682,11 +813,11 @@ export default function AdminAttendancePage() {
 
     const { data } = await supabase
       .from("attendance")
-      .select("date, status, late_minutes, remarks, check_in_at, check_out_at, scan_method, class:classes(name), course:courses(title)")
+      .select("date, status, late_minutes, remarks, check_in_at, check_out_at, scan_method, class_id, course_id, class:classes(name), course:courses(title, subject)")
       .eq("student_id", studentId)
       .order("date", { ascending: false });
 
-    const rows: HistoryRow[] = ((data as unknown as Array<{
+    let nextRows = ((data as unknown as Array<{
       date: string;
       status: string;
       late_minutes: number | null;
@@ -694,9 +825,32 @@ export default function AdminAttendancePage() {
       check_in_at: string | null;
       check_out_at: string | null;
       scan_method: string;
+      class_id: string;
+      course_id: string | null;
       class: { name: string } | null;
-      course: { title: string } | null;
-    }>) ?? []).map((r) => ({
+      course: { title: string; subject: string } | null;
+    }>) ?? []);
+
+    if (role === "teacher" && user?.id) {
+      const { data: subjectAccessRows } = await supabase
+        .from("teacher_subject_access")
+        .select("class_id, subject")
+        .eq("teacher_profile_id", user.id);
+
+      const allowedSubjectKeys = new Set(
+        ((subjectAccessRows as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) =>
+          buildTeacherSubjectAccessKey(row.class_id, row.subject),
+        ),
+      );
+
+      nextRows = nextRows.filter((row) =>
+        row.course_id && row.course?.subject
+          ? allowedSubjectKeys.has(buildTeacherSubjectAccessKey(row.class_id, row.course.subject))
+          : false,
+      );
+    }
+
+    const rows: HistoryRow[] = nextRows.map((r) => ({
       student_id: studentId,
       date: r.date,
       status: r.status,
@@ -747,7 +901,7 @@ export default function AdminAttendancePage() {
     { key: "lateMinutes", label: "Late (min)" },
     { key: "remarks", label: "Remarks" },
     { key: "className", label: "Batch" },
-    { key: "courseTitle", label: "Course" },
+    { key: "courseTitle", label: "Subject" },
   ];
 
   function buildHistoryExportRows() {
@@ -796,7 +950,7 @@ export default function AdminAttendancePage() {
               "Attendance"
             : "Attendance Manager"
         }
-        description="Select course, batch, and date. Mark present/absent, capture late minutes and remarks, and edit historical attendance safely."
+        description="Select subject, batch, and date. Mark present/absent, capture late minutes and remarks, and edit historical attendance safely."
       />
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -811,14 +965,19 @@ export default function AdminAttendancePage() {
                 disabled={!editingSaved}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a course (optional)">
+                  <SelectValue placeholder={role === "teacher" ? "Choose subject" : "Choose a subject (optional)"}>
                     {selectedCourse
                       ? `${selectedCourse.title} (${selectedCourse.subject})`
                       : undefined}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {courses.map((item) => (
+                  {selectedClassId && classCourses.length === 0 ? (
+                    <SelectItem value="__none" disabled>
+                      No subjects available
+                    </SelectItem>
+                  ) : null}
+                  {classCourses.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.title} ({item.subject})
                     </SelectItem>
@@ -841,12 +1000,12 @@ export default function AdminAttendancePage() {
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {selectableClasses.length === 0 ? (
+                  {classes.length === 0 ? (
                     <SelectItem value="__none" disabled>
                       No batches available
                     </SelectItem>
-                  ) : null}
-                  {selectableClasses.map((item) => (
+                    ) : null}
+                  {classes.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.name} ({item.board})
                     </SelectItem>
@@ -961,20 +1120,24 @@ export default function AdminAttendancePage() {
             {selectedCourse ? (
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Course selected: <span className="text-foreground">{selectedCourse.title}</span> ({selectedCourse.subject})
+                  Subject selected: <span className="text-foreground">{selectedCourse.title}</span> ({selectedCourse.subject})
                 </p>
-                <button
-                  type="button"
-                  className={stitchSecondaryButtonClass}
-                  onClick={handleClearCourse}
-                  disabled={!editingSaved || !selectedCourseId}
-                >
-                  Clear Course
-                </button>
+                {role === "teacher" ? null : (
+                  <button
+                    type="button"
+                    className={stitchSecondaryButtonClass}
+                    onClick={handleClearCourse}
+                    disabled={!editingSaved || !selectedCourseId}
+                  >
+                    Clear Subject
+                  </button>
+                )}
               </div>
             ) : (
               <p className="mt-4 text-sm text-muted-foreground">
-                Tip: choose a course to track subject-wise attendance.
+                {role === "teacher"
+                  ? "Choose one of your assigned subjects to load attendance for that class."
+                  : "Tip: choose a subject to track subject-wise attendance."}
               </p>
             )}
             {actionError ? <p className="mt-4 text-sm text-destructive">{actionError}</p> : null}
@@ -1137,7 +1300,7 @@ export default function AdminAttendancePage() {
             <div className="mt-6 space-y-5 text-sm leading-7 text-muted-foreground">
               <p>Date: {new Date(date).toLocaleDateString("en-IN")}</p>
               <p>Batch: {classes.find((item) => item.id === selectedClassId)?.name ?? "Not selected"}</p>
-              <p>Course: {selectedCourse?.title ?? "General"}</p>
+              <p>Subject: {selectedCourse?.title ?? "General"}</p>
             </div>
             <div className="mt-6 flex gap-2">
               <button
@@ -1291,7 +1454,7 @@ export default function AdminAttendancePage() {
           <div className={stitchPanelClass}>
             <h3 className="text-3xl text-foreground">Reporting Tip</h3>
             <p className="mt-4 text-sm leading-7 text-muted-foreground">
-              Monthly summaries and low-attendance alerts become more accurate when attendance is tagged with the relevant course.
+              Monthly summaries and low-attendance alerts become more accurate when attendance is tagged with the relevant subject.
             </p>
           </div>
 
@@ -1319,7 +1482,11 @@ export default function AdminAttendancePage() {
                 Edit Saved Attendance
               </Button>
             ) : null}
-            <Button onClick={handleSave} disabled={saving || !selectedClassId || records.length === 0 || !editingSaved} className="mt-3 w-full gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={saving || !selectedClassId || records.length === 0 || !editingSaved || (role === "teacher" && !selectedCourseId)}
+              className="mt-3 w-full gap-2"
+            >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
               {saved ? "Saved" : "Save Attendance"}
             </Button>

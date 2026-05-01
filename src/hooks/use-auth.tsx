@@ -142,6 +142,41 @@ export function AuthProvider({ children, initialAuth }: AuthProviderProps) {
     /** Get initial session */
     const getInitialSession = async () => {
       try {
+        if (initialAuth) {
+          const initialUser = initialAuth.user ?? null;
+          const initialProfile = initialAuth.profile ?? null;
+
+          setSession(initialAuth.session ?? null);
+          setUser(initialUser);
+          prevUserIdRef.current = initialUser?.id ?? null;
+
+          if (!initialUser) {
+            setProfile(null);
+            profileRef.current = null;
+            return;
+          }
+
+          if (initialProfile) {
+            setProfile(initialProfile);
+            profileRef.current = initialProfile;
+            setCachedProfile(initialProfile);
+            return;
+          }
+
+          const cachedProfile = getCachedProfile(initialUser.id);
+          if (cachedProfile) {
+            setProfile(cachedProfile);
+            profileRef.current = cachedProfile;
+            setLoading(false);
+            return;
+          }
+
+          const fetchedProfile = await fetchProfile(initialUser.id);
+          setProfile(fetchedProfile);
+          profileRef.current = fetchedProfile;
+          return;
+        }
+
         const {
           data: { session: currentSession },
         } = await supabase.auth.getSession();

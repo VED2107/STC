@@ -34,10 +34,14 @@ import {
   type StudentAttendanceSummary,
 } from "@/lib/student-export";
 
-const BOARDS: BoardType[] = ["GSEB", "NCERT"];
+const BOARDS: BoardType[] = ["GSEB", "CBSE"];
 const LEVELS: ClassLevel[] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "SSC", "HSC"];
 const DEFAULT_CLASS_CAPACITY = 30;
-const PRIMARY_LEVELS = new Set<ClassLevel>(["1", "2", "3", "4", "5"]);
+const PRIMARY_LEVELS = new Set<ClassLevel>(["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+const DEFAULT_SEEDED_CAPACITY = 30;
+const DEFAULT_CLASS_LEVEL_SEEDS: ClassLevel[] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+type DivisionFilter = "all" | "primary" | "senior";
+type BoardFilter = "all" | BoardType;
 
 interface StudentCountRow {
   class_id: string;
@@ -49,6 +53,11 @@ interface ClassTeacherRow {
   teacher: { name: string } | null;
 }
 
+interface ClassSubjectRow {
+  class_id: string;
+  subject: string;
+}
+
 const supabase = createClient();
 const CLASSES_CACHE_KEY = "admin:classes-overview";
 
@@ -56,13 +65,14 @@ interface ClassesOverviewCache {
   classes: Class[];
   studentCounts: Record<string, number>;
   teacherNamesByClass: Record<string, string[]>;
+  subjectsByClass: Record<string, string[]>;
 }
 
 function AdminClassesPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { role, loading: authLoading } = useAuth();
+  const { role, user, loading: authLoading } = useAuth();
   const [classes, setClasses] = useState<Class[]>(
     () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY)?.classes ?? [],
   );
@@ -82,10 +92,34 @@ function AdminClassesPageInner() {
   const [teacherNamesByClass, setTeacherNamesByClass] = useState<Record<string, string[]>>(
     () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY)?.teacherNamesByClass ?? {},
   );
+  const [subjectsByClass, setSubjectsByClass] = useState<Record<string, string[]>>(
+    () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY)?.subjectsByClass ?? {},
+  );
   const [formError, setFormError] = useState("");
+  const [formSubjectInput, setFormSubjectInput] = useState("");
+  const [formSubjects, setFormSubjects] = useState<string[]>([]);
+  const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>("all");
+  const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
+  const [selectedClassId, setSelectedClassId] = useState<string>("all");
   const [draggingClassId, setDraggingClassId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
   const [exportingClassId, setExportingClassId] = useState<string | null>(null);
+  const [seedingDefaults, setSeedingDefaults] = useState(false);
+
+  function normalizeSubject(value: string) {
+    return value.trim().replace(/\s+/g, " ");
+  }
+
+  function addFormSubject(rawValue: string) {
+    const value = normalizeSubject(rawValue);
+    if (!value) return;
+    setFormSubjects((current) => (current.includes(value) ? current : [...current, value]));
+    setFormSubjectInput("");
+  }
+
+  function removeFormSubject(subject: string) {
+    setFormSubjects((current) => current.filter((item) => item !== subject));
+  }
 
   async function exportClassStudents(classId: string, className: string, format: "csv" | "xlsx") {
     setExportingClassId(classId);
@@ -190,13 +224,15 @@ function AdminClassesPageInner() {
       setClasses(cachedOverview.classes);
       setStudentCounts(cachedOverview.studentCounts);
       setTeacherNamesByClass(cachedOverview.teacherNamesByClass);
+      setSubjectsByClass(cachedOverview.subjectsByClass);
       setLoading(false);
     }
 
-    const [classesRes, studentsRes, classTeachersRes] = await Promise.all([
+    const [classesRes, studentsRes, classTeachersRes, classSubjectsRes] = await Promise.all([
       supabase.from("classes").select("*").order("sort_order"),
       supabase.from("students").select("class_id, is_active").eq("is_active", true),
       supabase.from("courses").select("class_id, teacher:teachers(name)").not("teacher_id", "is", null),
+      supabase.from("syllabus").select("class_id, subject").order("subject"),
     ]);
 
     const classRows = normalizeClasses((classesRes.data as Class[] | null) ?? []);
@@ -216,14 +252,26 @@ function AdminClassesPageInner() {
     teachersMap.forEach((names, classId) => {
       normalizedTeachersMap[classId] = [...names].sort((a, b) => a.localeCompare(b));
     });
+    const nextSubjectsByClass: Record<string, string[]> = {};
+    ((classSubjectsRes.data as ClassSubjectRow[] | null) ?? []).forEach((row) => {
+      const subject = normalizeSubject(row.subject);
+      if (!subject) return;
+      const existing = nextSubjectsByClass[row.class_id] ?? [];
+      if (!existing.includes(subject)) {
+        existing.push(subject);
+      }
+      nextSubjectsByClass[row.class_id] = existing;
+    });
 
     setClasses(classRows);
     setStudentCounts(counts);
     setTeacherNamesByClass(normalizedTeachersMap);
+    setSubjectsByClass(nextSubjectsByClass);
     setAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY, {
       classes: classRows,
       studentCounts: counts,
       teacherNamesByClass: normalizedTeachersMap,
+      subjectsByClass: nextSubjectsByClass,
     });
     setLoading(false);
   }, []);
@@ -253,6 +301,8 @@ function AdminClassesPageInner() {
       setFormBoard("GSEB");
       setFormLevel("1");
       setFormCapacity(String(DEFAULT_CLASS_CAPACITY));
+      setFormSubjectInput("");
+      setFormSubjects([]);
       setDialogOpen(true);
       router.replace(pathname, { scroll: false });
     }
@@ -268,6 +318,8 @@ function AdminClassesPageInner() {
     setFormBoard("GSEB");
     setFormLevel("1");
     setFormCapacity(String(DEFAULT_CLASS_CAPACITY));
+    setFormSubjectInput("");
+    setFormSubjects([]);
     setFormError("");
     setDialogOpen(true);
   }
@@ -278,8 +330,43 @@ function AdminClassesPageInner() {
     setFormBoard(item.board);
     setFormLevel(item.level);
     setFormCapacity(String(item.capacity ?? DEFAULT_CLASS_CAPACITY));
+    setFormSubjectInput("");
+    setFormSubjects(subjectsByClass[item.id] ?? []);
     setFormError("");
     setDialogOpen(true);
+  }
+
+  async function syncClassSubjects(classId: string, nextSubjects: string[]) {
+    if (!user?.id) {
+      throw new Error("User context missing. Please sign in again.");
+    }
+
+    const normalizedSubjects = Array.from(new Set(nextSubjects.map(normalizeSubject).filter(Boolean)));
+    const existingSubjects = subjectsByClass[classId] ?? [];
+    const nextSet = new Set(normalizedSubjects);
+    const removedSubjects = existingSubjects.filter((subject) => !nextSet.has(subject));
+
+    if (removedSubjects.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("syllabus")
+        .delete()
+        .eq("class_id", classId)
+        .in("subject", removedSubjects);
+      if (deleteError) throw deleteError;
+    }
+
+    if (normalizedSubjects.length > 0) {
+      const { error: upsertError } = await supabase.from("syllabus").upsert(
+        normalizedSubjects.map((subject) => ({
+          class_id: classId,
+          subject,
+          content: {},
+          updated_by: user.id,
+        })),
+        { onConflict: "class_id,subject" },
+      );
+      if (upsertError) throw upsertError;
+    }
   }
 
   async function handleSave() {
@@ -324,19 +411,35 @@ function AdminClassesPageInner() {
           }
           throw error;
         }
+        await syncClassSubjects(editingClass.id, formSubjects);
       } else {
-        const { error } = await supabase.from("classes").insert(payload);
+        const { data: createdClass, error } = await supabase
+          .from("classes")
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) {
           if (error.message.includes("capacity")) {
-            const { error: retryError } = await supabase
+            const { data: fallbackClass, error: retryError } = await supabase
               .from("classes")
-              .insert(payloadWithoutCapacity);
+              .insert(payloadWithoutCapacity)
+              .select("id")
+              .single();
             if (retryError) throw retryError;
+            const insertedClass = Array.isArray(fallbackClass)
+              ? fallbackClass[0]
+              : (fallbackClass as { id?: string } | null);
+            if (insertedClass?.id) {
+              await syncClassSubjects(insertedClass.id, formSubjects);
+            }
             throw new Error(
               "Class created, but capacity column is missing. Run latest migration to enable capacity editing.",
             );
           }
           throw error;
+        }
+        if (createdClass?.id) {
+          await syncClassSubjects(createdClass.id, formSubjects);
         }
       }
 
@@ -350,6 +453,47 @@ function AdminClassesPageInner() {
       setFormError(message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSeedDefaults() {
+    setSeedingDefaults(true);
+    setFormError("");
+
+    try {
+      let sortOrderOffset = classes.length;
+      for (const board of BOARDS) {
+        for (const level of DEFAULT_CLASS_LEVEL_SEEDS) {
+          const className = `Class ${level}`;
+          const existingClass = classes.find(
+            (item) => item.board === board && item.level === level && item.name === className,
+          );
+
+          if (existingClass) {
+            continue;
+          }
+
+          const { error: insertError } = await supabase.from("classes").insert({
+            name: className,
+            board,
+            level,
+            capacity: DEFAULT_SEEDED_CAPACITY,
+            sort_order: sortOrderOffset,
+          });
+          if (insertError) throw insertError;
+          sortOrderOffset += 1;
+        }
+      }
+
+      await loadClassData();
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message: string }).message)
+          : "Failed to seed default classes.";
+      setFormError(message);
+    } finally {
+      setSeedingDefaults(false);
     }
   }
 
@@ -417,12 +561,35 @@ function AdminClassesPageInner() {
     setDraggingClassId(null);
   }
 
-  const primaryClasses = classes.filter((item) => PRIMARY_LEVELS.has(item.level));
-  const seniorClasses = classes.filter((item) => !PRIMARY_LEVELS.has(item.level));
+  const filteredClasses = classes.filter((item) => {
+    if (divisionFilter === "primary" && !PRIMARY_LEVELS.has(item.level)) return false;
+    if (divisionFilter === "senior" && PRIMARY_LEVELS.has(item.level)) return false;
+    if (boardFilter !== "all" && item.board !== boardFilter) return false;
+    if (selectedClassId !== "all" && item.id !== selectedClassId) return false;
+    return true;
+  });
+  const classFilterOptions = classes.filter((item) => {
+    if (divisionFilter === "primary" && !PRIMARY_LEVELS.has(item.level)) return false;
+    if (divisionFilter === "senior" && PRIMARY_LEVELS.has(item.level)) return false;
+    if (boardFilter !== "all" && item.board !== boardFilter) return false;
+    return true;
+  });
+  const selectedClassOption = classFilterOptions.find((item) => item.id === selectedClassId) ?? null;
+  const visiblePrimaryClasses = filteredClasses.filter((item) => PRIMARY_LEVELS.has(item.level));
+  const visibleSeniorClasses = filteredClasses.filter((item) => !PRIMARY_LEVELS.has(item.level));
+  const showPrimarySection = divisionFilter !== "senior";
+  const showSeniorSection = divisionFilter !== "primary";
   const totalActiveStudents = Object.values(studentCounts).reduce((acc, count) => acc + count, 0);
   const totalCapacity = classes.reduce((acc, item) => acc + (item.capacity ?? DEFAULT_CLASS_CAPACITY), 0);
   const utilizationPercent =
     totalCapacity > 0 ? Math.round((totalActiveStudents / totalCapacity) * 100) : 0;
+
+  useEffect(() => {
+    if (selectedClassId === "all") return;
+    if (!classFilterOptions.some((item) => item.id === selectedClassId)) {
+      setSelectedClassId("all");
+    }
+  }, [classFilterOptions, selectedClassId]);
 
   return (
     <div className="px-6 py-8 md:px-10">
@@ -432,8 +599,13 @@ function AdminClassesPageInner() {
         description="Manage classrooms, student capacities, and curriculum timelines across the academy's core disciplines."
         action={
           <>
-            <button type="button" className={stitchSecondaryButtonClass}>
-              Export Report
+            <button
+              type="button"
+              className={stitchSecondaryButtonClass}
+              onClick={() => void handleSeedDefaults()}
+              disabled={seedingDefaults}
+            >
+              {seedingDefaults ? "Seeding..." : "Load STC Defaults"}
             </button>
             <button type="button" className={stitchButtonClass} onClick={openCreate}>
               Add Class
@@ -473,19 +645,88 @@ function AdminClassesPageInner() {
           </div>
         </div>
 
+          <div className={cn(stitchPanelClass, "mt-8 p-4 md:p-5")}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+              <div className="min-w-[220px]">
+                <label className="text-sm font-medium">Division</label>
+                <Select
+                  value={divisionFilter}
+                  onValueChange={(value) => setDivisionFilter((value ?? "all") as DivisionFilter)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All divisions</SelectItem>
+                    <SelectItem value="primary">Class 1-9</SelectItem>
+                    <SelectItem value="senior">SSC / HSC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[220px]">
+                <label className="text-sm font-medium">Board</label>
+                <Select value={boardFilter} onValueChange={(value) => setBoardFilter((value ?? "all") as BoardFilter)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All boards</SelectItem>
+                    {BOARDS.map((board) => (
+                      <SelectItem key={board} value={board}>
+                        {board}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[260px]">
+                <label className="text-sm font-medium">Class</label>
+                <Select value={selectedClassId} onValueChange={(value) => setSelectedClassId(value ?? "all")}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue>
+                      {selectedClassOption ? `${selectedClassOption.name} (${selectedClassOption.board})` : "All classes"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All classes</SelectItem>
+                    {classFilterOptions.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} ({item.board})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "lg:ml-auto")}
+                onClick={() => {
+                  setDivisionFilter("all");
+                  setBoardFilter("all");
+                  setSelectedClassId("all");
+                }}
+                disabled={divisionFilter === "all" && boardFilter === "all" && selectedClassId === "all"}
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          {showPrimarySection ? (
           <section className="mt-10">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-4xl text-foreground">Primary Division</h2>
+              <h2 className="text-4xl text-foreground">Class 1-9 Division</h2>
               <span className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                {primaryClasses.length} Active Classes
+                {visiblePrimaryClasses.length} Active Classes
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-4">
-              {primaryClasses.map((item) => (
+            <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-6">
+              {visiblePrimaryClasses.map((item) => (
                 <article
                   key={item.id}
                   className={cn(
                     stitchPanelClass,
+                    "p-4 md:p-5",
                     reordering ? "opacity-70" : "",
                     draggingClassId === item.id ? "ring-2 ring-primary/40" : "",
                   )}
@@ -500,7 +741,7 @@ function AdminClassesPageInner() {
                     return (
                       <>
                         <div className="flex items-center justify-between">
-                          <span className="stitch-pill px-3 py-1 text-[10px]">{item.board}</span>
+                          <span className="stitch-pill px-2.5 py-1 text-[9px]">{item.board}</span>
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
@@ -525,8 +766,8 @@ function AdminClassesPageInner() {
                             </button>
                           </div>
                         </div>
-                        <h3 className="mt-8 text-3xl text-foreground">{item.name}</h3>
-                        <p className="mt-4 text-sm text-muted-foreground">
+                        <h3 className="mt-5 text-xl text-foreground md:text-2xl">{item.name}</h3>
+                        <p className="mt-3 text-xs leading-6 text-muted-foreground">
                           {assignedTeachers.length > 0
                             ? `Teacher: ${assignedTeachers.join(", ")}`
                             : "Teacher: Unassigned"}
@@ -534,14 +775,17 @@ function AdminClassesPageInner() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           {enrolled} active students
                         </p>
-                        <div className="mt-8 h-1 rounded-full bg-border">
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Subjects: {(subjectsByClass[item.id] ?? []).join(", ") || "Not added"}
+                        </p>
+                        <div className="mt-5 h-1 rounded-full bg-border">
                           <div className="h-1 rounded-full bg-primary" style={{ width: `${usage}%` }} />
                         </div>
-                        <div className="mt-3 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        <div className="mt-2.5 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                           <span>Capacity</span>
                           <span>{enrolled}/{capacity}</span>
                         </div>
-                        <div className="mt-4 flex gap-1.5">
+                        <div className="mt-3 flex gap-1.5">
                           <button
                             type="button"
                             className="rounded-md bg-muted/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
@@ -566,14 +810,18 @@ function AdminClassesPageInner() {
                   })()}
                 </article>
               ))}
+              {selectedClassId === "all" ? (
               <button type="button" className={cn(stitchPanelClass, "border-dashed")} onClick={openCreate}>
-                <div className="flex min-h-[220px] items-center justify-center text-muted-foreground">
+                <div className="flex min-h-[170px] items-center justify-center px-4 text-sm text-muted-foreground">
                   Create Primary Section
                 </div>
               </button>
+              ) : null}
             </div>
           </section>
+          ) : null}
 
+          {showSeniorSection ? (
           <section className="mt-10">
             <h2 className="text-4xl text-foreground">Secondary & Higher Secondary</h2>
             <div className={cn(stitchPanelClass, "mt-5 overflow-x-auto")}>
@@ -589,7 +837,7 @@ function AdminClassesPageInner() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {seniorClasses.map((item) => (
+                  {visibleSeniorClasses.map((item) => (
                     <tr
                       key={item.id}
                       className={cn(draggingClassId === item.id ? "ring-2 ring-primary/40" : "", reordering ? "opacity-70" : "")}
@@ -607,6 +855,9 @@ function AdminClassesPageInner() {
                         {(teacherNamesByClass[item.id] ?? []).length > 0
                           ? (teacherNamesByClass[item.id] ?? []).join(", ")
                           : "Unassigned"}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {(subjectsByClass[item.id] ?? []).join(", ") || "No subjects"}
+                        </p>
                       </td>
                       <td className="py-4 text-sm text-muted-foreground">
                         {studentCounts[item.id] ?? 0}/{item.capacity ?? DEFAULT_CLASS_CAPACITY}
@@ -659,6 +910,7 @@ function AdminClassesPageInner() {
               </table>
             </div>
           </section>
+          ) : null}
         </>
       )}
 
@@ -718,6 +970,45 @@ function AdminClassesPageInner() {
                 onChange={(event) => setFormCapacity(event.target.value)}
                 className="mt-1 w-24"
               />
+            </div>
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm font-medium">Subjects</label>
+                <span className="text-xs text-muted-foreground">Manual subject list</span>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Input
+                  placeholder="Add subject"
+                  value={formSubjectInput}
+                  onChange={(event) => setFormSubjectInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addFormSubject(formSubjectInput);
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={() => addFormSubject(formSubjectInput)}>
+                  Add
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {formSubjects.length > 0 ? (
+                  formSubjects.map((subject) => (
+                    <button
+                      key={subject}
+                      type="button"
+                      className="rounded-full bg-muted px-3 py-1 text-xs text-foreground"
+                      onClick={() => removeFormSubject(subject)}
+                      title="Remove subject"
+                    >
+                      {subject} ×
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">No subjects added yet.</p>
+                )}
+              </div>
             </div>
             {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
             <div className="flex justify-end gap-2 pt-2">

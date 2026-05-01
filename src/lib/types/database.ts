@@ -5,7 +5,7 @@ export type AttendanceStatus = "present" | "absent";
 export type MaterialType = "pdf" | "notes" | "video" | "link";
 export type NotificationChannel = "whatsapp" | "sms";
 export type NotificationStatus = "sent" | "failed" | "pending";
-export type BoardType = "GSEB" | "NCERT";
+export type BoardType = "GSEB" | "CBSE";
 export type ClassLevel = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "SSC" | "HSC";
 export type StudentType = "tuition" | "online";
 
@@ -37,6 +37,7 @@ export interface Course {
   description: string;
   class_id: string;
   subject: string;
+  is_online_only?: boolean;
   thumbnail_url: string | null;
   video_link?: string | null;
   pdf_url?: string | null;
@@ -64,6 +65,15 @@ export interface TeacherClassAccess {
   id: string;
   teacher_profile_id: string;
   class_id: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface TeacherSubjectAccess {
+  id: string;
+  teacher_profile_id: string;
+  class_id: string;
+  subject: string;
   created_by: string | null;
   created_at: string;
 }
@@ -117,7 +127,7 @@ export interface Attendance {
 export interface Material {
   id: string;
   title: string;
-  course_id: string;
+  course_id: string | null;
   class_id: string;
   subject: string;
   type: MaterialType;

@@ -13,7 +13,7 @@ import type { StudentType } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
 
 const publicNavLinks = [
-  { href: "/courses", label: "Curriculum" },
+  { href: "/online-courses", label: "Online Courses" },
   { href: "/faculty", label: "Faculty" },
   { href: "/admissions", label: "Admissions" },
   { href: "/", label: "Academy" },
@@ -36,7 +36,7 @@ const onlineStudentNavLinks = [
 const adminNavLinks = [
   { href: "/admin/students", label: "Students" },
   { href: "/admin/teachers", label: "Teachers" },
-  { href: "/admin/courses", label: "Courses" },
+  { href: "/admin/subjects", label: "Subjects" },
   { href: "/admin/classes", label: "Classes" },
   { href: "/admin/materials", label: "Materials" },
   { href: "/admin/attendance", label: "Attendance" },
@@ -50,12 +50,12 @@ const teacherNavLinks = [
 ];
 
 const footerLinks = [
-  { href: "/courses?level=primary", label: "Primary | Classes 1-5" },
-  { href: "/courses?level=middle", label: "Middle | Classes 6-8" },
-  { href: "/courses?level=ssc", label: "SSC | Board Prep" },
-  { href: "/courses?level=hsc", label: "11th / HSC" },
-  { href: "/courses?level=hsc&track=jee", label: "JEE Preparation" },
-  { href: "/courses?level=hsc&track=neet", label: "NEET Preparation" },
+  { href: "/online-courses?level=primary", label: "Primary | Classes 1-5" },
+  { href: "/online-courses?level=middle", label: "Middle | Classes 6-8" },
+  { href: "/online-courses?level=ssc", label: "SSC | Board Prep" },
+  { href: "/online-courses?level=hsc", label: "11th / HSC" },
+  { href: "/online-courses?level=hsc&track=jee", label: "JEE Preparation" },
+  { href: "/online-courses?level=hsc&track=neet", label: "NEET Preparation" },
 ];
 
 const contactDetails = [
@@ -125,6 +125,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
       const cachedStudentType = getCachedStudentType(user.id);
       if (cachedStudentType) {
         setStudentType(cachedStudentType);
+        return;
       }
 
       const supabase = createClient();
@@ -347,7 +348,7 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
                 and reliable academic support for Gujarat families.
               </p>
               <div className="flex flex-wrap gap-3">
-                <span className="stitch-pill bg-accent text-accent-foreground">NCERT</span>
+                <span className="stitch-pill bg-accent text-accent-foreground">CBSE</span>
                 <span className="stitch-pill">GSEB</span>
                 <span className="stitch-pill">Primary to HSC</span>
               </div>

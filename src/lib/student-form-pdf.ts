@@ -1,31 +1,28 @@
-/**
- * Student Registration Form PDF generator.
- *
- * Generates a professional PDF form for one or more students,
- * including their photo, personal details, academic info, fees,
- * and attendance summary – all on one page per student.
- *
- * Uses jsPDF (no server required – runs entirely in the browser).
- */
-
 import jsPDF from "jspdf";
-import { getFeesStatusLabel } from "@/lib/student-fees";
-import type { StudentExportSource, StudentAttendanceSummary } from "@/lib/student-export";
+import type { StudentExportSource } from "@/lib/student-export";
 
-// ─── Constants ──────────────────────────────────────────────────────
+const PAGE_W = 210;
+const PAGE_H = 297;
+const MARGIN = 14;
+const FORM_X = MARGIN;
+const FORM_Y = 14;
+const FORM_W = PAGE_W - MARGIN * 2;
+const FORM_H = PAGE_H - MARGIN * 2;
 
-const PAGE_W = 210; // A4 width in mm
-const PAGE_H = 297; // A4 height in mm
-const MARGIN = 18;
-const CONTENT_W = PAGE_W - MARGIN * 2;
+const COLOR_BG: [number, number, number] = [249, 249, 251];
+const COLOR_WHITE: [number, number, number] = [255, 255, 255];
+const COLOR_PRIMARY: [number, number, number] = [3, 3, 4];
+const COLOR_ACCENT: [number, number, number] = [115, 92, 0];
+const COLOR_TEXT: [number, number, number] = [26, 28, 29];
+const COLOR_MUTED: [number, number, number] = [70, 70, 74];
+const COLOR_BORDER: [number, number, number] = [217, 218, 220];
+const COLOR_SOFT: [number, number, number] = [243, 243, 245];
 
-const COLOR_PRIMARY: [number, number, number] = [22, 50, 65];
-const COLOR_MUTED: [number, number, number] = [120, 130, 140];
-const COLOR_ACCENT: [number, number, number] = [34, 139, 34];
-const COLOR_BORDER: [number, number, number] = [220, 225, 230];
-const COLOR_BG_HEADER: [number, number, number] = [245, 247, 250];
+type ClassSubjectsByClassId = Record<string, string[]>;
 
-// ─── Image helpers ──────────────────────────────────────────────────
+type StudentFormSource = StudentExportSource & {
+  class_id?: string | null;
+};
 
 async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
@@ -42,48 +39,182 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
   }
 }
 
-// ─── PDF drawing helpers ────────────────────────────────────────────
-
-function drawHorizontalLine(doc: jsPDF, y: number) {
-  doc.setDrawColor(...COLOR_BORDER);
-  doc.setLineWidth(0.3);
-  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+function addContainedImage(doc: jsPDF, imageData: string, x: number, y: number, width: number, height: number) {
+  const props = doc.getImageProperties(imageData);
+  const imageWidth = props.width || width;
+  const imageHeight = props.height || height;
+  const scale = Math.min(width / imageWidth, height / imageHeight);
+  const renderWidth = imageWidth * scale;
+  const renderHeight = imageHeight * scale;
+  const offsetX = x + (width - renderWidth) / 2;
+  const offsetY = y + (height - renderHeight) / 2;
+  doc.addImage(imageData, "JPEG", offsetX, offsetY, renderWidth, renderHeight);
 }
 
-function drawLabelValue(
+function drawFormShell(doc: jsPDF) {
+  doc.setFillColor(...COLOR_BG);
+  doc.rect(0, 0, PAGE_W, PAGE_H, "F");
+  doc.setFillColor(...COLOR_WHITE);
+  doc.setDrawColor(...COLOR_BORDER);
+  doc.setLineWidth(0.8);
+  doc.rect(FORM_X, FORM_Y, FORM_W, FORM_H, "FD");
+}
+
+function drawCell(doc: jsPDF, x: number, y: number, width: number, height: number, fill?: [number, number, number]) {
+  if (fill) {
+    doc.setFillColor(...fill);
+    doc.setDrawColor(...COLOR_BORDER);
+    doc.rect(x, y, width, height, "FD");
+    return;
+  }
+
+  doc.setDrawColor(...COLOR_BORDER);
+  doc.rect(x, y, width, height);
+}
+
+function drawCellLabel(doc: jsPDF, x: number, y: number, text: string) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.2);
+  doc.setTextColor(...COLOR_PRIMARY);
+  doc.text(text.toUpperCase(), x, y);
+}
+
+function drawCellValue(
   doc: jsPDF,
   x: number,
   y: number,
+  width: number,
+  text: string,
+  opts?: { size?: number; align?: "left" | "center" | "right" },
+) {
+  const size = opts?.size ?? 9.5;
+  const align = opts?.align ?? "left";
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(size);
+  doc.setTextColor(...COLOR_TEXT);
+  const lines = doc.splitTextToSize(text || "N/A", width);
+  if (align === "left") {
+    doc.text(lines, x, y);
+  } else {
+    doc.text(lines, x, y, { align });
+  }
+  return lines.length;
+}
+
+function drawFieldRow(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
   label: string,
   value: string,
-  maxWidth = 80,
-): number {
+) {
+  drawCell(doc, x, y, width, height);
+  drawCellLabel(doc, x + 3, y + 5.5, label);
+  drawCellValue(doc, x + 3, y + 12, width - 6, value);
+}
+
+function drawHeaderTitle(doc: jsPDF) {
+  doc.setFillColor(...COLOR_PRIMARY);
+  doc.rect(FORM_X, FORM_Y, FORM_W, 14, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text("STC ACADEMY", FORM_X + 4, FORM_Y + 9);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.2);
+  doc.text("OFFICIAL STUDENT RECORD", FORM_X + FORM_W - 4, FORM_Y + 9, { align: "right" });
+
+  doc.setDrawColor(...COLOR_ACCENT);
+  doc.setLineWidth(0.9);
+  doc.line(FORM_X + 4, FORM_Y + 21, FORM_X + FORM_W - 4, FORM_Y + 21);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.setTextColor(...COLOR_ACCENT);
+  doc.text("OFFICIAL ADMISSION FORM", PAGE_W / 2, FORM_Y + 28, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.3);
+  doc.setTextColor(...COLOR_MUTED);
+  doc.text("Student registration and verification document", PAGE_W / 2, FORM_Y + 33, {
+    align: "center",
+  });
+}
+
+function drawPhotoBox(doc: jsPDF, x: number, y: number, width: number, height: number) {
+  drawCell(doc, x, y, width, height, COLOR_SOFT);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...COLOR_ACCENT);
+  doc.text("PHOTO", x + width / 2, y + 6, { align: "center" });
+}
+
+function drawSignatureLine(doc: jsPDF, x: number, y: number, width: number, label: string) {
+  doc.setDrawColor(...COLOR_BORDER);
+  doc.setLineWidth(0.4);
+  doc.line(x, y, x + width, y);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...COLOR_MUTED);
-  doc.text(label, x, y);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...COLOR_PRIMARY);
-  const lines = doc.splitTextToSize(value || "N/A", maxWidth);
-  doc.text(lines, x, y + 4.5);
-
-  return y + 4.5 + lines.length * 4;
+  doc.text(label, x + width / 2, y + 4, { align: "center" });
 }
 
-// ─── Main generator ─────────────────────────────────────────────────
+function getStudentStatus(student: StudentExportSource) {
+  if (student.rowKind === "pending") return "Pending Enrollment";
+  return student.is_active ? "Active Student" : "Pending Review";
+}
+
+function getStudentType(student: StudentExportSource) {
+  if (student.rowKind === "pending") return "Admission Pending";
+  return student.student_type === "tuition" ? "Tuition Program" : "Online Program";
+}
+
+function getStudentId(student: StudentExportSource, pageIndex: number) {
+  if (student.rowKind !== "enrolled" || !student.enrollment_date) {
+    return "Pending";
+  }
+
+  return `STC-${new Date(student.enrollment_date).getFullYear()}-${String(pageIndex + 1).padStart(3, "0")}`;
+}
+
+function getAccessType(student: StudentExportSource) {
+  if (student.rowKind === "pending") return "Awaiting enrollment";
+  return student.student_type === "tuition" ? "Tuition" : "Online";
+}
+
+function getEnrollmentDate(student: StudentExportSource) {
+  return student.enrollment_date
+    ? new Date(student.enrollment_date).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      })
+    : "Pending";
+}
+
+function getClassSubjects(student: StudentFormSource, classSubjectsByClassId: ClassSubjectsByClassId) {
+  if (student.rowKind === "pending" || !student.class_id) {
+    return "Awaiting class assignment";
+  }
+
+  const subjects = classSubjectsByClassId[student.class_id] ?? [];
+  return subjects.length > 0 ? subjects.join(", ") : "No subjects assigned";
+}
 
 export async function generateStudentFormPDF(
   students: StudentExportSource[],
-  attendanceByStudentId: Record<string, StudentAttendanceSummary>,
+  classSubjectsByClassId: ClassSubjectsByClassId,
   filename: string,
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   for (let i = 0; i < students.length; i++) {
     if (i > 0) doc.addPage();
-    await renderStudentPage(doc, students[i], attendanceByStudentId, i);
+    await renderStudentPage(doc, students[i] as StudentFormSource, classSubjectsByClassId, i);
   }
 
   doc.save(`${filename}.pdf`);
@@ -91,282 +222,101 @@ export async function generateStudentFormPDF(
 
 async function renderStudentPage(
   doc: jsPDF,
-  student: StudentExportSource,
-  attendanceByStudentId: Record<string, StudentAttendanceSummary>,
-  index: number,
+  student: StudentFormSource,
+  classSubjectsByClassId: ClassSubjectsByClassId,
+  pageIndex: number,
 ) {
-  let y = MARGIN;
+  drawFormShell(doc);
+  drawHeaderTitle(doc);
 
-  // ── Header band ───────────────────────────────────────────────────
-  doc.setFillColor(...COLOR_BG_HEADER);
-  doc.rect(0, 0, PAGE_W, 42, "F");
-
-  doc.setFillColor(...COLOR_PRIMARY);
-  doc.rect(0, 0, PAGE_W, 1.2, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(...COLOR_PRIMARY);
-  doc.text("STC Academy", MARGIN, 14);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLOR_MUTED);
-  doc.text("Student Registration Form", MARGIN, 20);
-
-  const dateStr = new Date().toLocaleDateString("en-IN", {
+  const generatedOn = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "long",
     year: "numeric",
   });
-  doc.setFontSize(8);
-  doc.text(`Generated: ${dateStr}`, PAGE_W - MARGIN, 14, { align: "right" });
-  doc.text(`Page ${index + 1}`, PAGE_W - MARGIN, 20, { align: "right" });
 
-  drawHorizontalLine(doc, 42);
-  y = 50;
+  const tableX = FORM_X + 4;
+  const tableW = FORM_W - 8;
+  let y = FORM_Y + 38;
 
-  // ── Photo + Name section ──────────────────────────────────────────
-  const photoUrl = student.profile?.avatar_url;
-  const photoSize = 32;
-  let photoEndX = MARGIN;
+  const leftW = 106;
+  const rightW = tableW - leftW;
+  drawFieldRow(doc, tableX, y, leftW, 16, "Student Name", student.profile?.full_name || "N/A");
+  drawPhotoBox(doc, tableX + leftW, y, rightW, 40);
 
-  if (photoUrl) {
-    const imgData = await fetchImageAsBase64(photoUrl);
-    if (imgData) {
-      // Draw a subtle border around photo
-      doc.setDrawColor(...COLOR_BORDER);
-      doc.setLineWidth(0.4);
-      doc.roundedRect(MARGIN - 0.5, y - 0.5, photoSize + 1, photoSize + 1, 2, 2, "S");
-      doc.addImage(imgData, "JPEG", MARGIN, y, photoSize, photoSize);
-      photoEndX = MARGIN + photoSize + 8;
+  if (student.profile?.avatar_url) {
+    const imageData = await fetchImageAsBase64(student.profile.avatar_url);
+    if (imageData) {
+      addContainedImage(doc, imageData, tableX + leftW + 3, y + 8, rightW - 6, 29);
     }
-  }
-
-  if (photoEndX === MARGIN) {
-    // No photo – draw placeholder
-    doc.setFillColor(235, 238, 241);
-    doc.roundedRect(MARGIN, y, photoSize, photoSize, 2, 2, "F");
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...COLOR_MUTED);
-    doc.text("No Photo", MARGIN + photoSize / 2, y + photoSize / 2 + 2, {
+  } else {
+    drawCellValue(doc, tableX + leftW + rightW / 2, y + 22, rightW - 8, "Student Photo", {
+      size: 8,
       align: "center",
     });
-    photoEndX = MARGIN + photoSize + 8;
   }
 
-  // Name beside photo
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor(...COLOR_PRIMARY);
-  doc.text(student.profile?.full_name || "Unnamed Student", photoEndX, y + 10);
+  y += 16;
+  drawFieldRow(doc, tableX, y, leftW, 16, "Mobile Number", student.profile?.phone || "N/A");
+  y += 16;
+  drawFieldRow(doc, tableX, y, leftW, 16, "Email Address", student.profile?.email || "N/A");
 
-  // Student type badge
-  const studentType =
-    student.rowKind === "pending"
-      ? "Pending Enrollment"
-      : student.student_type === "tuition"
-        ? "Tuition Student"
-        : "Online Student";
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLOR_ACCENT);
-  doc.text(studentType, photoEndX, y + 18);
+  y += 16;
+  const halfW = tableW / 2;
+  drawFieldRow(doc, tableX, y, halfW, 16, "Student ID", getStudentId(student, pageIndex));
+  drawFieldRow(doc, tableX + halfW, y, halfW, 16, "Profile Status", getStudentStatus(student));
 
-  // Status
-  const statusText =
-    student.rowKind === "pending"
-      ? "Pending Enrollment"
-      : student.is_active
-        ? "Active"
-        : "Pending Review";
-  doc.setTextColor(...COLOR_MUTED);
-  doc.setFontSize(8);
-  doc.text(`Status: ${statusText}`, photoEndX, y + 25);
+  y += 16;
+  drawFieldRow(doc, tableX, y, halfW, 16, "Class", student.class?.name ?? "Awaiting assignment");
+  drawFieldRow(doc, tableX + halfW, y, halfW, 16, "Board", student.class?.board ?? "Pending");
 
-  y += photoSize + 10;
-  drawHorizontalLine(doc, y);
-  y += 8;
+  y += 16;
+  drawFieldRow(doc, tableX, y, halfW, 16, "Access Type", getAccessType(student));
+  drawFieldRow(doc, tableX + halfW, y, halfW, 16, "Program Type", getStudentType(student));
 
-  // ── Section: Personal Information ─────────────────────────────────
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLOR_PRIMARY);
-  doc.text("Personal Information", MARGIN, y);
-  y += 7;
+  y += 16;
+  drawFieldRow(doc, tableX, y, tableW, 18, "Enrollment Date", getEnrollmentDate(student));
 
-  const colWidth = CONTENT_W / 2;
-  const leftX = MARGIN;
-  const rightX = MARGIN + colWidth;
+  y += 18;
+  const subjectsText = getClassSubjects(student, classSubjectsByClassId);
+  const subjectsLines = doc.splitTextToSize(subjectsText, tableW - 6);
+  const subjectsHeight = Math.max(24, 10 + subjectsLines.length * 4.5);
+  drawCell(doc, tableX, y, tableW, subjectsHeight);
+  drawCellLabel(doc, tableX + 3, y + 5.5, "Subjects of Class");
+  drawCellValue(doc, tableX + 3, y + 12, tableW - 6, subjectsText);
 
-  const y1 = drawLabelValue(doc, leftX, y, "Full Name", student.profile?.full_name || "N/A", colWidth - 5);
-  drawLabelValue(doc, rightX, y, "Phone", student.profile?.phone || "N/A", colWidth - 5);
-  y = y1 + 4;
-
-  const y2 = drawLabelValue(doc, leftX, y, "Email", student.profile?.email || "N/A", colWidth - 5);
-  drawLabelValue(
+  y += subjectsHeight + 8;
+  drawCell(doc, tableX, y, tableW, 28);
+  drawCellLabel(doc, tableX + 3, y + 5.5, "Academy Information");
+  drawCellValue(
     doc,
-    rightX,
-    y,
-    "Student ID",
-    student.rowKind === "enrolled" && student.enrollment_date
-      ? `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`
-      : "Pending",
-    colWidth - 5,
+    tableX + 3,
+    y + 12,
+    tableW - 6,
+    "This admission form is issued by STC Academy for student record management, class reference, and parent-side verification.",
+    { size: 8.5 },
   );
-  y = y2 + 4;
 
-  drawHorizontalLine(doc, y);
-  y += 8;
-
-  // ── Section: Academic Details ─────────────────────────────────────
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLOR_PRIMARY);
-  doc.text("Academic Details", MARGIN, y);
-  y += 7;
-
-  const y3 = drawLabelValue(doc, leftX, y, "Class", student.class?.name ?? "Awaiting assignment", colWidth - 5);
-  drawLabelValue(doc, rightX, y, "Board", student.class?.board ?? "Pending", colWidth - 5);
-  y = y3 + 4;
-
-  const coursesText =
-    student.rowKind === "pending"
-      ? "No purchased course"
-      : student.student_type === "online"
-        ? (student.enrollments ?? [])
-            .filter((e) => e.status === "active")
-            .map((e) => e.course?.title)
-            .filter(Boolean)
-            .join(", ") || "No purchased course"
-        : "Class resources";
-  const y4 = drawLabelValue(doc, leftX, y, "Courses", coursesText, CONTENT_W);
-  y = y4 + 4;
-
-  const enrollmentDateStr = student.enrollment_date
-    ? new Date(student.enrollment_date).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      })
-    : "Pending";
-  drawLabelValue(doc, leftX, y, "Enrollment Date", enrollmentDateStr, colWidth - 5);
-  drawLabelValue(
+  y += 38;
+  drawCell(doc, tableX, y, tableW, 24);
+  drawCellLabel(doc, tableX + 3, y + 5.5, "Declaration");
+  drawCellValue(
     doc,
-    rightX,
-    y,
-    "Access Type",
-    student.rowKind === "pending"
-      ? "Awaiting enrollment"
-      : student.student_type === "tuition"
-        ? "Tuition"
-        : "Online",
-    colWidth - 5,
+    tableX + 3,
+    y + 12,
+    tableW - 6,
+    "I confirm that the above information is correct to the best of my knowledge and acceptable for academy records.",
+    { size: 8.5 },
   );
-  y += 12;
 
-  drawHorizontalLine(doc, y);
-  y += 8;
+  const signatureY = FORM_Y + FORM_H - 28;
+  drawSignatureLine(doc, FORM_X + 20, signatureY, 54, "Authorized By STC Academy");
+  drawSignatureLine(doc, PAGE_W - FORM_X - 74, signatureY, 54, "Parent Signature");
 
-  // ── Section: Fees Information ─────────────────────────────────────
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLOR_PRIMARY);
-  doc.text("Fees Information", MARGIN, y);
-  y += 7;
-
-  if (student.rowKind === "pending") {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...COLOR_MUTED);
-    doc.text("Fees will be applicable after class assignment and enrollment.", MARGIN, y);
-    y += 8;
-  } else {
-    const feesStatus = getFeesStatusLabel(student);
-    const y5 = drawLabelValue(
-      doc,
-      leftX,
-      y,
-      "Total Fees",
-      `Rs ${(student.fees_amount ?? 0).toLocaleString("en-IN")}`,
-      colWidth - 5,
-    );
-    drawLabelValue(doc, rightX, y, "Fees Status", feesStatus, colWidth - 5);
-    y = y5 + 4;
-
-    const y6 = drawLabelValue(
-      doc,
-      leftX,
-      y,
-      "Full Payment",
-      student.fees_full_payment_paid ? "Paid" : "Not Paid",
-      colWidth - 5,
-    );
-    drawLabelValue(
-      doc,
-      rightX,
-      y,
-      "Installment 1",
-      student.fees_installment1_paid ? "Paid" : "Not Paid",
-      colWidth - 5,
-    );
-    y = y6 + 4;
-
-    drawLabelValue(doc, leftX, y, "Installment 2", student.fees_installment2_paid ? "Paid" : "Not Paid", colWidth - 5);
-    y += 12;
-  }
-
-  drawHorizontalLine(doc, y);
-  y += 8;
-
-  // ── Section: Attendance Summary ───────────────────────────────────
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLOR_PRIMARY);
-  doc.text("Attendance Summary", MARGIN, y);
-  y += 7;
-
-  const attendance =
-    student.rowKind === "enrolled"
-      ? attendanceByStudentId[student.id] ?? {
-          presentCount: 0,
-          absentCount: 0,
-          totalSessions: 0,
-          lastAttendanceDate: null,
-        }
-      : {
-          presentCount: 0,
-          absentCount: 0,
-          totalSessions: 0,
-          lastAttendanceDate: null,
-        };
-
-  const thirdCol = CONTENT_W / 3;
-  drawLabelValue(doc, leftX, y, "Present", String(attendance.presentCount), thirdCol - 5);
-  drawLabelValue(doc, leftX + thirdCol, y, "Absent", String(attendance.absentCount), thirdCol - 5);
-  drawLabelValue(doc, leftX + thirdCol * 2, y, "Total Sessions", String(attendance.totalSessions), thirdCol - 5);
-  y += 12;
-
-  const lastDate = attendance.lastAttendanceDate
-    ? new Date(attendance.lastAttendanceDate).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      })
-    : "No attendance recorded";
-  drawLabelValue(doc, leftX, y, "Last Attendance Date", lastDate, CONTENT_W);
-  y += 14;
-
-  // ── Footer ────────────────────────────────────────────────────────
-  drawHorizontalLine(doc, PAGE_H - 18);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(7.2);
   doc.setTextColor(...COLOR_MUTED);
-  doc.text(
-    "This document is auto-generated by STC Academy Management System. For official records, please refer to the administration office.",
-    PAGE_W / 2,
-    PAGE_H - 12,
-    { align: "center" },
-  );
+  doc.text(`Generated on ${generatedOn}  |  Page ${pageIndex + 1}`, PAGE_W / 2, FORM_Y + FORM_H - 8, {
+    align: "center",
+  });
 }

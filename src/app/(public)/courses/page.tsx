@@ -28,6 +28,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
         teacher:teachers(name)
       `,
     )
+    .eq("is_online_only", true)
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 

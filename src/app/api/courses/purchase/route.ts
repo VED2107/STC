@@ -32,11 +32,11 @@ export async function POST(request: Request) {
 
     const { data: course, error: courseError } = await supabase
       .from("courses")
-      .select("id, class_id, is_active, fee_inr")
+      .select("id, class_id, is_active, fee_inr, is_online_only")
       .eq("id", courseId)
       .maybeSingle();
 
-    if (courseError || !course || !course.is_active) {
+    if (courseError || !course || !course.is_active || !course.is_online_only) {
       return NextResponse.json({ error: "Course is not available for purchase" }, { status: 404 });
     }
     if (Number(course.fee_inr ?? 0) > 0) {

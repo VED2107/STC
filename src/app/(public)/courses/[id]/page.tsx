@@ -108,6 +108,7 @@ export default function CourseDetailPage() {
               teacher:teachers(name, qualification, bio)
             `
           )
+          .eq("is_online_only", true)
           .eq("is_active", true)
           .eq("id", courseId)
           .single(),
@@ -280,7 +281,7 @@ export default function CourseDetailPage() {
           <p className="mt-4 text-muted-foreground">
             The requested course could not be found.
           </p>
-          <Link href="/courses" className={cn(stitchButtonClass, "mt-8")}>
+          <Link href="/online-courses" className={cn(stitchButtonClass, "mt-8")}>
             Back to Catalog
           </Link>
         </div>
@@ -291,7 +292,7 @@ export default function CourseDetailPage() {
   return (
     <div className="mx-auto max-w-[1400px] px-5 py-12 md:px-8 md:py-16">
       <Link
-        href="/courses"
+        href="/online-courses"
         className="mb-10 inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"
       >
         <ArrowLeft className="h-4 w-4" />

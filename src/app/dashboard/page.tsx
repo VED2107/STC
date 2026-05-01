@@ -39,12 +39,19 @@ interface CourseRow {
   id: string;
   title: string;
   subject: string;
+  class_id?: string;
 }
 
 interface MaterialRow {
   id: string;
   title: string;
   type: "pdf" | "notes" | "video" | "link";
+}
+
+interface SyllabusRow {
+  id: string;
+  subject: string;
+  class_id: string;
 }
 
 interface StudentRecord {
@@ -115,7 +122,7 @@ export default function StudentDashboard() {
           .limit(4),
         /* 1 */ supabase
           .from("enrollments")
-          .select("course:courses(id, title, subject)")
+          .select("course:courses(id, title, subject, class_id)")
           .eq("student_id", typedStudent.id)
           .eq("status", "active"),
         /* 2 */ supabase
@@ -125,7 +132,7 @@ export default function StudentDashboard() {
           .eq("status", "pending"),
         /* 3 */ supabase
           .from("enrollments")
-          .select("course_id")
+          .select("course_id, course:courses(class_id)")
           .eq("student_id", typedStudent.id)
           .eq("status", "active"),
       ];
@@ -153,6 +160,11 @@ export default function StudentDashboard() {
             .select("id", { count: "exact", head: true })
             .eq("student_id", typedStudent.id)
             .eq("status", "present"),
+          /* 8 */ supabase
+            .from("syllabus")
+            .select("id, subject, class_id")
+            .eq("class_id", typedStudent.class_id)
+            .order("subject"),
         );
       }
 
@@ -164,13 +176,18 @@ export default function StudentDashboard() {
       const notifsRes = results[2];
       const enrollmentsRes = results[3];
 
-      const activeCourseIds = ((enrollmentsRes.data as { course_id: string }[] | null) ?? []).map(
-        (entry) => entry.course_id,
+      const activeClassIds = Array.from(
+        new Set(
+          ((enrollmentsRes.data as { course?: { class_id?: string } | null }[] | null) ?? [])
+            .map((entry) => entry.course?.class_id)
+            .filter((value): value is string => Boolean(value)),
+        ),
       );
 
       let materialsCount = 0;
       let recentMats: MaterialRow[] = [];
       let rate = 0;
+      let studies: CourseRow[] = [];
 
       if (isTuition) {
         // Results already in the batch (indices 4-7)
@@ -179,17 +196,23 @@ export default function StudentDashboard() {
         const totalAtt = results[6].count ?? 0;
         const presentAtt = results[7].count ?? 0;
         rate = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : 0;
-      } else if (activeCourseIds.length > 0) {
-        // Online students: need course IDs first, so this is a 2nd batch
+        studies = (((results[8].data as SyllabusRow[] | null) ?? []).map((entry) => ({
+          id: entry.id,
+          title: entry.subject,
+          subject: entry.subject,
+          class_id: entry.class_id,
+        })));
+      } else if (activeClassIds.length > 0) {
+        // Online students: use enrolled class context so dashboard matches materials/syllabus pages
         const [materialsRes, recentMaterialsRes] = await Promise.all([
           supabase
             .from("materials")
             .select("id", { count: "exact", head: true })
-            .in("course_id", activeCourseIds),
+            .in("class_id", activeClassIds),
           supabase
             .from("materials")
             .select("id, title, type")
-            .in("course_id", activeCourseIds)
+            .in("class_id", activeClassIds)
             .order("created_at", { ascending: false })
             .limit(4),
         ]);
@@ -200,14 +223,17 @@ export default function StudentDashboard() {
       const courses = (coursesRes.data ?? [])
         .map((entry: { course: unknown }) => entry.course as unknown as CourseRow | null)
         .filter(Boolean) as CourseRow[];
+      if (!isTuition) {
+        studies = courses;
+      }
 
       if (cancelled) return;
       setStudentRecord(typedStudent);
       setRecentAttendance((attendanceRes.data as AttendanceRow[] | null) ?? []);
-      setEnrolledCourses(courses);
+      setEnrolledCourses(studies);
       setRecentMaterials(recentMats);
       setStats({
-        courses: courses.length,
+        courses: studies.length,
         attendanceRate: rate,
         materials: materialsCount,
         notifications: notifsRes.count ?? 0,
@@ -245,8 +271,8 @@ export default function StudentDashboard() {
             operations.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/admin" className={cn(stitchButtonClass)}>
-              Go to Command Center
+            <Link href={role === "teacher" ? "/admin/attendance" : "/admin"} className={cn(stitchButtonClass)}>
+              {role === "teacher" ? "Go to Teacher Workspace" : "Go to Command Center"}
             </Link>
             <Link
               href="/admin/qr-scan"
@@ -340,11 +366,13 @@ export default function StudentDashboard() {
         <div className={cn(stitchPanelClass, "col-span-2 xl:col-span-1")}>
           <p className="stitch-kicker">Current Studies</p>
           <h2 className="mt-4 text-2xl sm:text-4xl text-foreground">
-            {leadCourse?.title ?? "No active course assigned"}
+            {leadCourse?.title ?? (isOnlineStudent ? "No active course assigned" : "No active subject assigned")}
           </h2>
           <p className="mt-3 text-xs sm:text-sm text-muted-foreground">
             {leadCourse?.subject ??
-              "Your active courses will appear here once enrollment is available."}
+              (isOnlineStudent
+                ? "Your active courses will appear here once enrollment is available."
+                : "Your active subjects will appear here once class assignment is available.")}
           </p>
           <div className="mt-6 flex flex-col gap-2 sm:gap-3 sm:flex-row">
             <Link href="/dashboard/syllabus" className={stitchButtonClass}>

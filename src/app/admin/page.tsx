@@ -192,7 +192,7 @@ export default async function AdminDashboard() {
         <div>
           <p className="font-heading text-3xl italic text-primary">Admin Command Center</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Review everything you have added across teachers, classes, courses, students, materials, and attendance.
+            Review everything you have added across teachers, classes, subjects, students, materials, and attendance.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -217,7 +217,7 @@ export default async function AdminDashboard() {
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Courses</p>
+          <p className="stitch-kicker">Subjects</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{stats.courses}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
             Curriculum experiences published for scholars.
@@ -337,10 +337,10 @@ export default async function AdminDashboard() {
                 </span>
                 <span className="text-sm font-semibold text-primary">{stats.classes}</span>
               </Link>
-              <Link href="/admin/courses" className={cn(linkedPanelClass, "flex items-center justify-between")}>
+              <Link href="/admin/subjects" className={cn(linkedPanelClass, "flex items-center justify-between")}>
                 <span className="flex items-center gap-3 text-foreground">
                   <BookOpen className="h-4 w-4 text-primary" />
-                  Courses
+                  Subjects
                 </span>
                 <span className="text-sm font-semibold text-primary">{stats.courses}</span>
               </Link>
@@ -416,14 +416,14 @@ export default async function AdminDashboard() {
 
         <div className={stitchPanelClass}>
           <div className="flex items-center justify-between">
-            <h3 className="text-3xl italic text-primary">Latest Courses</h3>
-            <Link href="/admin/courses" className="text-xs uppercase tracking-[0.2em] text-secondary">
+            <h3 className="text-3xl italic text-primary">Latest Subjects</h3>
+            <Link href="/admin/subjects" className="text-xs uppercase tracking-[0.2em] text-secondary">
               Manage
             </Link>
           </div>
           <div className="mt-5 space-y-3">
             {courses.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No courses created yet.</p>
+              <p className="text-sm text-muted-foreground">No subjects created yet.</p>
             ) : (
               courses.map((course) => (
                 <div key={course.id} className={stitchPanelSoftClass}>

@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Nunito } from "next/font/google";
+import { cookies } from "next/headers";
+import type { Session, User } from "@supabase/supabase-js";
 import { Providers } from "./providers";
+import { createClient } from "@/lib/supabase/server";
+import type { Profile } from "@/lib/types/database";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -39,7 +43,7 @@ export const metadata: Metadata = {
     "tuition",
     "coaching",
     "GSEB",
-    "NCERT",
+    "CBSE",
     "SSC",
     "HSC",
     "Gujarat",
@@ -75,11 +79,58 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+function hasSupabaseAuthCookie(cookieStore: Awaited<ReturnType<typeof cookies>>) {
+  return cookieStore
+    .getAll()
+    .some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  let initialAuth: {
+    session: Session | null;
+    user: User | null;
+    profile: Profile | null;
+  } = {
+    session: null,
+    user: null,
+    profile: null,
+  };
+
+  if (hasSupabaseAuthCookie(cookieStore)) {
+    const supabase = await createClient();
+    const [
+      {
+        data: { session },
+      },
+      {
+        data: { user },
+      },
+    ] = await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
+
+    let profile: Profile | null = null;
+
+    if (user) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      profile = (data as Profile | null) ?? null;
+    }
+
+    initialAuth = {
+      session,
+      user,
+      profile,
+    };
+  }
+
   return (
     <html
       lang="en"
@@ -105,7 +156,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground" suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <Providers initialAuth={initialAuth}>{children}</Providers>
       </body>
     </html>
   );

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import type { Class, Teacher } from "@/lib/types/database";
+import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
 
 interface TeacherProfileOption {
@@ -54,7 +55,53 @@ export function TeacherFormDialog({
   const [classes, setClasses] = useState<Class[]>([]);
   const [teacherProfiles, setTeacherProfiles] = useState<TeacherProfileOption[]>([]);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [classSubjectOptions, setClassSubjectOptions] = useState<
+    Array<{ classId: string; classLabel: string; subject: string; key: string }>
+  >([]);
+  const [selectedSubjectKeys, setSelectedSubjectKeys] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
+
+  async function loadSubjectsForClasses(classRows: Class[], classIds: string[]) {
+    if (classIds.length === 0) {
+      setClassSubjectOptions([]);
+      setSelectedSubjectKeys([]);
+      return;
+    }
+
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("syllabus")
+      .select("class_id, subject")
+      .in("class_id", classIds)
+      .order("subject", { ascending: true });
+
+    const classMap = new Map(classRows.map((row) => [row.id, `${row.name} (${row.board})`]));
+    const nextOptions = Array.from(
+      new Map(
+        ((data as Array<{ class_id: string | null; subject: string | null }> | null) ?? [])
+          .filter((row) => row.class_id && row.subject)
+          .map((row) => {
+            const classId = row.class_id as string;
+            const subjectName = row.subject?.trim() ?? "";
+            const key = buildTeacherSubjectAccessKey(classId, subjectName);
+            return [
+              key,
+              {
+                classId,
+                classLabel: classMap.get(classId) ?? "Class",
+                subject: subjectName,
+                key,
+              },
+            ];
+          }),
+      ).values(),
+    );
+
+    setClassSubjectOptions(nextOptions);
+    setSelectedSubjectKeys((current) =>
+      current.filter((item) => nextOptions.some((option) => option.key === item)),
+    );
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -73,10 +120,12 @@ export function TeacherFormDialog({
 
       setClasses((classRes.data as Class[] | null) ?? []);
       setTeacherProfiles((profileRes.data as TeacherProfileOption[] | null) ?? []);
+      const nextClasses = (classRes.data as Class[] | null) ?? [];
 
       if (editTeacher) {
         setName(editTeacher.name);
         setSubject(editTeacher.subject);
+        setSelectedSubjectKeys([]);
         setQualification(editTeacher.qualification);
         setBio(editTeacher.bio || "");
         setPhotoUrl(editTeacher.photo_url ?? null);
@@ -84,30 +133,61 @@ export function TeacherFormDialog({
         setProfileId(editTeacher.profile_id ?? "");
 
         if (editTeacher.profile_id) {
-          const { data: accessData } = await supabase
-            .from("teacher_class_access")
-            .select("class_id")
-            .eq("teacher_profile_id", editTeacher.profile_id);
-          setSelectedClassIds(
-            ((accessData as { class_id: string }[] | null) ?? []).map((row) => row.class_id),
+          const [{ data: accessData }, { data: subjectAccessData }] = await Promise.all([
+            supabase
+              .from("teacher_class_access")
+              .select("class_id")
+              .eq("teacher_profile_id", editTeacher.profile_id),
+            supabase
+              .from("teacher_subject_access")
+              .select("class_id, subject")
+              .eq("teacher_profile_id", editTeacher.profile_id),
+          ]);
+          const nextClassIds =
+            ((accessData as { class_id: string }[] | null) ?? []).map((row) => row.class_id);
+          setSelectedClassIds(nextClassIds);
+          await loadSubjectsForClasses(nextClasses, nextClassIds);
+          setSelectedSubjectKeys(
+            ((subjectAccessData as Array<{ class_id: string; subject: string }> | null) ?? []).map((row) =>
+              buildTeacherSubjectAccessKey(row.class_id, row.subject),
+            ),
           );
         } else {
           setSelectedClassIds([]);
+          setClassSubjectOptions([]);
         }
       } else {
         setName("");
         setSubject("");
+        setSelectedSubjectKeys([]);
         setQualification("");
         setBio("");
         setPhotoUrl(null);
         setPhotoFile(null);
         setProfileId("");
         setSelectedClassIds([]);
+        setClassSubjectOptions([]);
       }
     }
 
     void loadFormData();
   }, [open, editTeacher]);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadSubjectsForClasses(classes, selectedClassIds);
+  }, [classes, open, selectedClassIds]);
+
+  useEffect(() => {
+    const summary = Array.from(
+      new Set(
+        classSubjectOptions
+          .filter((item) => selectedSubjectKeys.includes(item.key))
+          .map((item) => item.subject),
+      ),
+    ).join(", ");
+    setSubject(summary);
+  }, [classSubjectOptions, selectedSubjectKeys]);
 
   async function uploadTeacherPhoto(teacherId: string) {
     if (!photoFile) return null;
@@ -160,11 +240,53 @@ export function TeacherFormDialog({
     if (insertError) throw insertError;
   }
 
+  async function syncTeacherSubjectAccess(nextProfileId: string, previousProfileId: string | null) {
+    const supabase = createClient();
+
+    if (previousProfileId && previousProfileId !== nextProfileId) {
+      const { error } = await supabase
+        .from("teacher_subject_access")
+        .delete()
+        .eq("teacher_profile_id", previousProfileId);
+      if (error) throw error;
+    }
+
+    if (!nextProfileId) {
+      return;
+    }
+
+    const { error: clearError } = await supabase
+      .from("teacher_subject_access")
+      .delete()
+      .eq("teacher_profile_id", nextProfileId);
+    if (clearError) throw clearError;
+
+    const selectedOptions = classSubjectOptions.filter((item) => selectedSubjectKeys.includes(item.key));
+    if (selectedOptions.length === 0) {
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("teacher_subject_access").insert(
+      selectedOptions.map((item) => ({
+        teacher_profile_id: nextProfileId,
+        class_id: item.classId,
+        subject: item.subject,
+      })),
+    );
+    if (insertError) throw insertError;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setErrorMessage("");
     const supabase = createClient();
+
+    if (selectedClassIds.length > 0 && selectedSubjectKeys.length === 0) {
+      setErrorMessage("Select at least one subject for the assigned classes.");
+      setLoading(false);
+      return;
+    }
 
     const normalizedProfileId = profileId || null;
     const payload = {
@@ -197,6 +319,7 @@ export function TeacherFormDialog({
         }
 
         await syncTeacherClassAccess(profileId, editTeacher.profile_id);
+        await syncTeacherSubjectAccess(profileId, editTeacher.profile_id);
       } else {
         const { data, error } = await supabase
           .from("teachers")
@@ -220,6 +343,7 @@ export function TeacherFormDialog({
         }
 
         await syncTeacherClassAccess(profileId, null);
+        await syncTeacherSubjectAccess(profileId, null);
       }
       onOpenChange(false);
       onSuccess();
@@ -242,6 +366,14 @@ export function TeacherFormDialog({
     );
   }
 
+  function toggleSubject(subjectKey: string) {
+    setSelectedSubjectKeys((previous) =>
+      previous.includes(subjectKey)
+        ? previous.filter((item) => item !== subjectKey)
+        : [...previous, subjectKey],
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -258,7 +390,10 @@ export function TeacherFormDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="tf-subject">Subject</Label>
-            <Input id="tf-subject" value={subject} onChange={(e) => setSubject(e.target.value)} required />
+            <Input id="tf-subject" value={subject} readOnly placeholder="Select class subjects below" required />
+            <p className="text-xs text-muted-foreground">
+              Subject assignment is built from the selected class subjects below.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="tf-qual">Qualification</Label>
@@ -323,6 +458,37 @@ export function TeacherFormDialog({
                 Link a teacher login profile to enable class-level access assignment.
               </p>
             ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label>Subjects For Selected Classes</Label>
+            <div className="max-h-40 space-y-3 overflow-y-auto rounded-md border p-3">
+              {selectedClassIds.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Select classes first to load their subjects.
+                </p>
+              ) : classSubjectOptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No subjects found yet for the selected classes.
+                </p>
+              ) : (
+                classSubjectOptions.map((item) => (
+                  <label
+                    key={item.key}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSubjectKeys.includes(item.key)}
+                      onChange={() => toggleSubject(item.key)}
+                      disabled={!profileId}
+                    />
+                    <span>
+                      {item.subject} - {item.classLabel}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
           </div>
           {errorMessage ? (
             <p className="text-sm text-destructive">{errorMessage}</p>

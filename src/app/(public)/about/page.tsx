@@ -30,7 +30,7 @@ export default function AboutPage() {
         </h1>
         <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">
           STC Academy supports learners from Primary to HSC with board-aligned,
-          faculty-guided learning systems across GSEB and NCERT pathways.
+          faculty-guided learning systems across GSEB and CBSE pathways.
         </p>
       </div>
 
@@ -58,7 +58,7 @@ export default function AboutPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/courses" className={stitchButtonClass}>
+            <Link href="/online-courses" className={stitchButtonClass}>
               Explore Curriculum
             </Link>
             <Link href="/faculty" className={stitchSecondaryButtonClass}>

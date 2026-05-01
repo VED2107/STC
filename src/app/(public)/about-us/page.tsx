@@ -61,7 +61,7 @@ export default function AboutUsPage() {
       </div>
 
       <div className="mt-10">
-        <Link href="/courses" className="rounded-xl bg-primary px-8 py-4 text-sm font-semibold text-white transition hover:brightness-105">
+        <Link href="/online-courses" className="rounded-xl bg-primary px-8 py-4 text-sm font-semibold text-white transition hover:brightness-105">
           View Curriculum
         </Link>
       </div>

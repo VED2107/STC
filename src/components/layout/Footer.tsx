@@ -3,7 +3,7 @@ import { GraduationCap, Mail, MapPin, Phone } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const quickLinks = [
-  { href: "/courses", label: "Courses" },
+  { href: "/online-courses", label: "Online Courses" },
   { href: "/teachers", label: "Teachers" },
   { href: "/syllabus", label: "Syllabus" },
   { href: "/materials", label: "Materials" },
@@ -11,10 +11,10 @@ const quickLinks = [
 ];
 
 const classLinks = [
-  { href: "/courses?level=1-5", label: "Class 1-5" },
-  { href: "/courses?level=6-9", label: "Class 6-9" },
-  { href: "/courses?level=SSC", label: "SSC" },
-  { href: "/courses?level=HSC", label: "HSC" },
+  { href: "/online-courses?level=1-5", label: "Class 1-5" },
+  { href: "/online-courses?level=6-9", label: "Class 6-9" },
+  { href: "/online-courses?level=SSC", label: "SSC" },
+  { href: "/online-courses?level=HSC", label: "HSC" },
 ];
 
 export function Footer() {
@@ -30,7 +30,7 @@ export function Footer() {
               <span className="bg-linear-to-r from-[#7c6cf0] to-[#00d2d3] bg-clip-text text-xl font-bold text-transparent">STC</span>
             </Link>
             <p className="text-sm leading-relaxed text-[#9994c0]">
-              Shaping tomorrow&apos;s leaders through quality education. Coaching classes for Class 1 to HSC - GSEB &amp; NCERT board.
+              Shaping tomorrow&apos;s leaders through quality education. Coaching classes for Class 1 to HSC - GSEB &amp; CBSE board.
             </p>
           </div>
 

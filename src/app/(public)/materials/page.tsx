@@ -5,21 +5,46 @@ import { createClient } from "@/lib/supabase/server";
 type MaterialRow = {
   id: string;
   title: string;
-  type: "pdf" | "notes" | "video";
+  type: "pdf" | "notes" | "video" | "link";
   subject: string;
   file_url: string;
+  class_id: string;
   class: { name: string; board: string; level: string } | null;
 };
 
-export default async function PublicMaterialsPage() {
+type SearchParams = Promise<{
+  class?: string | string[];
+}>;
+
+export default async function PublicMaterialsPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const selectedClassId = Array.isArray(resolvedSearchParams.class)
+    ? resolvedSearchParams.class[0]
+    : resolvedSearchParams.class;
+
   const supabase = await createClient();
   const { data } = await supabase
     .from("materials")
-    .select("id, title, type, subject, file_url, class:classes(name, board, level)")
+    .select("id, title, type, subject, file_url, class_id, class:classes(name, board, level)")
     .order("created_at", { ascending: false })
-    .limit(24);
+    .limit(48);
 
   const rows = (data as MaterialRow[] | null) ?? [];
+  const classOptions = Array.from(
+    new Map(
+      rows
+        .filter((item) => item.class)
+        .map((item) => [item.class_id, { id: item.class_id, name: item.class?.name ?? "Class" }]),
+    ).values(),
+  );
+
+  const filteredRows = selectedClassId
+    ? rows.filter((item) => item.class_id === selectedClassId)
+    : rows;
 
   return (
     <div className="mx-auto max-w-[1600px] px-6 py-16 md:px-12">
@@ -31,14 +56,42 @@ export default async function PublicMaterialsPage() {
         Download and review class materials published by faculty and admin.
       </p>
 
-      {rows.length === 0 ? (
+      {classOptions.length > 0 ? (
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            href="/materials"
+            className={`rounded-full px-4 py-2 text-sm transition ${
+              !selectedClassId
+                ? "bg-primary text-primary-foreground"
+                : "border border-border bg-background text-foreground hover:border-primary/20"
+            }`}
+          >
+            All classes
+          </Link>
+          {classOptions.map((item) => (
+            <Link
+              key={item.id}
+              href={`/materials?class=${item.id}`}
+              className={`rounded-full px-4 py-2 text-sm transition ${
+                selectedClassId === item.id
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-background text-foreground hover:border-primary/20"
+              }`}
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      {filteredRows.length === 0 ? (
         <div className="stitch-panel mt-12 p-10 text-center">
           <h2 className="text-4xl text-primary">No Materials Published Yet</h2>
           <p className="mt-4 text-muted-foreground">New resources will appear once published by the admin team.</p>
         </div>
       ) : (
         <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map((item) => (
+          {filteredRows.map((item) => (
             <a
               key={item.id}
               href={item.file_url}
@@ -60,8 +113,8 @@ export default async function PublicMaterialsPage() {
       )}
 
       <div className="mt-12">
-        <Link href="/courses" className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white">
-          Go to Courses
+        <Link href="/online-courses" className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white">
+          Go to Online Courses
         </Link>
       </div>
     </div>
