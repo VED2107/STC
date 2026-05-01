@@ -91,23 +91,38 @@ export default function StudentDashboard() {
       setLoading(true);
       setUserName(profile?.full_name || user.user_metadata?.full_name || user.email || "Scholar");
 
-      if (role === "admin" || role === "super_admin" || role === "teacher") {
+    if (role === "admin" || role === "super_admin" || role === "teacher") {
         setLoading(false);
         return;
       }
 
-      const { data: student } = await supabase
-        .from("students")
-        .select("id, class_id, student_type, class:classes(name, board, level)")
-        .eq("profile_id", user.id)
-        .single();
+      const classContextResponse = await fetch("/api/student/class-context", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
 
-      if (!student || cancelled) {
+      if (!classContextResponse.ok) {
         setLoading(false);
         return;
       }
 
-      const typedStudent = student as StudentRecord;
+      const classContext = (await classContextResponse.json()) as {
+        student: StudentRecord | null;
+        class: StudentRecord["class"];
+        courses: CourseRow[];
+      };
+
+      if (!classContext.student || cancelled) {
+        setLoading(false);
+        return;
+      }
+
+      const typedStudent = {
+        ...classContext.student,
+        class: classContext.class ?? null,
+      } as StudentRecord;
+
       const isTuition = typedStudent.student_type === "tuition";
 
       // ── Build a single query batch ──────────────────────────────

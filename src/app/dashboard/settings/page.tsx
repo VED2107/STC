@@ -62,7 +62,7 @@ function StudentSettingsPageInner() {
         .from("students")
         .select("id, student_type")
         .eq("profile_id", user.id)
-        .single(),
+        .maybeSingle(),
     ]);
 
     let notificationsCount = 0;

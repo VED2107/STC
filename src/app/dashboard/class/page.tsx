@@ -4,13 +4,14 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, GraduationCap } from "lucide-react";
+import { BookOpen, GraduationCap, QrCode } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   StitchEmptyState,
   StitchSectionHeader,
+  stitchButtonClass,
   stitchPanelClass,
   stitchPanelSoftClass,
   stitchSecondaryButtonClass,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 interface StudentClassRecord {
   id: string;
+  class_id?: string | null;
   student_type: "tuition" | "online";
   class?: { id: string; name: string; board: string; level: string } | null;
 }
@@ -27,6 +29,13 @@ interface CourseRow {
   id: string;
   title: string;
   subject: string;
+}
+
+interface EnrollmentCourseRow {
+  id: string;
+  title: string;
+  subject: string;
+  class_id?: string | null;
 }
 
 interface SyllabusRow {
@@ -39,7 +48,7 @@ const supabase = createClient();
 
 export default function StudentClassPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [classRecord, setClassRecord] = useState<StudentClassRecord | null>(null);
   const [courses, setCourses] = useState<CourseRow[]>([]);
@@ -53,32 +62,52 @@ export default function StudentClassPage() {
       return;
     }
 
+    /* Admins and teachers don't have student records — skip the query */
+    if (role === "admin" || role === "super_admin" || role === "teacher") {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const { data: student } = await supabase
-      .from("students")
-      .select("id, student_type, class:classes(id, name, board, level)")
-      .eq("profile_id", user.id)
-      .single();
+    const response = await fetch("/api/student/class-context", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
 
-    const typedStudent = (student as StudentClassRecord | null) ?? null;
-    setClassRecord(typedStudent);
+    if (!response.ok) {
+      setClassRecord(null);
+      setCourses([]);
+      setLoading(false);
+      return;
+    }
 
-    if (typedStudent?.student_type === "online") {
-      const { data: enrollmentCourses } = await supabase
-        .from("enrollments")
-        .select("course:courses(id, title, subject)")
-        .eq("student_id", typedStudent.id)
-        .eq("status", "active");
+    const payload = (await response.json()) as {
+      student: StudentClassRecord | null;
+      class: StudentClassRecord["class"];
+      courses: EnrollmentCourseRow[];
+    };
 
-      const rows = ((enrollmentCourses as { course: CourseRow | null }[] | null) ?? [])
-        .map((entry) => entry.course)
-        .filter((entry): entry is CourseRow => Boolean(entry));
-      setCourses(rows);
-    } else if (typedStudent?.class?.id) {
+    const resolvedStudent = payload.student
+      ? {
+          ...payload.student,
+          class: payload.class ?? null,
+        }
+      : null;
+
+    if (resolvedStudent?.student_type === "online") {
+      setCourses(
+        (payload.courses ?? []).map((entry) => ({
+          id: entry.id,
+          title: entry.title,
+          subject: entry.subject,
+        })),
+      );
+    } else if (resolvedStudent?.class_id) {
       const { data: syllabusData } = await supabase
         .from("syllabus")
         .select("id, class_id, subject")
-        .eq("class_id", typedStudent.class.id)
+        .eq("class_id", resolvedStudent.class_id)
         .order("subject");
 
       const rows = (((syllabusData as SyllabusRow[] | null) ?? []).map((entry) => ({
@@ -91,8 +120,9 @@ export default function StudentClassPage() {
       setCourses([]);
     }
 
+    setClassRecord(resolvedStudent);
     setLoading(false);
-  }, [authLoading, router, user]);
+  }, [authLoading, role, router, user]);
 
   useEffect(() => {
     void fetchData();
@@ -102,6 +132,35 @@ export default function StudentClassPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <LoadingAnimation size="lg" />
+      </div>
+    );
+  }
+
+  /* ── Admin / Teacher guard — same pattern as main dashboard ── */
+  if (role === "admin" || role === "super_admin" || role === "teacher") {
+    return (
+      <div className="px-6 py-10 md:px-10">
+        <div className={stitchPanelClass}>
+          <h1 className="text-5xl text-foreground">
+            {role === "teacher" ? "Teacher Access Active" : "Admin Access Active"}
+          </h1>
+          <p className="mt-4 max-w-2xl text-base leading-8 text-muted-foreground">
+            This page shows class details for student accounts. Use the command
+            center to manage classes, students, and academic structures.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href={role === "teacher" ? "/admin/attendance" : "/admin"} className={cn(stitchButtonClass)}>
+              {role === "teacher" ? "Go to Teacher Workspace" : "Go to Command Center"}
+            </Link>
+            <Link
+              href="/admin/qr-scan"
+              className={cn(stitchSecondaryButtonClass, "gap-2")}
+            >
+              <QrCode className="h-4 w-4" />
+              Scan Student QR
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
