@@ -1,13 +1,14 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Loader2 } from "lucide-react";
 import {
   createStudent,
   getAvailableStudentProfiles,
   type AvailableStudentProfile,
 } from "@/app/actions/create-student";
+import { uploadStudentPhotoAdmin } from "@/app/actions/upload-student-photo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,7 +40,7 @@ interface EditableStudent {
   fees_full_payment_paid: boolean;
   fees_installment1_paid: boolean;
   fees_installment2_paid: boolean;
-  profile: { full_name: string; phone: string } | null;
+  profile: { full_name: string; phone: string; avatar_url?: string | null } | null;
 }
 
 interface StudentFormDialogProps {
@@ -71,6 +72,10 @@ export function StudentFormDialog({
   const [feesFullPayment, setFeesFullPayment] = useState(false);
   const [feesInst1, setFeesInst1] = useState(false);
   const [feesInst2, setFeesInst2] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [existingAvatarUrl, setExistingAvatarUrl] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const isEditMode = Boolean(editStudent);
   const selectedClass = classes.find((item) => item.id === classId) ?? null;
   const selectedProfile = availableProfiles.find((item) => item.id === selectedProfileId) ?? null;
@@ -107,6 +112,9 @@ export function StudentFormDialog({
       setFeesFullPayment(editStudent.fees_full_payment_paid ?? false);
       setFeesInst1(editStudent.fees_installment1_paid ?? false);
       setFeesInst2(editStudent.fees_installment2_paid ?? false);
+      setExistingAvatarUrl(editStudent.profile?.avatar_url ?? null);
+      setPhotoFile(null);
+      setPhotoPreview(null);
       return;
     }
 
@@ -121,6 +129,9 @@ export function StudentFormDialog({
     setFeesFullPayment(false);
     setFeesInst1(false);
     setFeesInst2(false);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setExistingAvatarUrl(null);
 
     void (async () => {
       const eligibleProfiles = await getAvailableStudentProfiles();
@@ -196,6 +207,12 @@ export function StudentFormDialog({
       }
 
       setLoading(false);
+
+      // Upload photo if selected (edit mode)
+      if (photoFile && editStudent.profile_id) {
+        await uploadPhoto(editStudent.profile_id);
+      }
+
       onOpenChange(false);
       onSuccess();
       return;
@@ -219,8 +236,45 @@ export function StudentFormDialog({
     }
 
     setLoading(false);
+
+    // Upload photo if selected (enroll mode)
+    if (photoFile && selectedProfileId) {
+      await uploadPhoto(selectedProfileId);
+    }
+
     onOpenChange(false);
     onSuccess();
+  }
+
+  function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  }
+
+  async function uploadPhoto(profileId: string) {
+    if (!photoFile) return;
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(photoFile);
+      });
+      await uploadStudentPhotoAdmin({
+        profileId,
+        fileName: photoFile.name,
+        fileBase64: base64,
+        contentType: photoFile.type || "image/jpeg",
+      });
+    } catch {
+      // Photo upload failure shouldn't block the enrollment
+      console.error("Photo upload failed");
+    }
   }
 
   return (
@@ -303,6 +357,48 @@ export function StudentFormDialog({
               readOnly={!isEditMode}
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Student Photo</Label>
+            <div className="flex items-center gap-4">
+              <div
+                className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-input bg-muted/30 cursor-pointer hover:border-primary/50 transition"
+                onClick={() => photoInputRef.current?.click()}
+              >
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" />
+                ) : existingAvatarUrl ? (
+                  <img src={existingAvatarUrl} alt="Current" className="h-full w-full object-cover" />
+                ) : (
+                  <Camera className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  {photoPreview || existingAvatarUrl ? "Change Photo" : "Upload Photo"}
+                </Button>
+                {photoFile ? (
+                  <p className="text-xs text-muted-foreground">{photoFile.name}</p>
+                ) : existingAvatarUrl ? (
+                  <p className="text-xs text-muted-foreground">Current photo set</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Optional — JPG, PNG</p>
+                )}
+              </div>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

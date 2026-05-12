@@ -310,6 +310,26 @@ function LoginPageInner() {
     };
   }, [router, searchParams]);
 
+  async function resolveLoginIdentifier(identifier: string): Promise<string> {
+    // If it looks like an email, return as-is
+    if (identifier.includes("@")) return identifier;
+
+    // Otherwise treat it as a phone number — ask the server to resolve it
+    const response = await fetch("/api/auth/resolve-phone", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: identifier }),
+    });
+
+    if (!response.ok) {
+      const result = (await response.json()) as { error?: string };
+      throw new Error(result.error ?? "Could not resolve phone number.");
+    }
+
+    const result = (await response.json()) as { email: string };
+    return result.email;
+  }
+
   async function handlePasswordLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -317,8 +337,17 @@ function LoginPageInner() {
     setNotice("");
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
+    const identifier = (formData.get("email") as string).trim();
     const password = formData.get("password") as string;
+
+    let email: string;
+    try {
+      email = await resolveLoginIdentifier(identifier);
+    } catch (resolveError) {
+      setError(resolveError instanceof Error ? resolveError.message : "Could not resolve login identifier.");
+      setLoading(false);
+      return;
+    }
 
     const supabase = createClient();
     const {
@@ -836,13 +865,13 @@ function LoginPageInner() {
                   </div>
 
                   <label className="block">
-                    <span className="mb-2 block text-sm text-muted-foreground">Email Address</span>
+                    <span className="mb-2 block text-sm text-muted-foreground">Email or Phone Number</span>
                     <input
                       name="email"
-                      type="email"
-                      autoComplete="email"
+                      type="text"
+                      autoComplete="email tel"
                       required
-                      placeholder="julian.voss@academy.edu"
+                      placeholder="email@example.com or 9876543210"
                       className={stitchInputClass}
                     />
                   </label>

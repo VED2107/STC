@@ -118,6 +118,10 @@ export async function bulkUploadStudents(
 
     try {
       let userId = email ? (authUserByEmail.get(email) ?? null) : null;
+      // Also check the generated phone email pattern for phone-only students
+      if (!userId && phone) {
+        userId = authUserByEmail.get(`${phone}@phone.stc.local`) ?? null;
+      }
       if (!userId && phone) {
         userId = profileByPhone.get(phone) ?? null;
       }
@@ -139,23 +143,25 @@ export async function bulkUploadStudents(
       }
 
       if (!userId) {
+        // For phone-only students, generate a deterministic email so that
+        // Supabase email+password login always works (avoids needing SMS auth).
+        const effectiveEmail = email || (phone ? `${phone}@phone.stc.local` : "");
+
         const createPayload: {
-          email?: string;
+          email: string;
           phone?: string;
           password: string;
-          email_confirm?: boolean;
+          email_confirm: boolean;
           phone_confirm?: boolean;
           user_metadata: { full_name: string; phone: string };
         } = {
+          email: effectiveEmail,
+          email_confirm: true,
           password: DEFAULT_PASSWORD,
           user_metadata: { full_name: name, phone },
         };
 
-        if (email) {
-          createPayload.email = email;
-          createPayload.email_confirm = true;
-        }
-        if (phone && !email) {
+        if (phone) {
           createPayload.phone = phone;
           createPayload.phone_confirm = true;
         }
@@ -174,26 +180,26 @@ export async function bulkUploadStudents(
         }
 
         userId = newUser.user.id;
-        if (email) authUserByEmail.set(email, userId);
+        authUserByEmail.set(effectiveEmail, userId);
         if (phone) profileByPhone.set(phone, userId);
       } else if (matchedExistingAuthUser) {
+        const effectiveEmail = email || (phone ? `${phone}@phone.stc.local` : "");
+
         const updatePayload: {
-          email?: string;
+          email: string;
           phone?: string;
           password: string;
-          email_confirm?: boolean;
+          email_confirm: boolean;
           phone_confirm?: boolean;
           user_metadata: { full_name: string; phone: string };
         } = {
+          email: effectiveEmail,
+          email_confirm: true,
           password: DEFAULT_PASSWORD,
           user_metadata: { full_name: name, phone },
         };
 
-        if (email) {
-          updatePayload.email = email;
-          updatePayload.email_confirm = true;
-        }
-        if (phone && !email) {
+        if (phone) {
           updatePayload.phone = phone;
           updatePayload.phone_confirm = true;
         }
@@ -211,7 +217,7 @@ export async function bulkUploadStudents(
           continue;
         }
 
-        if (email) authUserByEmail.set(email, userId);
+        authUserByEmail.set(effectiveEmail, userId);
         if (phone) profileByPhone.set(phone, userId);
       }
 

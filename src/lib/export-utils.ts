@@ -463,18 +463,27 @@ const BULK_TEMPLATE_HEADERS = [
   { key: "photo_file", label: "Photo File" },
 ];
 
-const SAMPLE_ROW = {
-  full_name: "John Doe",
-  phone: "9876543210",
-  email: "johndoe@example.com",
-  student_type: "tuition",
-  photo_file: "john-doe.jpg",
-};
+const SAMPLE_ROWS = [
+  {
+    full_name: "John Doe",
+    phone: "9876543210",
+    email: "johndoe@example.com",
+    student_type: "tuition",
+    photo_file: "john-doe.jpg",
+  },
+  {
+    full_name: "Jane Smith",
+    phone: "9123456789",
+    email: "",
+    student_type: "tuition",
+    photo_file: "",
+  },
+];
 
 export function downloadBulkTemplateCSV() {
-  downloadCSV([SAMPLE_ROW], BULK_TEMPLATE_HEADERS, "student_registration_template");
+  downloadCSV(SAMPLE_ROWS, BULK_TEMPLATE_HEADERS, "student_registration_template");
 }
 
 export async function downloadBulkTemplateXLSX() {
-  await downloadXLSX([SAMPLE_ROW], BULK_TEMPLATE_HEADERS, "student_registration_template");
+  await downloadXLSX(SAMPLE_ROWS, BULK_TEMPLATE_HEADERS, "student_registration_template");
 }
