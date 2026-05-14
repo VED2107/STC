@@ -1,6 +1,13 @@
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { ImageOff } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Faculty Directory - STC Academy | Expert Teachers & Mentors",
+  description: "Meet the academic team shaping the live curriculum across board preparation, foundational study, and higher-secondary pathways at STC Academy.",
+  keywords: ["STC faculty", "teachers", "mentors", "expert faculty", "Gujarat teachers", "academic team"],
+};
 
 type TeacherRow = {
   id: string;

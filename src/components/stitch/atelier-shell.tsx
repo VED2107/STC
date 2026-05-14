@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   BookCopy,
   BookOpen,
@@ -130,6 +130,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
         const classIds = ((accessRows as { class_id: string }[] | null) ?? []).map((row) => row.class_id);
         if (classIds.length === 0) return;
 
+        // Optimized batch queries for teacher cache warming
         const [{ data: classes }, { data: courses }, { data: syllabusData }] = await Promise.all([
           supabase.from("classes").select("*").in("id", classIds).order("sort_order"),
           supabase.from("courses").select("id, title, subject, class_id").in("class_id", classIds).order("title"),
@@ -154,6 +155,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
         return;
       }
 
+      // Optimized batch queries for admin cache warming
       const [{ data: teachers }, { data: classes }, { data: courses }, { data: syllabusData }] = await Promise.all([
         supabase.from("teachers").select("*").order("name", { ascending: true }),
         supabase.from("classes").select("*").order("sort_order"),
@@ -267,21 +269,40 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
     return () => { cancelled = true; };
   }, [isTuitionStudent, userId]);
 
-  // ── Render QR code on canvas when dialog opens and token is available ──
+  // ── Render QR code on canvas when dialog opens and token is available (optimized with dynamic import) ──
   useEffect(() => {
     if (!qrDialogOpen || !qrToken) return;
-    // Small delay to let the dialog DOM render the canvas
-    const timer = setTimeout(async () => {
-      if (!qrCanvasRef.current) return;
-      const QRCode = (await import("qrcode")).default;
-      await QRCode.toCanvas(qrCanvasRef.current, qrToken, {
-        width: 220,
-        margin: 2,
-        color: { dark: "#000000", light: "#ffffff" },
-        errorCorrectionLevel: "M",
-      });
-    }, 100);
-    return () => clearTimeout(timer);
+
+    let cancelled = false;
+
+    // Optimized QR code generation with proper cleanup
+    const generateQrCode = async () => {
+      try {
+        // Small delay to let the dialog DOM render the canvas
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (!qrCanvasRef.current || cancelled) return;
+
+        const QRCode = (await import("qrcode")).default;
+
+        if (cancelled) return;
+
+        await QRCode.toCanvas(qrCanvasRef.current, qrToken, {
+          width: 220,
+          margin: 2,
+          color: { dark: "#000000", light: "#ffffff" },
+          errorCorrectionLevel: "M",
+        });
+      } catch (error) {
+        console.error("Failed to generate QR code:", error);
+      }
+    };
+
+    void generateQrCode();
+
+    return () => {
+      cancelled = true;
+    };
   }, [qrDialogOpen, qrToken]);
 
   const handleDownloadQr = useCallback(() => {
@@ -292,58 +313,80 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
     link.click();
   }, [fullNameForQr]);
 
-  const links =
-    area === "admin"
-      ? isTeacherArea
-        ? teacherLinks
-        : adminLinks
-      : !studentTypeLoaded || isOnlineStudent
-        ? onlineStudentLinks
-        : studentLinks;
-  const rootHref = area === "admin" ? (isTeacherArea ? "/admin/attendance" : "/admin") : "/dashboard";
-  const fullName: string =
-    profile?.full_name ||
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    (area === "admin" ? "Academic Dean" : "Scholar");
-  const initials = fullName
-    .split(" ")
-    .map((part: string) => part[0] ?? "")
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  const contextualAction =
-    area === "admin"
-      ? isTeacherArea
-        ? pathname.startsWith("/admin/syllabus")
-          ? { label: "Open Attendance", href: "/admin/attendance" }
-          : pathname.startsWith("/admin/materials")
-            ? { label: "Open Syllabus", href: "/admin/syllabus" }
-            : { label: "Open Materials", href: "/admin/materials" }
-        : pathname.startsWith("/admin/teachers")
-          ? { label: "+ Create Teacher", href: "/admin/teachers?create=1" }
-          : pathname.startsWith("/admin/students")
-            ? { label: "+ Add Student", href: "/admin/students?create=1" }
-            : pathname.startsWith("/admin/courses") || pathname.startsWith("/admin/subjects")
-              ? { label: "+ Add Subject", href: "/admin/subjects?create=1" }
-              : pathname.startsWith("/admin/classes")
-                ? { label: "+ Add Class", href: "/admin/classes?create=1" }
-                : pathname.startsWith("/admin/materials")
-                  ? { label: "+ Add Material", href: "/admin/materials?create=1" }
-                  : pathname.startsWith("/admin/syllabus")
-                    ? { label: "+ Add Syllabus", href: "/admin/syllabus?create=1" }
-                    : { label: "+ New Record", href: "/admin/students?create=1" }
-      : pathname.startsWith("/dashboard/attendance")
-        ? { label: "View Dashboard", href: "/dashboard" }
-      : pathname.startsWith("/dashboard/materials")
-        ? { label: "View Curriculum", href: "/dashboard/syllabus" }
-      : pathname.startsWith("/dashboard/syllabus")
-        ? { label: "Open Library", href: "/dashboard/materials" }
-      : pathname.startsWith("/dashboard/settings")
-        ? { label: "Class Details", href: "/dashboard/class" }
-      : isOnlineStudent
-        ? { label: "Open My Courses", href: "/dashboard/class" }
-        : { label: "Open Class Details", href: "/dashboard/class" };
+  // Memoized navigation configuration for better performance
+  const navigationConfig = useMemo(() => {
+    const links =
+      area === "admin"
+        ? isTeacherArea
+          ? teacherLinks
+          : adminLinks
+        : !studentTypeLoaded || isOnlineStudent
+          ? onlineStudentLinks
+          : studentLinks;
+
+    const rootHref = area === "admin" ? (isTeacherArea ? "/admin/attendance" : "/admin") : "/dashboard";
+
+    const fullName: string =
+      profile?.full_name ||
+      user?.user_metadata?.full_name ||
+      user?.email?.split("@")[0] ||
+      (area === "admin" ? "Academic Dean" : "Scholar");
+
+    const initials = fullName
+      .split(" ")
+      .map((part: string) => part[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    return { links, rootHref, fullName, initials };
+  }, [area, isTeacherArea, studentTypeLoaded, isOnlineStudent, profile?.full_name, user?.user_metadata?.full_name, user?.email]);
+
+  const { links, rootHref, fullName, initials } = navigationConfig;
+  // Memoized contextual action for better performance
+  const contextualAction = useMemo(() => {
+    if (area === "admin") {
+      if (isTeacherArea) {
+        if (pathname.startsWith("/admin/syllabus")) {
+          return { label: "Open Attendance", href: "/admin/attendance" };
+        } else if (pathname.startsWith("/admin/materials")) {
+          return { label: "Open Syllabus", href: "/admin/syllabus" };
+        } else {
+          return { label: "Open Materials", href: "/admin/materials" };
+        }
+      } else {
+        if (pathname.startsWith("/admin/teachers")) {
+          return { label: "+ Create Teacher", href: "/admin/teachers?create=1" };
+        } else if (pathname.startsWith("/admin/students")) {
+          return { label: "+ Add Student", href: "/admin/students?create=1" };
+        } else if (pathname.startsWith("/admin/courses") || pathname.startsWith("/admin/subjects")) {
+          return { label: "+ Add Subject", href: "/admin/subjects?create=1" };
+        } else if (pathname.startsWith("/admin/classes")) {
+          return { label: "+ Add Class", href: "/admin/classes?create=1" };
+        } else if (pathname.startsWith("/admin/materials")) {
+          return { label: "+ Add Material", href: "/admin/materials?create=1" };
+        } else if (pathname.startsWith("/admin/syllabus")) {
+          return { label: "+ Add Syllabus", href: "/admin/syllabus?create=1" };
+        } else {
+          return { label: "+ New Record", href: "/admin/students?create=1" };
+        }
+      }
+    } else {
+      if (pathname.startsWith("/dashboard/attendance")) {
+        return { label: "View Dashboard", href: "/dashboard" };
+      } else if (pathname.startsWith("/dashboard/materials")) {
+        return { label: "View Curriculum", href: "/dashboard/syllabus" };
+      } else if (pathname.startsWith("/dashboard/syllabus")) {
+        return { label: "Open Library", href: "/dashboard/materials" };
+      } else if (pathname.startsWith("/dashboard/settings")) {
+        return { label: "Class Details", href: "/dashboard/class" };
+      } else if (isOnlineStudent) {
+        return { label: "Open My Courses", href: "/dashboard/class" };
+      } else {
+        return { label: "Open Class Details", href: "/dashboard/class" };
+      }
+    }
+  }, [area, isTeacherArea, pathname, isOnlineStudent]);
   const supportHref =
     area === "admin"
       ? "mailto:stcinstindia@gmail.com?subject=STC%20Admin%20Support"

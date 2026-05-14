@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { FileText, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Learning Materials - STC Academy | Download Study Resources",
+  description: "Resource library for active learners. Download and review class materials published by faculty and admin across all subjects and classes.",
+  keywords: ["study materials", "learning resources", "STC materials", "download", "educational resources", "Gujarat study materials"],
+};
 
 type MaterialRow = {
   id: string;

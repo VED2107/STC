@@ -6,6 +6,13 @@ import {
   type PublicCourseRow,
 } from "@/lib/course-catalog";
 import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Courses - STC Academy | Online Learning Programs",
+  description: "Explore our comprehensive online course catalog with programs for Primary, Middle, SSC, HSC, JEE, and NEET. Faculty-guided learning across GSEB and CBSE pathways.",
+  keywords: ["STC courses", "online learning", "GSEB courses", "CBSE courses", "SSC", "HSC", "JEE", "NEET", "Gujarat education"],
+};
 
 type CoursesPageProps = {
   searchParams: Promise<{

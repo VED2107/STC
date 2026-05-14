@@ -7,7 +7,7 @@ const DEFAULT_PASSWORD = "STC@123";
 export interface BulkStudentRow {
   full_name: string;
   phone: string;
-  email: string;
+  email?: string;
   student_type: string;
   photo_file?: string;
 }
@@ -223,6 +223,7 @@ export async function bulkUploadStudents(
 
       const { error: profileError } = await admin
         .from("profiles")
+
         .upsert(
           {
             id: userId,

@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms of Service - STC Academy | Service Agreement & Policies",
+  description: "STC Academy terms of service covering class policies, attendance requirements, academic integrity rules, fee policies, and resource access rules.",
+  keywords: ["terms of service", "service agreement", "class policies", "STC Academy terms"],
+};
+
 export default function TermsPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 md:px-10">

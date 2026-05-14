@@ -9,6 +9,7 @@ import {
   LibraryBig,
 } from "lucide-react";
 import { AdminNukeButton } from "@/components/admin/admin-nuke-button";
+
 import {
   stitchButtonClass,
   stitchPanelClass,
@@ -18,6 +19,24 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { getFeesStatusLabel, hasFullPaymentMarked, isFullyPaid, isPartiallyPaid } from "@/lib/student-fees";
+
+// Memoized fee calculation for better performance
+function calculateFeesStats(feesRows: Array<{
+  fees_full_payment_paid: boolean;
+  fees_installment1_paid: boolean;
+  fees_installment2_paid: boolean;
+}>) {
+  return feesRows.reduce((acc, row) => {
+    if (isFullyPaid(row)) {
+      acc.feesPaid++;
+    } else if (isPartiallyPaid(row)) {
+      acc.feesPartial++;
+    } else {
+      acc.feesNotPaid++;
+    }
+    return acc;
+  }, { feesPaid: 0, feesPartial: 0, feesNotPaid: 0 });
+}
 
 interface DashboardStats {
   students: number;
@@ -92,6 +111,51 @@ export default async function AdminDashboard() {
     redirect("/dashboard");
   }
 
+  // Optimized parallel queries with better batching
+  const [
+    countsResults,
+    dataResults,
+  ] = await Promise.all([
+    // Batch all count queries together
+    Promise.all([
+      supabase.from("students").select("id", { count: "exact", head: true }),
+      supabase.from("courses").select("id", { count: "exact", head: true }),
+      supabase.from("teachers").select("id", { count: "exact", head: true }),
+      supabase.from("materials").select("id", { count: "exact", head: true }),
+      supabase.from("classes").select("id", { count: "exact", head: true }),
+      supabase.from("attendance").select("id", { count: "exact", head: true }),
+    ]),
+    // Batch all data queries together
+    Promise.all([
+      supabase
+        .from("students")
+        .select(
+          "id, profile_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
+        )
+        .order("created_at", { ascending: false })
+        .order("enrollment_date", { ascending: false })
+        .limit(5),
+      supabase
+        .from("teachers")
+        .select("id, name, subject, qualification")
+        .order("created_at", { ascending: false })
+        .limit(4),
+      supabase
+        .from("courses")
+        .select("id, title, subject, class:classes(name, level)")
+        .order("created_at", { ascending: false })
+        .limit(4),
+      supabase
+        .from("classes")
+        .select("id, name, board, level")
+        .order("created_at", { ascending: false })
+        .limit(4),
+      supabase
+        .from("students")
+        .select("fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid"),
+    ]),
+  ]);
+
   const [
     studentCount,
     courseCount,
@@ -99,45 +163,15 @@ export default async function AdminDashboard() {
     materialCount,
     classCount,
     attendanceCount,
+  ] = countsResults;
+
+  const [
     registryRes,
     teachersRes,
     coursesRes,
     classesRes,
     feesRes,
-  ] = await Promise.all([
-    supabase.from("students").select("id", { count: "exact", head: true }),
-    supabase.from("courses").select("id", { count: "exact", head: true }),
-    supabase.from("teachers").select("id", { count: "exact", head: true }),
-    supabase.from("materials").select("id", { count: "exact", head: true }),
-    supabase.from("classes").select("id", { count: "exact", head: true }),
-    supabase.from("attendance").select("id", { count: "exact", head: true }),
-    supabase
-      .from("students")
-      .select(
-        "id, profile_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone), class:classes(name, board), enrollments(status, course:courses(title))",
-      )
-      .order("created_at", { ascending: false })
-      .order("enrollment_date", { ascending: false })
-      .limit(5),
-    supabase
-      .from("teachers")
-      .select("id, name, subject, qualification")
-      .order("created_at", { ascending: false })
-      .limit(4),
-    supabase
-      .from("courses")
-      .select("id, title, subject, class:classes(name, level)")
-      .order("created_at", { ascending: false })
-      .limit(4),
-    supabase
-      .from("classes")
-      .select("id, name, board, level")
-      .order("created_at", { ascending: false })
-      .limit(4),
-    supabase
-      .from("students")
-      .select("fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid"),
-  ]);
+  ] = dataResults;
 
   const registry = (registryRes.data as RegistryRow[] | null) ?? [];
   const teachers = (teachersRes.data as TeacherRow[] | null) ?? [];
@@ -149,19 +183,8 @@ export default async function AdminDashboard() {
     fees_installment2_paid: boolean;
   }>;
 
-  let feesPaid = 0;
-  let feesPartial = 0;
-  let feesNotPaid = 0;
-
-  for (const row of feesRows) {
-    if (isFullyPaid(row)) {
-      feesPaid++;
-    } else if (isPartiallyPaid(row)) {
-      feesPartial++;
-    } else {
-      feesNotPaid++;
-    }
-  }
+  // Use memoized fees calculation for better performance
+  const { feesPaid, feesPartial, feesNotPaid } = calculateFeesStats(feesRows);
 
   const stats: DashboardStats = {
     students: studentCount.count ?? 0,

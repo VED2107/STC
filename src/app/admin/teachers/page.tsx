@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -17,7 +17,12 @@ import {
   stitchPanelClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
-import { TeacherFormDialog } from "@/components/admin/teacher-form-dialog";
+import dynamic from "next/dynamic";
+
+const TeacherFormDialog = dynamic(() => import("@/components/admin/teacher-form-dialog").then(mod => ({ default: mod.TeacherFormDialog })), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
+});
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import type { Teacher } from "@/lib/types/database";
 
@@ -91,16 +96,22 @@ function AdminTeachersPageInner() {
     }
   }, [role, searchParams, dialogOpen, router, pathname]);
 
-  async function handleDelete(id: string) {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this teacher?")) return;
     await supabase.from("teachers").delete().eq("id", id);
     void fetchTeachers();
-  }
+  }, [fetchTeachers]);
 
-  const filtered = teachers.filter((teacher) => {
-    const haystack = `${teacher.name} ${teacher.subject} ${teacher.qualification}`.toLowerCase();
-    return haystack.includes(search.toLowerCase());
-  });
+  // Memoized filtered teachers for better performance
+  const filtered = useMemo(() => {
+    if (!search.trim()) return teachers;
+
+    const searchTerm = search.toLowerCase();
+    return teachers.filter((teacher) => {
+      const haystack = `${teacher.name} ${teacher.subject} ${teacher.qualification}`.toLowerCase();
+      return haystack.includes(searchTerm);
+    });
+  }, [teachers, search]);
 
   return (
     <div className="px-6 py-8 md:px-10">

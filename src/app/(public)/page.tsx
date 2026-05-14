@@ -4,6 +4,18 @@ import { Reveal } from "@/components/stitch/reveal";
 import { HeroMedia } from "@/components/stitch/hero-media";
 import { AnnouncementBadge } from "@/components/stitch/announcement-badge";
 import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "STC Academy | The Modern Scholar - Excellence in Education",
+  description: "Cultivating the Intellect of Tomorrow. High-quality teaching, trusted study materials, and strong conceptual learning for students across Gujarat's most important academic milestones.",
+  keywords: ["STC Academy", "tuition centre", "Gujarat education", "CBSE", "GSEB", "SSC", "HSC", "JEE", "NEET", "online courses"],
+  openGraph: {
+    title: "STC Academy | Cultivating the Intellect of Tomorrow",
+    description: "High-quality teaching, trusted study materials, and strong conceptual learning for students across Gujarat's most important academic milestones.",
+    type: "website",
+  },
+};
 
 type HomeTeacherRow = {
   id: string;

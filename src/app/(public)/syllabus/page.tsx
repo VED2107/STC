@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { FileText, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Syllabus - STC Academy | Live Curriculum by Board & Subject",
+  description: "Live syllabus mapped by board, subject, and resources. Reflects the latest materials published by our teaching team for each syllabus track.",
+  keywords: ["syllabus", "curriculum", "GSEB syllabus", "CBSE syllabus", "study materials", "STC Academy syllabus"],
+};
 
 type SyllabusRow = {
   id: string;

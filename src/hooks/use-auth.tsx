@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 
@@ -285,10 +286,14 @@ export function AuthProvider({ children, initialAuth }: AuthProviderProps) {
 
   const role = profile?.role ?? null;
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(
+    () => ({ user, profile, session, role, loading, signOut, refreshProfile }),
+    [user, profile, session, role, loading, signOut, refreshProfile]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{ user, profile, session, role, loading, signOut, refreshProfile }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

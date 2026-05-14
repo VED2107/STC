@@ -1,5 +1,9 @@
-import { PageSkeleton } from "@/components/ui/skeleton-loader";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 
 export default function DashboardLoading() {
-  return <PageSkeleton variant="dashboard" />;
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <LoadingAnimation size="lg" />
+    </div>
+  );
 }

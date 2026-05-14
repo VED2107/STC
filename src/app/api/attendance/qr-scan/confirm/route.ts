@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCheckoutMessage } from "@/lib/whatsapp";
@@ -8,6 +9,24 @@ import { sendCheckoutMessage } from "@/lib/whatsapp";
  * Mirrors the constant in the lookup endpoint.
  */
 const MIN_CHECKOUT_DURATION_MINUTES = 30;
+
+// Utility functions moved to module scope for better performance
+const getTodayInIndia = (): string => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+  }).format(new Date());
+};
+
+const extractStudentProfile = (student: any) => {
+  const profileArr = student.profile as unknown as Array<{
+    full_name: string;
+    phone: string;
+    parent_phone: string | null;
+    avatar_url: string | null;
+  }> | null;
+
+  return profileArr?.[0] ?? null;
+};
 
 /**
  * POST /api/attendance/qr-scan/confirm
@@ -20,30 +39,43 @@ const MIN_CHECKOUT_DURATION_MINUTES = 30;
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate the scanner (teacher / admin)
+    // Early auth validation
     const supabase = await createClient();
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    const { data: profile } = await supabase
+    // Get user profile with error handling
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    if (!profile || (profile.role !== "teacher" && profile.role !== "admin" && profile.role !== "super_admin")) {
+    if (profileError || !profile) {
       return NextResponse.json(
-        { error: "Only teachers and admins can confirm attendance" },
-        { status: 403 },
+        { error: "Profile not found" },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // 2. Parse body
+    const allowedRoles = new Set(["teacher", "admin", "super_admin"]);
+    if (!allowedRoles.has(profile.role)) {
+      return NextResponse.json(
+        { error: "Only teachers and admins can confirm attendance" },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Input validation with early returns
     const body = (await request.json()) as {
       studentId?: string;
       action?: string;
@@ -54,22 +86,31 @@ export async function POST(request: NextRequest) {
     if (!studentId || !action) {
       return NextResponse.json(
         { error: "Missing studentId or action" },
-        { status: 400 },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    if (action !== "check-in" && action !== "check-out") {
+    const validActions = new Set(["check-in", "check-out"]);
+    if (!validActions.has(action)) {
       return NextResponse.json(
         { error: "Invalid action. Must be check-in or check-out." },
-        { status: 400 },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // 3. Admin client for DB writes
+    // Basic input format validation
+    if (studentId.length < 10) {
+      return NextResponse.json(
+        { error: "Invalid studentId format" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Single admin client instance for all operations
     const admin = createAdminClient();
 
-    // 4. Verify student exists and is active
-    const { data: student } = await admin
+    // Verify student exists and is active with optimized query
+    const { data: student, error: studentError } = await admin
       .from("students")
       .select(
         "id, class_id, profile:profiles(full_name, phone, parent_phone, avatar_url)",
@@ -78,67 +119,74 @@ export async function POST(request: NextRequest) {
       .eq("is_active", true)
       .single();
 
-    if (!student) {
+    if (studentError || !student) {
       return NextResponse.json(
         { error: "Student not found or inactive" },
-        { status: 404 },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    const profileArr = student.profile as unknown as Array<{
-      full_name: string;
-      phone: string;
-      parent_phone: string | null;
-      avatar_url: string | null;
-    }> | null;
-    const studentProfile = profileArr?.[0] ?? null;
-
+    // Extract student information efficiently
+    const studentProfile = extractStudentProfile(student);
     const studentName = studentProfile?.full_name ?? "Unknown Student";
     const studentPhoto = studentProfile?.avatar_url ?? null;
     const classId = student.class_id as string;
-    const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
+
+    // Optimize date calculations
+    const today = getTodayInIndia();
     const now = new Date().toISOString();
 
+    // Teacher access validation (if needed)
     if (profile.role === "teacher") {
-      const { data: access } = await admin
+      const { data: access, error: accessError } = await admin
         .from("teacher_class_access")
         .select("class_id")
         .eq("teacher_profile_id", user.id)
         .eq("class_id", classId)
         .maybeSingle();
 
-      if (!access) {
+      if (accessError || !access) {
         return NextResponse.json(
           { error: "You do not have access to this student's class" },
-          { status: 403 },
+          { status: 403, headers: { "Cache-Control": "no-store" } }
         );
       }
     }
 
-    // 5. Re-check attendance state (prevent race conditions)
-    const { data: existing } = await admin
+    // Re-check attendance state (prevent race conditions)
+    const { data: existing, error: existingError } = await admin
       .from("attendance")
       .select("id, check_in_at, check_out_at, status")
       .eq("student_id", studentId)
       .eq("date", today)
-      .single();
+      .maybeSingle();
 
-    // 6. Execute the action
+    if (existingError) {
+      return NextResponse.json(
+        { error: "Failed to check attendance state" },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Execute check-in action
     if (action === "check-in") {
-      if (existing && existing.check_in_at) {
-        // Already checked in — don't overwrite
-        return NextResponse.json({
-          action: "already-checked-in",
-          studentName,
-          studentPhoto,
-          checkInAt: existing.check_in_at,
-          checkOutAt: existing.check_out_at,
-          message: `${studentName} is already checked in today`,
-        });
+      if (existing?.check_in_at) {
+        // Already checked in — return current state
+        return NextResponse.json(
+          {
+            action: "already-checked-in",
+            studentName,
+            studentPhoto,
+            checkInAt: existing.check_in_at,
+            checkOutAt: existing.check_out_at,
+            message: `${studentName} is already checked in today`,
+          },
+          { headers: { "Cache-Control": "no-store" } }
+        );
       }
 
       if (existing) {
-        // Manual attendance exists but no check_in_at — patch it
+        // Manual attendance exists but no check_in_at — update it
         const { error: patchError } = await admin
           .from("attendance")
           .update({ check_in_at: now, scan_method: "qr", marked_by: user.id })
@@ -148,21 +196,24 @@ export async function POST(request: NextRequest) {
           console.error("[QR Confirm] Patch error:", patchError);
           return NextResponse.json(
             { error: "Failed to record check-in" },
-            { status: 500 },
+            { status: 500, headers: { "Cache-Control": "no-store" } }
           );
         }
 
-        return NextResponse.json({
-          action: "check-in",
-          studentName,
-          studentPhoto,
-          checkInAt: now,
-          checkOutAt: null,
-          message: `${studentName} checked in (manual record updated)`,
-        });
+        return NextResponse.json(
+          {
+            action: "check-in",
+            studentName,
+            studentPhoto,
+            checkInAt: now,
+            checkOutAt: null,
+            message: `${studentName} checked in (manual record updated)`,
+          },
+          { headers: { "Cache-Control": "no-store" } }
+        );
       }
 
-      // Create new attendance row
+      // Create new attendance record
       const { error: insertError } = await admin.from("attendance").insert({
         student_id: studentId,
         class_id: classId,
@@ -177,40 +228,46 @@ export async function POST(request: NextRequest) {
         console.error("[QR Confirm] Insert error:", insertError);
         return NextResponse.json(
           { error: "Failed to record check-in" },
-          { status: 500 },
+          { status: 500, headers: { "Cache-Control": "no-store" } }
         );
       }
 
-      return NextResponse.json({
-        action: "check-in",
-        studentName,
-        studentPhoto,
-        checkInAt: now,
-        checkOutAt: null,
-        message: `${studentName} checked in successfully`,
-      });
+      return NextResponse.json(
+        {
+          action: "check-in",
+          studentName,
+          studentPhoto,
+          checkInAt: now,
+          checkOutAt: null,
+          message: `${studentName} checked in successfully`,
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    // action === "check-out"
-    if (!existing || !existing.check_in_at) {
+    // Execute check-out action
+    if (!existing?.check_in_at) {
       return NextResponse.json(
         { error: `${studentName} has not checked in today` },
-        { status: 400 },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
     if (existing.check_out_at) {
-      return NextResponse.json({
-        action: "already-completed",
-        studentName,
-        studentPhoto,
-        checkInAt: existing.check_in_at,
-        checkOutAt: existing.check_out_at,
-        message: `${studentName} has already checked out today`,
-      });
+      return NextResponse.json(
+        {
+          action: "already-completed",
+          studentName,
+          studentPhoto,
+          checkInAt: existing.check_in_at,
+          checkOutAt: existing.check_out_at,
+          message: `${studentName} has already checked out today`,
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    // Minimum duration re-validation
+    // Minimum duration validation
     const checkInTime = new Date(existing.check_in_at as string).getTime();
     const elapsedMinutes = (Date.now() - checkInTime) / 60000;
 
@@ -224,12 +281,12 @@ export async function POST(request: NextRequest) {
           action: "too-early",
           remainingMinutes,
         },
-        { status: 400 },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // Perform check-out
-      const { error: updateError } = await admin
+    // Perform check-out update
+    const { error: updateError } = await admin
       .from("attendance")
       .update({ check_out_at: now, marked_by: user.id })
       .eq("id", existing.id);
@@ -238,13 +295,12 @@ export async function POST(request: NextRequest) {
       console.error("[QR Confirm] Update error:", updateError);
       return NextResponse.json(
         { error: "Failed to record check-out" },
-        { status: 500 },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // Send WhatsApp notification (fire-and-forget)
-    const parentPhone =
-      studentProfile?.parent_phone || studentProfile?.phone || "";
+    // Send WhatsApp notification asynchronously (fire-and-forget)
+    const parentPhone = studentProfile?.parent_phone || studentProfile?.phone || "";
     if (parentPhone) {
       sendCheckoutMessage(
         parentPhone,
@@ -253,34 +309,41 @@ export async function POST(request: NextRequest) {
         now,
       )
         .then(async (result) => {
-          await admin.from("notifications").insert({
-            student_id: studentId,
-            type: "checkout",
-            message: `Check-out WhatsApp sent to ${parentPhone}`,
-            channel: "whatsapp",
-            delivery_type: "whatsapp",
-            status: result.success ? "sent" : "failed",
-            sent_at: result.success ? new Date().toISOString() : null,
-          });
+          try {
+            await admin.from("notifications").insert({
+              student_id: studentId,
+              type: "checkout",
+              message: `Check-out WhatsApp sent to ${parentPhone}`,
+              channel: "whatsapp",
+              delivery_type: "whatsapp",
+              status: result.success ? "sent" : "failed",
+              sent_at: result.success ? new Date().toISOString() : null,
+            });
+          } catch (notificationError) {
+            console.error("[QR Confirm] Notification insert error:", notificationError);
+          }
         })
         .catch((err) => {
           console.error("[WhatsApp] Notification error:", err);
         });
     }
 
-    return NextResponse.json({
-      action: "check-out",
-      studentName,
-      studentPhoto,
-      checkInAt: existing.check_in_at,
-      checkOutAt: now,
-      message: `${studentName} checked out successfully`,
-    });
+    return NextResponse.json(
+      {
+        action: "check-out",
+        studentName,
+        studentPhoto,
+        checkInAt: existing.check_in_at,
+        checkOutAt: now,
+        message: `${studentName} checked out successfully`,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     console.error("[QR Confirm] Unexpected error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

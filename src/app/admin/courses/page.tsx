@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -17,7 +17,12 @@ import {
   stitchPanelClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
-import { CourseFormDialog } from "@/components/admin/course-form-dialog";
+import dynamic from "next/dynamic";
+
+const CourseFormDialog = dynamic(() => import("@/components/admin/course-form-dialog").then(mod => ({ default: mod.CourseFormDialog })), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
+});
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import type { Course } from "@/lib/types/database";
 
@@ -68,13 +73,17 @@ function AdminCoursesPageInner() {
       .eq("is_online_only", true)
       .order("created_at", { ascending: false });
     const nextCourses = (data as CourseRow[] | null) ?? [];
-    const nextSubjects = Array.from(
-      new Set(
-        nextCourses
-          .map((course) => course.subject?.trim())
-          .filter((subject): subject is string => Boolean(subject)),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
+
+    // Optimized subject extraction with better performance
+    const subjectSet = new Set<string>();
+    for (const course of nextCourses) {
+      const subject = course.subject?.trim();
+      if (subject) {
+        subjectSet.add(subject);
+      }
+    }
+    const nextSubjects = Array.from(subjectSet).sort((a, b) => a.localeCompare(b));
+
     setCourses(nextCourses);
     setSubjectOptions(nextSubjects);
     setAdminPageCache(COURSES_CACHE_KEY, nextCourses);
@@ -109,19 +118,32 @@ function AdminCoursesPageInner() {
     }
   }, [role, searchParams, dialogOpen, router, pathname]);
 
-  async function handleDelete(id: string) {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this course?")) return;
     await supabase.from("courses").delete().eq("id", id);
     void fetchCourses();
-  }
+  }, [fetchCourses]);
 
-  const filtered = courses.filter((course) => {
-    if (selectedSubject && course.subject.trim().toLowerCase() !== selectedSubject.toLowerCase()) {
-      return false;
+  // Memoized filtered courses for better performance
+  const filtered = useMemo(() => {
+    let result = courses;
+
+    if (selectedSubject) {
+      result = result.filter(course =>
+        course.subject.trim().toLowerCase() === selectedSubject.toLowerCase()
+      );
     }
-    const haystack = `${course.title} ${course.subject}`.toLowerCase();
-    return haystack.includes(search.toLowerCase());
-  });
+
+    if (search.trim()) {
+      const searchTerm = search.toLowerCase();
+      result = result.filter((course) => {
+        const haystack = `${course.title} ${course.subject}`.toLowerCase();
+        return haystack.includes(searchTerm);
+      });
+    }
+
+    return result;
+  }, [courses, selectedSubject, search]);
 
   return (
     <div className="px-6 py-8 md:px-10">

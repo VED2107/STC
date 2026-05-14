@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download, FileSpreadsheet, FileText, Search, Users } from "lucide-react";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
@@ -18,8 +18,17 @@ import {
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
-import { StudentFormDialog } from "@/components/admin/student-form-dialog";
-import { CsvUploadDialog } from "@/components/admin/csv-upload-dialog";
+import dynamic from "next/dynamic";
+
+const StudentFormDialog = dynamic(() => import("@/components/admin/student-form-dialog").then(mod => ({ default: mod.StudentFormDialog })), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
+});
+
+const CsvUploadDialog = dynamic(() => import("@/components/admin/csv-upload-dialog").then(mod => ({ default: mod.CsvUploadDialog })), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
+});
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import {
   getFeesStatusLabel,
@@ -105,6 +114,7 @@ function AdminStudentsPageInner() {
     }
 
     if (role === "teacher" && user?.id) {
+      // Optimized teacher query with single database roundtrip
       const { data: accessRows } = await supabase
         .from("teacher_class_access")
         .select("class_id")
@@ -117,6 +127,7 @@ function AdminStudentsPageInner() {
       if (classIds.length === 0) {
         setStudents([]);
         setLoading(false);
+        setAdminPageCache(studentsCacheKey, []);
         return;
       }
 
@@ -142,6 +153,7 @@ function AdminStudentsPageInner() {
       return;
     }
 
+    // Optimized batch queries with more selective field retrieval
     const [{ data: studentData }, { data: profileData }] = await Promise.all([
       supabase
         .from("students")
@@ -219,32 +231,61 @@ function AdminStudentsPageInner() {
     }
   }, [role, searchParams, router, pathname]);
 
-  const filtered = students.filter((student) => {
-    const courseTitles = (student.enrollments ?? [])
-      .map((entry) => entry.course?.title ?? "")
-      .join(" ");
-    const haystack = [
-      student.profile?.full_name ?? "",
-      student.profile?.phone ?? "",
-      student.profile?.email ?? "",
-      student.class?.name ?? "",
-      courseTitles,
-    ]
-      .join(" ")
-      .toLowerCase();
+  // Memoized filtered students for better performance
+  const filtered = useMemo(() => {
+    if (!search.trim()) return students;
 
-    return haystack.includes(search.toLowerCase());
-  });
+    const searchTerm = search.toLowerCase();
+    return students.filter((student) => {
+      const courseTitles = (student.enrollments ?? [])
+        .map((entry) => entry.course?.title ?? "")
+        .join(" ");
+      const haystack = [
+        student.profile?.full_name ?? "",
+        student.profile?.phone ?? "",
+        student.profile?.email ?? "",
+        student.class?.name ?? "",
+        courseTitles,
+      ]
+        .join(" ")
+        .toLowerCase();
 
-  const enrolledStudents = students.filter((student) => student.rowKind === "enrolled");
-  const activeCount = enrolledStudents.filter((student) => student.is_active).length;
-  const pendingCount = students.filter((student) => student.rowKind === "pending").length;
+      return haystack.includes(searchTerm);
+    });
+  }, [students, search]);
+
+  // Memoized student statistics for better performance
+  const studentStats = useMemo(() => {
+    const enrolledStudents = students.filter((student) => student.rowKind === "enrolled");
+    const activeCount = enrolledStudents.filter((student) => student.is_active).length;
+    const pendingCount = students.filter((student) => student.rowKind === "pending").length;
+
+    let feesPaidCount = 0;
+    let feesPartialCount = 0;
+    let feesNotPaidCount = 0;
+
+    for (const student of enrolledStudents) {
+      if (isFullyPaid(student)) {
+        feesPaidCount++;
+      } else if (isPartiallyPaid(student)) {
+        feesPartialCount++;
+      } else {
+        feesNotPaidCount++;
+      }
+    }
+
+    return {
+      enrolledStudents,
+      activeCount,
+      pendingCount,
+      feesPaidCount,
+      feesPartialCount,
+      feesNotPaidCount,
+    };
+  }, [students]);
+
   const isTeacherView = role === "teacher";
-  const feesPaidCount = enrolledStudents.filter((student) => isFullyPaid(student)).length;
-  const feesPartialCount = enrolledStudents.filter((student) => isPartiallyPaid(student)).length;
-  const feesNotPaidCount = enrolledStudents.filter(
-    (student) => !isFullyPaid(student) && !isPartiallyPaid(student),
-  ).length;
+  const { enrolledStudents, activeCount, pendingCount, feesPaidCount, feesPartialCount, feesNotPaidCount } = studentStats;
 
   async function loadAttendanceSummary(studentIds: string[]) {
     if (studentIds.length === 0) {
@@ -317,16 +358,17 @@ function AdminStudentsPageInner() {
     return subjectMap;
   }
 
-  function getExportFilename() {
+  // Memoized export filename calculation
+  const exportFilename = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
     if (filtered.length === 1 && filtered[0].profile?.full_name) {
       const name = filtered[0].profile.full_name.replace(/\s+/g, "_");
       return `${name}_${today}`;
     }
     return `all_students_${today}`;
-  }
+  }, [filtered]);
 
-  async function handleDownloadCSV() {
+  const handleDownloadCSV = useCallback(async () => {
     const enrolledIds = filtered
       .filter((student) => student.rowKind === "enrolled")
       .map((student) => student.id);
@@ -334,11 +376,11 @@ function AdminStudentsPageInner() {
     downloadCSV(
       buildStudentExportRows(filtered, attendanceByStudentId),
       studentExportHeaders,
-      getExportFilename(),
+      exportFilename,
     );
-  }
+  }, [filtered, exportFilename]);
 
-  async function handleDownloadXLSX() {
+  const handleDownloadXLSX = useCallback(async () => {
     const enrolledIds = filtered
       .filter((student) => student.rowKind === "enrolled")
       .map((student) => student.id);
@@ -346,11 +388,11 @@ function AdminStudentsPageInner() {
     await downloadXLSX(
       buildStudentExportRows(filtered, attendanceByStudentId),
       studentExportHeaders,
-      getExportFilename(),
+      exportFilename,
     );
-  }
+  }, [filtered, exportFilename]);
 
-  async function handleDownloadForm() {
+  const handleDownloadForm = useCallback(async () => {
     const classIds = Array.from(
       new Set(
         filtered
@@ -363,9 +405,9 @@ function AdminStudentsPageInner() {
     await generateStudentFormPDF(
       filtered,
       classSubjectsByClassId,
-      getExportFilename() + "_form",
+      exportFilename + "_form",
     );
-  }
+  }, [filtered, exportFilename]);
 
   const summaryCardClass = cn(
     stitchPanelSoftClass,

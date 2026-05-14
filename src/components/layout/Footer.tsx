@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GraduationCap, Mail, MapPin, Phone } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { memo } from "react";
 
 const quickLinks = [
   { href: "/online-courses", label: "Online Courses" },
@@ -17,7 +18,7 @@ const classLinks = [
   { href: "/online-courses?level=HSC", label: "HSC" },
 ];
 
-export function Footer() {
+function FooterComponent() {
   return (
     <footer className="border-t border-[rgba(108,92,231,0.12)] bg-[#08081a]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -121,3 +122,5 @@ export function Footer() {
     </footer>
   );
 }
+
+export const Footer = memo(FooterComponent);

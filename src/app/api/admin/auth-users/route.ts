@@ -10,6 +10,7 @@ const CACHE_TTL_MS = 60_000; // 60 seconds
 
 export async function GET() {
   try {
+    // Early auth validation
     const supabase = await createClient();
     const {
       data: { user },
@@ -17,17 +18,32 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    const { data: profile } = await supabase
+    // Profile validation with error handling
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (profile?.role !== "admin" && profile?.role !== "super_admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (profileError || !profile) {
+      return NextResponse.json(
+        { error: "Profile not found" },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const allowedRoles = new Set(["admin", "super_admin"]);
+    if (!allowedRoles.has(profile.role)) {
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Serve from cache if fresh

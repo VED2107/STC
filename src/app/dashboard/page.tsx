@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -61,7 +61,7 @@ interface StudentRecord {
   class?: { name: string; board: string; level: string } | null;
 }
 
-export default function StudentDashboard() {
+function StudentDashboardInner() {
   const router = useRouter();
   const { user, profile, role, loading: authLoading } = useAuth();
 
@@ -561,5 +561,19 @@ export default function StudentDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function StudentDashboard() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <LoadingAnimation size="lg" />
+        </div>
+      }
+    >
+      <StudentDashboardInner />
+    </Suspense>
   );
 }

@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy - STC Academy | Data Protection & Student Information",
+  description: "STC Academy's privacy policy for student and guardian information usage in admissions, academic operations, attendance communication, and course delivery.",
+  keywords: ["privacy policy", "data protection", "student information", "STC Academy privacy"],
+};
+
 export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 md:px-10">

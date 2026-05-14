@@ -7,16 +7,22 @@ export async function POST() {
     const { error } = await supabase.auth.signOut();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+      { success: true },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
-    const message =
-      error && typeof error === "object" && "message" in error
-        ? String((error as { message: string }).message)
-        : "Failed to sign out";
+    const message = error instanceof Error ? error.message : "Failed to sign out";
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: message },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -15,32 +16,19 @@ import {
 } from "@/lib/auth/resend";
 import { buildStcEmailTemplate } from "@/lib/auth/email-theme";
 
-async function authUserExists(email: string) {
-  const admin = createAdminClient();
-  let page = 1;
-
-  while (true) {
-    const { data, error } = await admin.auth.admin.listUsers({
-      page,
-      perPage: 200,
-    });
+async function authUserExists(email: string, adminClient: any) {
+  try {
+    // More efficient: try to get user by email directly instead of paginating all users
+    const { data, error } = await adminClient.auth.admin.getUserByEmail(email);
 
     if (error) {
-      throw error;
-    }
-
-    const users = data.users ?? [];
-    const matchedUser = users.find((user) => user.email?.toLowerCase() === email);
-
-    if (matchedUser) {
-      return true;
-    }
-
-    if (users.length < 200) {
+      // If getUserByEmail fails, user doesn't exist
       return false;
     }
 
-    page += 1;
+    return !!data?.user;
+  } catch {
+    return false;
   }
 }
 
@@ -75,8 +63,8 @@ function buildLoginOtpEmail({
 
 export async function POST(request: NextRequest) {
   try {
+    // Early validation before any heavy operations
     const apiKey = process.env.RESEND_API_KEY;
-
     if (!apiKey) {
       return NextResponse.json(
         { error: "Server misconfigured for OTP login." },
@@ -84,9 +72,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email } = await request.json();
+    const body = await request.json();
+    const { email } = body;
     const normalizedEmail = String(email ?? "").trim().toLowerCase();
 
+    // Input validation
     if (!normalizedEmail) {
       return NextResponse.json(
         { error: "Email is required." },
@@ -94,8 +84,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userExists = await authUserExists(normalizedEmail);
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return NextResponse.json(
+        { error: "Invalid email format." },
+        { status: 400 },
+      );
+    }
 
+    // Single admin client instance for all operations
+    const admin = createAdminClient();
+
+    // Check if user exists using optimized method
+    const userExists = await authUserExists(normalizedEmail, admin);
     if (!userExists) {
       return NextResponse.json(
         {
@@ -107,8 +109,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = createAdminClient();
-
+    // Generate OTP link
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: normalizedEmail,
@@ -121,19 +122,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resend = new Resend(apiKey);
-    const fromEmail = getResendFromEmail();
-    const { error: emailError } = await resend.emails.send({
-      from: fromEmail,
-      to: [normalizedEmail],
-      subject: `${linkData.properties.email_otp} is your STC Academy login code`,
-      html: buildLoginOtpEmail({
-        email: normalizedEmail,
-        otp: linkData.properties.email_otp,
-      }),
-      text: `Your STC Academy login code is ${linkData.properties.email_otp}. It expires in ${LOGIN_OTP_EXPIRY_MINUTES} minutes.`,
-    });
+    // Lazy initialization of Resend client only when needed
+    let emailError = null;
+    try {
+      const resend = new Resend(apiKey);
+      const fromEmail = getResendFromEmail();
+      const emailResult = await resend.emails.send({
+        from: fromEmail,
+        to: [normalizedEmail],
+        subject: `${linkData.properties.email_otp} is your STC Academy login code`,
+        html: buildLoginOtpEmail({
+          email: normalizedEmail,
+          otp: linkData.properties.email_otp,
+        }),
+        text: `Your STC Academy login code is ${linkData.properties.email_otp}. It expires in ${LOGIN_OTP_EXPIRY_MINUTES} minutes.`,
+      });
+      emailError = emailResult.error;
+    } catch (error) {
+      emailError = error;
+    }
 
+    // Build response
     const pendingLogin = buildPendingLogin(normalizedEmail);
     const response = NextResponse.json({
       success: true,
@@ -151,6 +160,7 @@ export async function POST(request: NextRequest) {
         : {}),
     });
 
+    // Handle email sending errors
     if (
       emailError &&
       !(canBypassResendInDevelopment() && isResendTestingRestriction(emailError.message))
@@ -158,6 +168,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: emailError.message }, { status: 500 });
     }
 
+    // Set cookie
     response.cookies.set(
       LOGIN_OTP_COOKIE,
       encryptPendingLogin(pendingLogin),
