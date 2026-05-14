@@ -112,41 +112,50 @@ export async function POST(request: Request) {
     const purchasedClassId =
       (paymentRow.course as { class_id?: string } | null)?.class_id ?? null;
 
-    const updatePromises = [
-      admin.from("enrollments").upsert(
-        {
-          student_id: student.id,
-          course_id: courseId,
-          status: "active",
-        },
-        { onConflict: "student_id,course_id" },
-      ),
-      admin
-        .from("course_payments")
-        .update({
-          status: "captured",
-          gateway_payment_id: paymentId,
-          gateway_signature: signature,
-          paid_at: new Date().toISOString(),
-        })
-        .eq("id", paymentRow.id),
+    const updatePromises: Array<Promise<{ error: { message: string } | null }>> = [
+      (async () => {
+        const { error } = await admin.from("enrollments").upsert(
+          {
+            student_id: student.id,
+            course_id: courseId,
+            status: "active",
+          },
+          { onConflict: "student_id,course_id" },
+        );
+        return { error };
+      })(),
+      (async () => {
+        const { error } = await admin
+          .from("course_payments")
+          .update({
+            status: "captured",
+            gateway_payment_id: paymentId,
+            gateway_signature: signature,
+            paid_at: new Date().toISOString(),
+          })
+          .eq("id", paymentRow.id);
+        return { error };
+      })(),
     ];
 
     if (purchasedClassId) {
       updatePromises.push(
-        admin
-          .from("students")
-          .update({ class_id: purchasedClassId, is_active: true })
-          .eq("id", student.id)
+        (async () => {
+          const { error } = await admin
+            .from("students")
+            .update({ class_id: purchasedClassId, is_active: true })
+            .eq("id", student.id);
+          return { error };
+        })()
       );
     }
 
     const results = await Promise.all(updatePromises);
-    const errors = results.filter(result => result.error);
+    const firstError = results.find((result) => result.error)?.error;
 
-    if (errors.length > 0) {
+    if (firstError) {
       return NextResponse.json(
-        { error: errors[0].error.message },
+        { error: firstError.message },
         { status: 500, headers: { "Cache-Control": "no-store" } }
       );
     }

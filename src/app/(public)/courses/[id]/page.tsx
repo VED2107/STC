@@ -1,9 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Class, Course } from "@/lib/types/database";
 import type { Metadata } from "next";
 import { CourseDetailClient } from "./client";
 
 type CourseDetailPageProps = {
   params: Promise<{ id: string }>;
+};
+
+type CourseMetadataResult = Pick<Course, "title" | "description" | "subject"> & {
+  class: Pick<Class, "name" | "board"> | Pick<Class, "name" | "board">[] | null;
 };
 
 export async function generateMetadata({ params }: CourseDetailPageProps): Promise<Metadata> {
@@ -16,7 +21,8 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
     .eq("is_online_only", true)
     .eq("is_active", true)
     .eq("id", id)
-    .single();
+    .single()
+    .overrideTypes<CourseMetadataResult | null, { merge: false }>();
 
   if (!course) {
     return {
@@ -25,7 +31,7 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
     };
   }
 
-  const classData = course.class as { name: string; board: string } | { name: string; board: string }[] | null;
+  const classData = course.class;
   const cls = Array.isArray(classData) ? classData[0] : classData;
 
   return {

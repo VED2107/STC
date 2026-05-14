@@ -21,7 +21,7 @@ type Json = string | number | boolean | null | { [key: string]: Json | undefined
 // Update shapes (what UPDATE accepts – all optional)
 // ---------------------------------------------------------------------------
 
-interface ProfileRow {
+type ProfileRow = {
   id: string;
   full_name: string;
   email: string | null;
@@ -32,9 +32,9 @@ interface ProfileRow {
   profile_reviewed_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-interface ClassRow {
+type ClassRow = {
   id: string;
   name: string;
   board: string;
@@ -43,9 +43,9 @@ interface ClassRow {
   sort_order: number;
   created_at: string;
   updated_at: string;
-}
+};
 
-interface TeacherRow {
+type TeacherRow = {
   id: string;
   profile_id: string | null;
   name: string;
@@ -55,9 +55,9 @@ interface TeacherRow {
   qualification: string;
   created_at: string;
   updated_at: string;
-}
+};
 
-interface CourseRow {
+type CourseRow = {
   id: string;
   title: string;
   description: string;
@@ -72,9 +72,9 @@ interface CourseRow {
   teacher_id: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-interface StudentRow {
+type StudentRow = {
   id: string;
   profile_id: string;
   class_id: string;
@@ -87,17 +87,17 @@ interface StudentRow {
   fees_installment2_paid: boolean;
   created_at: string;
   updated_at: string;
-}
+};
 
-interface EnrollmentRow {
+type EnrollmentRow = {
   id: string;
   student_id: string;
   course_id: string;
   enrolled_at: string;
   status: string;
-}
+};
 
-interface AttendanceRow {
+type AttendanceRow = {
   id: string;
   student_id: string;
   class_id: string;
@@ -113,9 +113,9 @@ interface AttendanceRow {
   check_out_at: string | null;
   scan_method: string;
   created_at: string;
-}
+};
 
-interface MaterialRow {
+type MaterialRow = {
   id: string;
   title: string;
   course_id: string | null;
@@ -126,9 +126,9 @@ interface MaterialRow {
   sort_order: number;
   created_at: string;
   updated_at: string;
-}
+};
 
-interface SyllabusRow {
+type SyllabusRow = {
   id: string;
   class_id: string;
   subject: string;
@@ -136,9 +136,9 @@ interface SyllabusRow {
   updated_by: string;
   created_at: string;
   updated_at: string;
-}
+};
 
-interface NotificationRow {
+type NotificationRow = {
   id: string;
   student_id: string;
   type: string;
@@ -148,34 +148,34 @@ interface NotificationRow {
   status: string;
   sent_at: string | null;
   created_at: string;
-}
+};
 
-interface TeacherClassAccessRow {
+type TeacherClassAccessRow = {
   id: string;
   teacher_profile_id: string;
   class_id: string;
   created_by: string | null;
   created_at: string;
-}
+};
 
-interface TeacherSubjectAccessRow {
+type TeacherSubjectAccessRow = {
   id: string;
   teacher_profile_id: string;
   class_id: string;
   subject: string;
   created_by: string | null;
   created_at: string;
-}
+};
 
-interface QrTokenRow {
+type QrTokenRow = {
   id: string;
   student_id: string;
   token: string;
   public_token: string | null;
   created_at: string;
-}
+};
 
-interface CoursePaymentRow {
+type CoursePaymentRow = {
   id: string;
   student_id: string;
   course_id: string;
@@ -190,9 +190,9 @@ interface CoursePaymentRow {
   paid_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-interface AttendanceSessionRow {
+type AttendanceSessionRow = {
   id: string;
   class_id: string;
   course_id: string | null;
@@ -205,28 +205,42 @@ interface AttendanceSessionRow {
   teacher_id: string | null;
   created_at: string;
   updated_at: string;
-}
+};
+
+type MarkAttendanceFunction = {
+  Args: {
+    p_student_token: string;
+    p_session_id: string;
+    p_teacher_id: string;
+  };
+  Returns: {
+    status: string;
+    attendance_id: string;
+    student_id: string;
+    student_name: string;
+    class_name: string;
+    subject: string;
+    session_date: string;
+    check_in_at: string | null;
+    check_out_at: string | null;
+    message: string;
+  }[];
+};
 
 // ---------------------------------------------------------------------------
 // Table definition helper
 // ---------------------------------------------------------------------------
-interface TableDef<Row, Insert = Row, Update = Partial<Row>> {
+type TableDef<Row, Insert = Row, Update = Partial<Row>> = {
   Row: Row;
   Insert: Insert;
   Update: Update;
-  Relationships: Array<{
-    foreignKeyName: string;
-    columns: string[];
-    isOneToOne: boolean;
-    referencedRelation: string;
-    referencedColumns: string[];
-  }>;
-}
+  Relationships: [];
+};
 
 // ---------------------------------------------------------------------------
 // Main Database type
 // ---------------------------------------------------------------------------
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: TableDef<ProfileRow, Partial<ProfileRow> & { id: string }, Partial<ProfileRow>>;
@@ -245,9 +259,9 @@ export interface Database {
       course_payments: TableDef<CoursePaymentRow, Partial<CoursePaymentRow> & { student_id: string; course_id: string }, Partial<CoursePaymentRow>>;
       attendance_sessions: TableDef<AttendanceSessionRow, Partial<AttendanceSessionRow> & { class_id: string; session_date: string; created_by: string }, Partial<AttendanceSessionRow>>;
     };
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- Supabase GenericSchema requires {} here; Record<string, never> would poison table types
-    Views: {};
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    Functions: {};
+    Views: Record<string, never>;
+    Functions: {
+      mark_attendance: MarkAttendanceFunction;
+    };
   };
-}
+};

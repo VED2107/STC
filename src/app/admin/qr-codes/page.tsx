@@ -82,18 +82,23 @@ export default function AdminQrCodesPage() {
         setSelectedClassId(cachedClasses[0].id);
       }
     }
-    supabase
-      .from("classes")
-      .select("*")
-      .order("sort_order")
-      .then(({ data }: { data: Class[] | null }) => {
-        const rows = data ?? [];
-        setClasses(rows);
-        setAdminPageCache(QR_CLASSES_CACHE_KEY, rows);
-        if (rows.length > 0 && !selectedClassId) {
-          setSelectedClassId(rows[0].id);
-        }
-      });
+
+    async function loadClasses() {
+      const { data } = await supabase
+        .from("classes")
+        .select("*")
+        .order("sort_order")
+        .overrideTypes<Class[], { merge: false }>();
+
+      const rows = data ?? [];
+      setClasses(rows);
+      setAdminPageCache(QR_CLASSES_CACHE_KEY, rows);
+      if (rows.length > 0 && !selectedClassId) {
+        setSelectedClassId(rows[0].id);
+      }
+    }
+
+    void loadClasses();
   }, [authLoading, role, selectedClassId]);
 
   const fetchStudents = useCallback(async () => {

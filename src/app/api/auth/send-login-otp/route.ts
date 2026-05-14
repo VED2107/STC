@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth/login-otp";
 import {
   canBypassResendInDevelopment,
+  getResendErrorMessage,
   getResendFromEmail,
   isResendTestingRestriction,
 } from "@/lib/auth/resend";
@@ -142,15 +143,19 @@ export async function POST(request: NextRequest) {
       emailError = error;
     }
 
+    const emailErrorMessage = getResendErrorMessage(emailError);
+    const canUseDevelopmentBypass =
+      Boolean(emailErrorMessage) &&
+      canBypassResendInDevelopment() &&
+      isResendTestingRestriction(emailErrorMessage);
+
     // Build response
     const pendingLogin = buildPendingLogin(normalizedEmail);
     const response = NextResponse.json({
       success: true,
       email: normalizedEmail,
       expiresInMinutes: LOGIN_OTP_EXPIRY_MINUTES,
-      ...(emailError &&
-      canBypassResendInDevelopment() &&
-      isResendTestingRestriction(emailError.message)
+      ...(canUseDevelopmentBypass
         ? {
             deliveryMode: "development",
             devOtp: linkData.properties.email_otp,
@@ -161,11 +166,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Handle email sending errors
-    if (
-      emailError &&
-      !(canBypassResendInDevelopment() && isResendTestingRestriction(emailError.message))
-    ) {
-      return NextResponse.json({ error: emailError.message }, { status: 500 });
+    if (emailError && !canUseDevelopmentBypass) {
+      return NextResponse.json(
+        { error: emailErrorMessage ?? "Failed to send login OTP email." },
+        { status: 500 },
+      );
     }
 
     // Set cookie

@@ -124,11 +124,15 @@ function StudentDashboardInner() {
       } as StudentRecord;
 
       const isTuition = typedStudent.student_type === "tuition";
+      type QueryResult = {
+        data: unknown;
+        count?: number | null;
+        error?: unknown;
+      };
 
       // ── Build a single query batch ──────────────────────────────
       // Base queries every student needs (indices 0-3)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const queries: Promise<any>[] = [
+      const queries: Array<PromiseLike<QueryResult>> = [
         /* 0 */ supabase
           .from("attendance")
           .select("id, date, status, class:classes(name)")
@@ -235,7 +239,10 @@ function StudentDashboardInner() {
         recentMats = (recentMaterialsRes.data as MaterialRow[] | null) ?? [];
       }
 
-      const courses = (coursesRes.data ?? [])
+      const courseEntries =
+        (coursesRes.data as Array<{ course: unknown }> | null) ?? [];
+
+      const courses = courseEntries
         .map((entry: { course: unknown }) => entry.course as unknown as CourseRow | null)
         .filter(Boolean) as CourseRow[];
       if (!isTuition) {

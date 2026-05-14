@@ -15,6 +15,19 @@ import {
 } from "@/lib/auth/resend";
 import { buildStcEmailTemplate } from "@/lib/auth/email-theme";
 
+const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
+
+function jsonNoStore(body: unknown, status: number) {
+  return NextResponse.json(body, {
+    status,
+    headers: NO_STORE_HEADERS,
+  });
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
 function buildSignupOtpEmail({
   email,
   name,
@@ -63,10 +76,9 @@ export async function POST(request: NextRequest) {
 
     // Input validation with early returns
     if (!fullName || !phone || !email || !password) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Full name, phone, email, and password are required." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        400,
       );
     }
 
@@ -78,36 +90,29 @@ export async function POST(request: NextRequest) {
 
     // Enhanced validation
     if (normalizedFullName.length < 2) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Full name must be at least 2 characters long." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        400,
       );
     }
 
     if (normalizedPhone.length < 10) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Phone number must be at least 10 digits." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        400,
       );
     }
 
     // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(normalizedEmail)) {
-      return NextResponse.json(
-        { error: "Invalid email format." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
-      );
+      return jsonNoStore({ error: "Invalid email format." }, 400);
     }
 
     if (normalizedPassword.length < 6) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Password must be at least 6 characters long." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        400,
       );
     }
 
@@ -120,7 +125,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Lazy initialization of Resend client only when needed
-    let emailError = null;
+    let emailError: unknown = null;
     try {
       const resend = new Resend(apiKey);
       const fromEmail = getResendFromEmail();
@@ -145,29 +150,32 @@ This code expires in ${OTP_EXPIRY_MINUTES} minutes.`,
     }
 
     // Build response
-    const response = NextResponse.json({
-      success: true,
-      email: pendingSignup.email,
-      expiresInMinutes: OTP_EXPIRY_MINUTES,
-      ...(emailError && canBypassResendInDevelopment() && isResendTestingRestriction(emailError.message)
-        ? {
-            deliveryMode: "development",
-            devOtp: pendingSignup.otp,
-            notice:
-              "Resend sandbox blocked external delivery, so the OTP is shown here for local development.",
-          }
-        : {}),
-    }, { headers: { "Cache-Control": "no-store" } });
+    const emailErrorMessage = emailError ? getErrorMessage(emailError) : null;
+    const isDevBypass =
+      !!emailErrorMessage &&
+      canBypassResendInDevelopment() &&
+      isResendTestingRestriction(emailErrorMessage);
+
+    const response = NextResponse.json(
+      {
+        success: true,
+        email: pendingSignup.email,
+        expiresInMinutes: OTP_EXPIRY_MINUTES,
+        ...(isDevBypass
+          ? {
+              deliveryMode: "development",
+              devOtp: pendingSignup.otp,
+              notice:
+                "Resend sandbox blocked external delivery, so the OTP is shown here for local development.",
+            }
+          : {}),
+      },
+      { headers: NO_STORE_HEADERS },
+    );
 
     // Handle email sending errors
-    if (emailError && !(
-      canBypassResendInDevelopment() && isResendTestingRestriction(emailError.message)
-    )) {
-      return NextResponse.json(
-        { error: emailError.message },
-        { status: 500 },
-        { headers: { "Cache-Control": "no-store" } }
-      );
+    if (emailErrorMessage && !isDevBypass) {
+      return jsonNoStore({ error: emailErrorMessage }, 500);
     }
 
     // Set cookie
@@ -182,10 +190,6 @@ This code expires in ${OTP_EXPIRY_MINUTES} minutes.`,
     const message =
       error instanceof Error ? error.message : "Failed to send signup OTP";
 
-    return NextResponse.json(
-      { error: message },
-      { status: 500 },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return jsonNoStore({ error: message }, 500);
   }
 }

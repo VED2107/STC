@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
+import type { UserRole } from "@/lib/types/database";
 import { sendCheckInMessage, sendCheckoutMessage } from "@/lib/whatsapp";
 
 interface MarkAttendanceRpcRow {
@@ -17,6 +18,11 @@ interface MarkAttendanceRpcRow {
   check_out_at: string | null;
   message: string;
 }
+
+type StudentNotificationLookup = {
+  id: string;
+  profile: Array<{ phone: string | null; parent_phone: string | null }> | null;
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +45,8 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .single();
+      .single()
+      .overrideTypes<{ role: UserRole }, { merge: false }>();
 
     if (profileError || !profile) {
       return NextResponse.json(
@@ -161,11 +168,10 @@ export async function POST(request: NextRequest) {
         .from("students")
         .select("id, profile:profiles(phone, parent_phone)")
         .eq("id", row.student_id)
-        .maybeSingle();
+        .maybeSingle()
+        .overrideTypes<StudentNotificationLookup | null, { merge: false }>();
 
-      const studentProfile = (student?.profile as
-        | Array<{ phone: string | null; parent_phone: string | null }>
-        | null)?.[0];
+      const studentProfile = student?.profile?.[0] ?? null;
       const parentPhone = studentProfile?.parent_phone || studentProfile?.phone || "";
 
       // Determine notification type

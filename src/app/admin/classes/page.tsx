@@ -124,17 +124,7 @@ function AdminClassesPageInner() {
   async function exportClassStudents(classId: string, className: string, format: "csv" | "xlsx") {
     setExportingClassId(classId);
     try {
-      const { data, error } = await supabase
-        .from("students")
-        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), enrollments(status, course:courses(title))")
-        .eq("class_id", classId)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      const typedRows = ((data ?? []) as Array<{
+      type ExportStudentRow = {
         id: string;
         profile_id: string;
         enrollment_date: string;
@@ -147,7 +137,20 @@ function AdminClassesPageInner() {
         profile: { full_name: string; phone: string; email?: string | null; avatar_url?: string | null } | null;
         class: { name: string; board: string } | null;
         enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
-      }>).map((student) => ({
+      };
+
+      const { data, error } = await supabase
+        .from("students")
+        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), enrollments(status, course:courses(title))")
+        .eq("class_id", classId)
+        .order("created_at", { ascending: false })
+        .overrideTypes<ExportStudentRow[], { merge: false }>();
+
+      if (error) {
+        throw error;
+      }
+
+      const typedRows = (data ?? []).map((student) => ({
         ...student,
         rowKind: "enrolled" as const,
       }));

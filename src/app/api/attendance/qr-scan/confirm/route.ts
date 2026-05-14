@@ -3,12 +3,26 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCheckoutMessage } from "@/lib/whatsapp";
+import type { UserRole } from "@/lib/types/database";
 
 /**
  * Minimum duration (in minutes) between check-in and check-out.
  * Mirrors the constant in the lookup endpoint.
  */
 const MIN_CHECKOUT_DURATION_MINUTES = 30;
+
+type StudentProfile = {
+  full_name: string;
+  phone: string;
+  parent_phone: string | null;
+  avatar_url: string | null;
+};
+
+type ActiveStudentRecord = {
+  id: string;
+  class_id: string;
+  profile: StudentProfile[] | null;
+};
 
 // Utility functions moved to module scope for better performance
 const getTodayInIndia = (): string => {
@@ -17,16 +31,7 @@ const getTodayInIndia = (): string => {
   }).format(new Date());
 };
 
-const extractStudentProfile = (student: any) => {
-  const profileArr = student.profile as unknown as Array<{
-    full_name: string;
-    phone: string;
-    parent_phone: string | null;
-    avatar_url: string | null;
-  }> | null;
-
-  return profileArr?.[0] ?? null;
-};
+const extractStudentProfile = (student: ActiveStudentRecord) => student.profile?.[0] ?? null;
 
 /**
  * POST /api/attendance/qr-scan/confirm
@@ -58,7 +63,8 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .single();
+      .single()
+      .overrideTypes<{ role: UserRole }, { merge: false }>();
 
     if (profileError || !profile) {
       return NextResponse.json(
@@ -117,7 +123,8 @@ export async function POST(request: NextRequest) {
       )
       .eq("id", studentId)
       .eq("is_active", true)
-      .single();
+      .single()
+      .overrideTypes<ActiveStudentRecord, { merge: false }>();
 
     if (studentError || !student) {
       return NextResponse.json(
@@ -130,7 +137,7 @@ export async function POST(request: NextRequest) {
     const studentProfile = extractStudentProfile(student);
     const studentName = studentProfile?.full_name ?? "Unknown Student";
     const studentPhoto = studentProfile?.avatar_url ?? null;
-    const classId = student.class_id as string;
+    const classId = student.class_id;
 
     // Optimize date calculations
     const today = getTodayInIndia();

@@ -466,8 +466,10 @@ export default function AdminAttendancePage() {
         .from("attendance")
         .select("session_id, student_id, status, late_minutes, remarks, check_in_at, check_out_at, scan_method");
 
-      if ((sessionData as { id?: string } | null)?.id) {
-        attendanceQuery = attendanceQuery.eq("session_id", sessionData.id);
+      const sessionId = (sessionData as { id?: string } | null)?.id ?? null;
+
+      if (sessionId) {
+        attendanceQuery = attendanceQuery.eq("session_id", sessionId);
       } else {
         attendanceQuery = attendanceQuery
           .eq("class_id", selectedClassId)
@@ -502,7 +504,7 @@ export default function AdminAttendancePage() {
       const normalizedRecords = fetchedStudents.map((student) => {
         const found = existingMap.get(student.id);
         const fallback: AttendanceRecord = {
-          session_id: (sessionData as { id?: string } | null)?.id ?? null,
+          session_id: sessionId,
           student_id: student.id,
           status: "present",
           late_minutes: null,

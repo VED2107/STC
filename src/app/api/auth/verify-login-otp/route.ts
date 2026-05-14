@@ -13,6 +13,8 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export async function POST(request: NextRequest) {
+  const noStoreHeaders = { "Cache-Control": "no-store" } as const;
+
   try {
     // Early environment validation
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -30,16 +32,14 @@ export async function POST(request: NextRequest) {
     if (!normalizedOtp) {
       return NextResponse.json(
         { error: "OTP is required." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: noStoreHeaders }
       );
     }
 
     if (!/^\d{6}$/.test(normalizedOtp)) {
       return NextResponse.json(
         { error: "OTP must be exactly 6 digits." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: noStoreHeaders }
       );
     }
 
@@ -48,8 +48,7 @@ export async function POST(request: NextRequest) {
     if (!pendingToken) {
       return NextResponse.json(
         { error: "Login session expired. Please request a new code." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: noStoreHeaders }
       );
     }
 
@@ -58,8 +57,7 @@ export async function POST(request: NextRequest) {
     if (!pendingLogin || isLoginOtpExpired(pendingLogin.expiresAt)) {
       const response = NextResponse.json(
         { error: "Login session expired. Please request a new code." },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: noStoreHeaders }
       );
       response.cookies.set(LOGIN_OTP_COOKIE, "", getLoginOtpCookieOptions(0));
       return response;
@@ -69,7 +67,7 @@ export async function POST(request: NextRequest) {
     let response = NextResponse.json({
       success: true,
       email: pendingLogin.email,
-    }, { headers: { "Cache-Control": "no-store" } });
+    }, { headers: noStoreHeaders });
 
     // Initialize Supabase client with optimized cookie handling
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -114,8 +112,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         { error: firstError },
-        { status: 400 },
-        { headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: noStoreHeaders }
       );
     }
 
@@ -128,8 +125,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: message },
-      { status: 500 },
-      { headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: noStoreHeaders }
     );
   }
 }

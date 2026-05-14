@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import type { Class, Course } from "@/lib/types/database";
+import type { Database } from "@/lib/types/supabase";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
 
 interface CourseFormDialogProps {
@@ -31,6 +32,9 @@ interface CourseFormDialogProps {
   onSuccess: () => void;
   editCourse?: Partial<Course> & { id?: string };
 }
+
+type CourseInsert = Database["public"]["Tables"]["courses"]["Insert"];
+type CourseUpdate = Database["public"]["Tables"]["courses"]["Update"];
 
 export function CourseFormDialog({
   open,
@@ -135,11 +139,11 @@ export function CourseFormDialog({
     const parsedFee = Number.parseInt(feeInr || "0", 10);
     const normalizedFee = Number.isFinite(parsedFee) && parsedFee >= 0 ? parsedFee : 0;
 
-    const payload = {
+    const payload: CourseInsert = {
       title,
       description,
       subject,
-      class_id: classId || null,
+      class_id: classId,
       is_online_only: true,
       teacher_id: null,
       is_active: isActive,
@@ -151,9 +155,10 @@ export function CourseFormDialog({
 
     try {
       if (editCourse?.id) {
+        const updatePayload: CourseUpdate = payload;
         const { error: updateError } = await supabase
           .from("courses")
-          .update(payload)
+          .update(updatePayload)
           .eq("id", editCourse.id);
         if (updateError) throw updateError;
 

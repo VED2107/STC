@@ -18,3 +18,12 @@ export function getResendFromEmail() {
 
   return from;
 }
+
+export function getResendErrorMessage(error: unknown) {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === "string" ? message : null;
+  }
+
+  return null;
+}

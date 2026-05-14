@@ -241,6 +241,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
   // ── Fetch QR token for tuition students ──
   useEffect(() => {
     if (!isTuitionStudent || !userId) return;
+    const profileId: string = userId;
     let cancelled = false;
 
     async function fetchQrToken() {
@@ -249,7 +250,7 @@ export function AtelierShell({ area, children }: AtelierShellProps) {
       const { data: student } = await supabase
         .from("students")
         .select("id")
-        .eq("profile_id", userId)
+        .eq("profile_id", profileId)
         .maybeSingle();
 
       if (!student || cancelled) return;
