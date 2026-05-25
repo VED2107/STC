@@ -264,7 +264,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
         <div className="rounded-lg border border-border bg-muted/30 p-4">
           <p className="text-sm font-medium text-foreground">Step 1: Download Template</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Required columns are <strong>Full Name</strong> and at least one of <strong>Phone</strong> or <strong>Email</strong>. <strong>Student Type</strong> defaults to tuition. Optional photo matching uses <strong>photo_file</strong>, such as <code>rahul.jpg</code>.
+            Required columns are <strong>Full Name</strong> and <strong>Phone</strong>. <strong>Email</strong> and <strong>Student Type</strong> are optional (type defaults to tuition). Optional photo matching uses <strong>photo_file</strong>, such as <code>rahul.jpg</code>.
           </p>
           <div className="mt-3 flex gap-2">
             <Button variant="outline" size="sm" onClick={downloadBulkTemplateCSV} className="gap-1.5">

@@ -93,12 +93,12 @@ export async function bulkUploadStudents(
     const email = (row.email ?? "").trim().toLowerCase();
     const phone = (row.phone ?? "").trim();
 
-    if (!email && !phone) {
+    if (!phone) {
       results.push({
         row: rowNum,
         name,
         success: false,
-        error: "Email or phone is required",
+        error: "Phone number is required",
         photoFile,
       });
       totalFailed++;

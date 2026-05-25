@@ -323,9 +323,15 @@ export async function parseXLSXFromFile(file: File): Promise<Record<string, stri
   const sharedStrings: string[] = [];
   if (sstEntry) {
     const sstXml = decoder.decode(sstEntry.data);
-    const siMatches = sstXml.matchAll(/<si[^>]*>[\s\S]*?<t[^>]*>([\s\S]*?)<\/t>[\s\S]*?<\/si>/gi);
+    const siMatches = sstXml.matchAll(/<si[^>]*>([\s\S]*?)<\/si>/gi);
     for (const match of siMatches) {
-      sharedStrings.push(decodeXmlEntities(match[1]));
+      // Concatenate all <t> values inside this <si> (handles multi-run rich text)
+      const tMatches = match[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/gi);
+      let text = "";
+      for (const t of tMatches) {
+        text += decodeXmlEntities(t[1]);
+      }
+      sharedStrings.push(text);
     }
   }
 
@@ -334,28 +340,44 @@ export async function parseXLSXFromFile(file: File): Promise<Record<string, stri
   const allRows: string[][] = [];
 
   for (const rowMatch of rowMatches) {
-    const cellMatches = rowMatch[1].matchAll(/<c\s([^>]*)>([\s\S]*?)<\/c>/gi);
-    const cells: string[] = [];
+    // Match cells with content: <c ...>...</c> (with or without attributes)
+    // Also match self-closing cells: <c ... />
+    const cellMatches = rowMatch[1].matchAll(/<c(\s[^>]*)?\s*(?:\/>|>([\s\S]*?)<\/c)>/gi);
+    const cellMap: [number, string][] = [];
+    let maxCol = -1;
 
     for (const cellMatch of cellMatches) {
-      const attrs = cellMatch[1];
-      const inner = cellMatch[2];
+      const attrs = cellMatch[1] ?? "";
+      const inner = cellMatch[2] ?? "";
       const isSharedString = /t\s*=\s*"s"/i.test(attrs);
+
+      // Extract column index from r attribute (e.g. r="C2" → column 2)
+      const refMatch = attrs.match(/r\s*=\s*"([A-Z]+)\d+"/i);
+      const colIndex = refMatch ? colLetterToIndex(refMatch[1]) : cellMap.length;
+
       const valueMatch = inner.match(/<v>([\s\S]*?)<\/v>/);
       const inlineMatch = inner.match(/<t[^>]*>([\s\S]*?)<\/t>/);
 
+      let value = "";
       if (inlineMatch) {
-        cells.push(decodeXmlEntities(inlineMatch[1]));
+        value = decodeXmlEntities(inlineMatch[1]);
       } else if (valueMatch) {
         if (isSharedString) {
           const idx = parseInt(valueMatch[1], 10);
-          cells.push(sharedStrings[idx] ?? "");
+          value = sharedStrings[idx] ?? "";
         } else {
-          cells.push(valueMatch[1]);
+          value = valueMatch[1];
         }
-      } else {
-        cells.push("");
       }
+
+      cellMap.push([colIndex, value]);
+      if (colIndex > maxCol) maxCol = colIndex;
+    }
+
+    // Build array with correct column positions (fill gaps with "")
+    const cells: string[] = new Array(maxCol + 1).fill("");
+    for (const [col, val] of cellMap) {
+      cells[col] = val;
     }
     allRows.push(cells);
   }
@@ -379,6 +401,16 @@ export async function parseXLSXFromFile(file: File): Promise<Record<string, stri
   return result;
 }
 
+/** Convert Excel column letters to 0-based index (A→0, B→1, Z→25, AA→26, etc.) */
+function colLetterToIndex(letters: string): number {
+  let index = 0;
+  const upper = letters.toUpperCase();
+  for (let i = 0; i < upper.length; i++) {
+    index = index * 26 + (upper.charCodeAt(i) - 64);
+  }
+  return index - 1;
+}
+
 function decodeXmlEntities(s: string): string {
   return s
     .replace(/&amp;/g, "&")
@@ -393,18 +425,47 @@ async function readZipEntries(data: Uint8Array): Promise<{ path: string; data: U
   const entries: { path: string; data: Uint8Array }[] = [];
   const decoder = new TextDecoder();
 
+  // Build a map of file sizes from the central directory (reliable source).
+  // Google Sheets sets bit 3 (data descriptor flag) which zeroes out sizes
+  // in the local file header, so we need the central directory as fallback.
+  const cdSizes = new Map<string, { comp: number; uncomp: number }>();
+  const eocdPos = findEOCD(data, view);
+  if (eocdPos >= 0) {
+    const cdOffset = view.getUint32(eocdPos + 16, true);
+    const cdCount = view.getUint16(eocdPos + 10, true);
+    let cdPos = cdOffset;
+    for (let i = 0; i < cdCount && cdPos < data.length - 4; i++) {
+      const cdSig = view.getUint32(cdPos, true);
+      if (cdSig !== 0x02014b50) break;
+      const cdCompSize = view.getUint32(cdPos + 20, true);
+      const cdUncompSize = view.getUint32(cdPos + 24, true);
+      const cdNameLen = view.getUint16(cdPos + 28, true);
+      const cdExtraLen = view.getUint16(cdPos + 30, true);
+      const cdCommentLen = view.getUint16(cdPos + 32, true);
+      const cdName = decoder.decode(data.subarray(cdPos + 46, cdPos + 46 + cdNameLen));
+      cdSizes.set(cdName, { comp: cdCompSize, uncomp: cdUncompSize });
+      cdPos += 46 + cdNameLen + cdExtraLen + cdCommentLen;
+    }
+  }
+
   let offset = 0;
   while (offset < data.length - 4) {
     const sig = view.getUint32(offset, true);
     if (sig !== 0x04034b50) break;
 
     const compMethod = view.getUint16(offset + 8, true);
-    const compSize = view.getUint32(offset + 18, true);
+    let compSize = view.getUint32(offset + 18, true);
     const nameLen = view.getUint16(offset + 26, true);
     const extraLen = view.getUint16(offset + 28, true);
     const nameStart = offset + 30;
     const path = decoder.decode(data.subarray(nameStart, nameStart + nameLen));
     const dataStart = nameStart + nameLen + extraLen;
+
+    // If local header has size=0 (data descriptor flag), use central directory
+    if (compSize === 0 && cdSizes.has(path)) {
+      compSize = cdSizes.get(path)!.comp;
+    }
+
     const rawBytes = data.subarray(dataStart, dataStart + compSize);
 
     if (compMethod === 0) {
@@ -423,6 +484,15 @@ async function readZipEntries(data: Uint8Array): Promise<{ path: string; data: U
   }
 
   return entries;
+}
+
+/** Locate the End of Central Directory record (scans backwards). */
+function findEOCD(data: Uint8Array, view: DataView): number {
+  // EOCD is at least 22 bytes, scan backwards for the signature
+  for (let i = data.length - 22; i >= 0 && i >= data.length - 65557; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) return i;
+  }
+  return -1;
 }
 
 async function decompressDeflateRaw(compressed: Uint8Array): Promise<Uint8Array> {
