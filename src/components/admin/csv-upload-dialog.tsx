@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, Download, FileImage, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import {
   bulkUploadStudents,
@@ -19,11 +19,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   downloadBulkTemplateCSV,
   downloadBulkTemplateXLSX,
   parseCSVText,
   parseXLSXFromFile,
 } from "@/lib/export-utils";
+import { createClient } from "@/lib/supabase/client";
+import type { Class } from "@/lib/types/database";
 
 interface CsvUploadDialogProps {
   open: boolean;
@@ -51,6 +60,20 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
   const [result, setResult] = useState<BulkUploadResponse | null>(null);
   const [parseError, setParseError] = useState("");
   const [photoOutcome, setPhotoOutcome] = useState<PhotoUploadOutcome | null>(null);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
+
+  useEffect(() => {
+    if (!open) return;
+    const supabase = createClient();
+    supabase
+      .from("classes")
+      .select("*")
+      .order("sort_order")
+      .then((res: { data: unknown }) => {
+        if (res.data) setClasses(res.data as Class[]);
+      });
+  }, [open]);
 
   const photoRefsInSheet = useMemo(
     () =>
@@ -78,6 +101,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
     setResult(null);
     setParseError("");
     setPhotoOutcome(null);
+    setSelectedClassId("");
   }, []);
 
   function handleClose(nextOpen: boolean) {
@@ -197,7 +221,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
     setPhotoOutcome(null);
 
     try {
-      const response = await bulkUploadStudents(parsedRows);
+      const response = await bulkUploadStudents(parsedRows, selectedClassId || undefined);
       setResult(response);
 
       const nextPhotoOutcome = await processPhotoUploads(response.results);
@@ -254,8 +278,37 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
           </div>
         </div>
 
+        <div className="rounded-lg border border-border bg-muted/30 p-4">
+          <p className="text-sm font-medium text-foreground">Step 2: Select Class (Optional)</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Choose a class to auto-enroll all uploaded students. Leave empty to create profiles only.
+          </p>
+          <div className="mt-3">
+            <Select value={selectedClassId} onValueChange={(value) => setSelectedClassId(value ?? "")}>
+              <SelectTrigger>
+                <SelectValue placeholder="No class (profile only)">
+                  {selectedClassId
+                    ? (() => {
+                        const c = classes.find((item) => item.id === selectedClassId);
+                        return c ? `${c.name} (${c.board})` : selectedClassId;
+                      })()
+                    : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No class (profile only)</SelectItem>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.board})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         <div className="rounded-lg border border-dashed border-border p-6 text-center">
-          <p className="text-sm font-medium text-foreground">Step 2: Upload Filled Sheet</p>
+          <p className="text-sm font-medium text-foreground">Step 3: Upload Filled Sheet</p>
           <label
             htmlFor="csv-upload-input"
             className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground transition hover:bg-primary/90"
@@ -291,7 +344,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
         </div>
 
         <div className="rounded-lg border border-dashed border-border p-6 text-center">
-          <p className="text-sm font-medium text-foreground">Step 3: Optional Student Photos</p>
+          <p className="text-sm font-medium text-foreground">Step 4: Optional Student Photos</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Select all student image files at once. Each sheet row uses the `photo_file` column to match its image by file name.
           </p>
@@ -339,7 +392,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
           <div className="rounded-lg border border-border">
             <div className="border-b border-border bg-muted/30 px-4 py-2.5">
               <p className="text-sm font-medium text-foreground">
-                Step 4: Preview ({parsedRows.length} student{parsedRows.length !== 1 ? "s" : ""})
+                Step 5: Preview ({parsedRows.length} student{parsedRows.length !== 1 ? "s" : ""})
               </p>
             </div>
             <div className="max-h-52 overflow-auto">
@@ -410,6 +463,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
                     <th className="px-3 py-2 font-medium">Row</th>
                     <th className="px-3 py-2 font-medium">Student</th>
                     <th className="px-3 py-2 font-medium">Status</th>
+                    <th className="px-3 py-2 font-medium">Student ID</th>
                     <th className="px-3 py-2 font-medium">Details</th>
                   </tr>
                 </thead>
@@ -432,6 +486,9 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
                           >
                             {item.success ? (item.skipped ? "Skipped" : "Success") : "Failed"}
                           </span>
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                          {item.studentId ? item.studentId.slice(0, 8) : "-"}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {item.error || "Registered successfully"}

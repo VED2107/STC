@@ -19,6 +19,7 @@ export interface BulkUploadResult {
   error?: string;
   skipped?: boolean;
   profileId?: string;
+  studentId?: string;
   photoFile?: string;
 }
 
@@ -31,6 +32,7 @@ export interface BulkUploadResponse {
 
 export async function bulkUploadStudents(
   rows: BulkStudentRow[],
+  classId?: string,
 ): Promise<BulkUploadResponse> {
   let admin;
   try {
@@ -249,11 +251,43 @@ export async function bulkUploadStudents(
 
       existingProfileIds.add(userId);
 
+      let studentId: string | undefined;
+      if (classId) {
+        const { data: studentData, error: studentError } = await admin
+          .from("students")
+          .upsert(
+            {
+              profile_id: userId,
+              class_id: classId,
+              student_type: studentType,
+              is_active: true,
+            },
+            { onConflict: "profile_id" },
+          )
+          .select("id")
+          .single();
+
+        if (studentError) {
+          results.push({
+            row: rowNum,
+            name,
+            success: false,
+            error: `Profile created but student enrollment failed: ${studentError.message}`,
+            profileId: userId,
+            photoFile,
+          });
+          totalFailed++;
+          continue;
+        }
+        studentId = (studentData as { id: string } | null)?.id;
+      }
+
       results.push({
         row: rowNum,
         name,
         success: true,
         profileId: userId,
+        studentId,
         photoFile,
       });
       totalSuccess++;
