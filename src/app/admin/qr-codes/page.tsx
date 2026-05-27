@@ -256,14 +256,95 @@ export default function AdminQrCodesPage() {
     }
   }
 
-  function handleDownloadQr(studentId: string, studentName: string) {
+  function buildLabeledQrCanvas(
+    qrCanvas: HTMLCanvasElement,
+    studentName: string,
+    className: string,
+  ): HTMLCanvasElement {
+    const padding = 24;
+    const textGap = 16;
+    const qrSize = qrCanvas.width;
+    const labelCanvas = document.createElement("canvas");
+    const ctx = labelCanvas.getContext("2d")!;
+
+    // Measure text to determine canvas height
+    ctx.font = "bold 20px sans-serif";
+    const nameMetrics = ctx.measureText(studentName);
+    ctx.font = "16px sans-serif";
+    const classMetrics = ctx.measureText(className);
+
+    const contentWidth = Math.max(qrSize, nameMetrics.width, classMetrics.width);
+    const totalWidth = contentWidth + padding * 2;
+    const totalHeight = padding + qrSize + textGap + 24 + 6 + 20 + padding;
+
+    labelCanvas.width = totalWidth;
+    labelCanvas.height = totalHeight;
+
+    // White background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+    // Center QR
+    const qrX = (totalWidth - qrSize) / 2;
+    ctx.drawImage(qrCanvas, qrX, padding, qrSize, qrSize);
+
+    // Student name
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(studentName, totalWidth / 2, padding + qrSize + textGap + 18);
+
+    // Class name
+    ctx.fillStyle = "#555555";
+    ctx.font = "16px sans-serif";
+    ctx.fillText(className, totalWidth / 2, padding + qrSize + textGap + 18 + 24);
+
+    return labelCanvas;
+  }
+
+  function handleDownloadQr(studentId: string, studentName: string, className: string) {
     const canvas = qrCanvasRefs.current.get(studentId);
     if (!canvas) return;
 
+    const labeled = buildLabeledQrCanvas(canvas, studentName, className);
     const link = document.createElement("a");
     link.download = `qr_${studentName.replace(/\s+/g, "_")}.png`;
-    link.href = canvas.toDataURL("image/png");
+    link.href = labeled.toDataURL("image/png");
     link.click();
+  }
+
+  const [downloadingAll, setDownloadingAll] = useState(false);
+
+  async function handleDownloadAllQr() {
+    const studentsWithToken = filteredStudents.filter((s) => s.token);
+    if (studentsWithToken.length === 0) return;
+
+    setDownloadingAll(true);
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+
+      for (const student of studentsWithToken) {
+        const canvas = qrCanvasRefs.current.get(student.student_id);
+        if (!canvas) continue;
+
+        const labeled = buildLabeledQrCanvas(canvas, student.student_name, student.class_name);
+        const dataUrl = labeled.toDataURL("image/png");
+        const base64 = dataUrl.split(",")[1];
+        zip.file(`qr_${student.student_name.replace(/\s+/g, "_")}.png`, base64, { base64: true });
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      link.download = `qr_codes_${selectedClass?.name?.replace(/\s+/g, "_") ?? "class"}.zip`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch {
+      setActionMessage("Failed to download QR codes");
+    } finally {
+      setDownloadingAll(false);
+    }
   }
 
   function formatRegenDate(iso: string | null) {
@@ -363,6 +444,19 @@ export default function AdminQrCodesPage() {
                 )}
                 Regenerate Whole Class QR
               </button>
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "gap-2")}
+                onClick={() => void handleDownloadAllQr()}
+                disabled={downloadingAll || !selectedClassId || withTokenCount === 0}
+              >
+                {downloadingAll ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Download All QR Codes
+              </button>
             </div>
 
             {actionMessage && (
@@ -441,6 +535,7 @@ export default function AdminQrCodesPage() {
                             handleDownloadQr(
                               student.student_id,
                               student.student_name,
+                              student.class_name,
                             )
                           }
                         >
