@@ -16,8 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, GripVertical, Loader2, Pencil, Save, Trash2 } from "lucide-react";
-import type { BoardType, Class, ClassLevel } from "@/lib/types/database";
+import { Download, GitBranch, GripVertical, Loader2, Pencil, Save, Trash2 } from "lucide-react";
+import type { BoardType, Branch, Class, ClassLevel } from "@/lib/types/database";
+import { BranchManagementDialog } from "@/components/admin/branch-management-dialog";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import {
   StitchEmptyState,
@@ -66,6 +67,7 @@ interface ClassesOverviewCache {
   studentCounts: Record<string, number>;
   teacherNamesByClass: Record<string, string[]>;
   subjectsByClass: Record<string, string[]>;
+  branchCountsByClass: Record<string, number>;
 }
 
 function AdminClassesPageInner() {
@@ -105,6 +107,12 @@ function AdminClassesPageInner() {
   const [reordering, setReordering] = useState(false);
   const [exportingClassId, setExportingClassId] = useState<string | null>(null);
   const [seedingDefaults, setSeedingDefaults] = useState(false);
+  const [branchCountsByClass, setBranchCountsByClass] = useState<Record<string, number>>(
+    () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY)?.branchCountsByClass ?? {},
+  );
+  const [branchDialogOpen, setBranchDialogOpen] = useState(false);
+  const [branchDialogClassId, setBranchDialogClassId] = useState<string | null>(null);
+  const [branchDialogClassName, setBranchDialogClassName] = useState("");
 
   function normalizeSubject(value: string) {
     return value.trim().replace(/\s+/g, " ");
@@ -231,11 +239,12 @@ function AdminClassesPageInner() {
       setLoading(false);
     }
 
-    const [classesRes, studentsRes, classTeachersRes, classSubjectsRes] = await Promise.all([
+    const [classesRes, studentsRes, classTeachersRes, classSubjectsRes, branchesRes] = await Promise.all([
       supabase.from("classes").select("*").order("sort_order"),
       supabase.from("students").select("class_id, is_active").eq("is_active", true),
       supabase.from("courses").select("class_id, teacher:teachers(name)").not("teacher_id", "is", null),
       supabase.from("syllabus").select("class_id, subject").order("subject"),
+      supabase.from("branches").select("class_id"),
     ]);
 
     const classRows = normalizeClasses((classesRes.data as Class[] | null) ?? []);
@@ -266,15 +275,22 @@ function AdminClassesPageInner() {
       nextSubjectsByClass[row.class_id] = existing;
     });
 
+    const nextBranchCounts: Record<string, number> = {};
+    ((branchesRes.data as Array<{ class_id: string }> | null) ?? []).forEach((row) => {
+      nextBranchCounts[row.class_id] = (nextBranchCounts[row.class_id] ?? 0) + 1;
+    });
+
     setClasses(classRows);
     setStudentCounts(counts);
     setTeacherNamesByClass(normalizedTeachersMap);
     setSubjectsByClass(nextSubjectsByClass);
+    setBranchCountsByClass(nextBranchCounts);
     setAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY, {
       classes: classRows,
       studentCounts: counts,
       teacherNamesByClass: normalizedTeachersMap,
       subjectsByClass: nextSubjectsByClass,
+      branchCountsByClass: nextBranchCounts,
     });
     setLoading(false);
   }, []);
@@ -781,7 +797,22 @@ function AdminClassesPageInner() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           Subjects: {(subjectsByClass[item.id] ?? []).join(", ") || "Not added"}
                         </p>
-                        <div className="mt-5 h-1 rounded-full bg-border">
+                        <button
+                          type="button"
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBranchDialogClassId(item.id);
+                            setBranchDialogClassName(`${item.name} (${item.board})`);
+                            setBranchDialogOpen(true);
+                          }}
+                        >
+                          <GitBranch className="h-3 w-3" />
+                          {branchCountsByClass[item.id]
+                            ? `${branchCountsByClass[item.id]} branch${branchCountsByClass[item.id] > 1 ? "es" : ""}`
+                            : "Add branches"}
+                        </button>
+                        <div className="mt-3 h-1 rounded-full bg-border">
                           <div className="h-1 rounded-full bg-primary" style={{ width: `${usage}%` }} />
                         </div>
                         <div className="mt-2.5 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -861,6 +892,20 @@ function AdminClassesPageInner() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           {(subjectsByClass[item.id] ?? []).join(", ") || "No subjects"}
                         </p>
+                        <button
+                          type="button"
+                          className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            setBranchDialogClassId(item.id);
+                            setBranchDialogClassName(`${item.name} (${item.board})`);
+                            setBranchDialogOpen(true);
+                          }}
+                        >
+                          <GitBranch className="h-3 w-3" />
+                          {branchCountsByClass[item.id]
+                            ? `${branchCountsByClass[item.id]} branch${branchCountsByClass[item.id] > 1 ? "es" : ""}`
+                            : "Add branches"}
+                        </button>
                       </td>
                       <td className="py-4 text-sm text-muted-foreground">
                         {studentCounts[item.id] ?? 0}/{item.capacity ?? DEFAULT_CLASS_CAPACITY}
@@ -1026,6 +1071,20 @@ function AdminClassesPageInner() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {branchDialogClassId ? (
+        <BranchManagementDialog
+          open={branchDialogOpen}
+          onOpenChange={(next) => {
+            setBranchDialogOpen(next);
+            if (!next) setBranchDialogClassId(null);
+          }}
+          classId={branchDialogClassId}
+          className={branchDialogClassName}
+          classSubjects={subjectsByClass[branchDialogClassId] ?? []}
+          onBranchesChanged={refreshClasses}
+        />
+      ) : null}
     </div>
   );
 }

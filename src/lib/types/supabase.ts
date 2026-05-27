@@ -192,6 +192,21 @@ type CoursePaymentRow = {
   updated_at: string;
 };
 
+type BranchRow = {
+  id: string;
+  class_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type BranchSubjectRow = {
+  id: string;
+  branch_id: string;
+  subject: string;
+  created_at: string;
+};
+
 type AttendanceSessionRow = {
   id: string;
   class_id: string;
@@ -258,6 +273,8 @@ export type Database = {
       qr_tokens: TableDef<QrTokenRow, Partial<QrTokenRow> & { student_id: string }, Partial<QrTokenRow>>;
       course_payments: TableDef<CoursePaymentRow, Partial<CoursePaymentRow> & { student_id: string; course_id: string }, Partial<CoursePaymentRow>>;
       attendance_sessions: TableDef<AttendanceSessionRow, Partial<AttendanceSessionRow> & { class_id: string; session_date: string; created_by: string }, Partial<AttendanceSessionRow>>;
+      branches: TableDef<BranchRow, Partial<BranchRow> & { class_id: string; name: string }, Partial<BranchRow>>;
+      branch_subjects: TableDef<BranchSubjectRow, Partial<BranchSubjectRow> & { branch_id: string; subject: string }, Partial<BranchSubjectRow>>;
     };
     Views: Record<string, never>;
     Functions: {

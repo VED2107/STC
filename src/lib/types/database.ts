@@ -136,6 +136,20 @@ export interface Material {
   created_at: string;
 }
 
+export interface Branch {
+  id: string;
+  class_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface BranchSubject {
+  id: string;
+  branch_id: string;
+  subject: string;
+  created_at: string;
+}
+
 export interface Syllabus {
   id: string;
   class_id: string;

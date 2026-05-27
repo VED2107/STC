@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import type { Class, Teacher } from "@/lib/types/database";
+import type { Branch, Class, Teacher } from "@/lib/types/database";
 import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
 
@@ -59,6 +59,9 @@ export function TeacherFormDialog({
     Array<{ classId: string; classLabel: string; subject: string; key: string }>
   >([]);
   const [selectedSubjectKeys, setSelectedSubjectKeys] = useState<string[]>([]);
+  const [branchesByClass, setBranchesByClass] = useState<
+    Record<string, Array<{ id: string; name: string; subjects: string[] }>>
+  >({});
   const [errorMessage, setErrorMessage] = useState("");
 
   async function loadSubjectsForClasses(classRows: Class[], classIds: string[]) {
@@ -177,6 +180,52 @@ export function TeacherFormDialog({
     if (!open) return;
     void loadSubjectsForClasses(classes, selectedClassIds);
   }, [classes, open, selectedClassIds]);
+
+  useEffect(() => {
+    if (!open || selectedClassIds.length === 0) {
+      setBranchesByClass({});
+      return;
+    }
+
+    async function loadBranches() {
+      const supabase = createClient();
+      const { data: branchRows } = await supabase
+        .from("branches")
+        .select("id, class_id, name")
+        .in("class_id", selectedClassIds)
+        .order("name");
+
+      const typed = (branchRows ?? []) as Array<{ id: string; class_id: string; name: string }>;
+      if (typed.length === 0) {
+        setBranchesByClass({});
+        return;
+      }
+
+      const branchIds = typed.map((b) => b.id);
+      const { data: subjectRows } = await supabase
+        .from("branch_subjects")
+        .select("branch_id, subject")
+        .in("branch_id", branchIds)
+        .order("subject");
+
+      const subjectMap = new Map<string, string[]>();
+      for (const row of (subjectRows ?? []) as Array<{ branch_id: string; subject: string }>) {
+        const existing = subjectMap.get(row.branch_id) ?? [];
+        existing.push(row.subject);
+        subjectMap.set(row.branch_id, existing);
+      }
+
+      const grouped: Record<string, Array<{ id: string; name: string; subjects: string[] }>> = {};
+      for (const branch of typed) {
+        const list = grouped[branch.class_id] ?? [];
+        list.push({ id: branch.id, name: branch.name, subjects: subjectMap.get(branch.id) ?? [] });
+        grouped[branch.class_id] = list;
+      }
+      setBranchesByClass(grouped);
+    }
+
+    void loadBranches();
+  }, [open, selectedClassIds]);
 
   useEffect(() => {
     const summary = Array.from(
@@ -459,6 +508,38 @@ export function TeacherFormDialog({
               </p>
             ) : null}
           </div>
+          {Object.keys(branchesByClass).length > 0 ? (
+            <div className="space-y-2">
+              <Label>Branches</Label>
+              <div className="max-h-40 space-y-3 overflow-y-auto rounded-md border p-3">
+                {selectedClassIds.map((classId) => {
+                  const classBranches = branchesByClass[classId];
+                  if (!classBranches || classBranches.length === 0) return null;
+                  const classItem = classes.find((c) => c.id === classId);
+                  return (
+                    <div key={classId}>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {classItem ? `${classItem.name} (${classItem.board})` : "Class"}
+                      </p>
+                      {classBranches.map((branch) => (
+                        <div key={branch.id} className="ml-3 mt-1">
+                          <p className="text-sm">{branch.name}</p>
+                          {branch.subjects.length > 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              {branch.subjects.join(", ")}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Branches defined under selected classes. Select subjects below for access.
+              </p>
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label>Subjects For Selected Classes</Label>
             <div className="max-h-40 space-y-3 overflow-y-auto rounded-md border p-3">
