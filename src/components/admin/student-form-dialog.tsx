@@ -34,6 +34,7 @@ interface EditableStudent {
   id: string;
   profile_id: string;
   class_id: string;
+  branch_id?: string | null;
   student_type: StudentType;
   is_active: boolean;
   fees_amount: number;
@@ -66,6 +67,7 @@ export function StudentFormDialog({
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [classId, setClassId] = useState("");
+  const [branchId, setBranchId] = useState("");
   const [studentType, setStudentType] = useState<StudentType>("tuition");
   const [isActive, setIsActive] = useState<"active" | "inactive">("active");
   const [feesAmount, setFeesAmount] = useState("");
@@ -75,6 +77,9 @@ export function StudentFormDialog({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [existingAvatarUrl, setExistingAvatarUrl] = useState<string | null>(null);
+  const [branchesForClass, setBranchesForClass] = useState<
+    Array<{ id: string; name: string; subjects: string[] }>
+  >([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const isEditMode = Boolean(editStudent);
   const selectedClass = classes.find((item) => item.id === classId) ?? null;
@@ -106,6 +111,7 @@ export function StudentFormDialog({
       setFullName(editStudent.profile?.full_name ?? "");
       setPhone(editStudent.profile?.phone ?? "");
       setClassId(editStudent.class_id);
+      setBranchId(editStudent.branch_id ?? "");
       setStudentType(editStudent.student_type);
       setIsActive(editStudent.is_active ? "active" : "inactive");
       setFeesAmount(String(editStudent.fees_amount ?? 0));
@@ -123,6 +129,7 @@ export function StudentFormDialog({
     setFullName("");
     setPhone("");
     setClassId("");
+    setBranchId("");
     setStudentType("tuition");
     setIsActive("active");
     setFeesAmount("");
@@ -138,6 +145,49 @@ export function StudentFormDialog({
       setAvailableProfiles(eligibleProfiles);
     })();
   }, [open, editStudent, initialProfileId]);
+
+  // Load branches when classId changes
+  useEffect(() => {
+    if (!open || !classId) {
+      setBranchesForClass([]);
+      return;
+    }
+
+    async function loadBranches() {
+      const supabase = createClient();
+      const { data: branchRows } = await supabase
+        .from("branches")
+        .select("id, class_id, name")
+        .eq("class_id", classId)
+        .order("name");
+
+      const typed = (branchRows ?? []) as Array<{ id: string; class_id: string; name: string }>;
+      if (typed.length === 0) {
+        setBranchesForClass([]);
+        return;
+      }
+
+      const branchIds = typed.map((b) => b.id);
+      const { data: subjectRows } = await supabase
+        .from("branch_subjects")
+        .select("branch_id, subject")
+        .in("branch_id", branchIds)
+        .order("subject");
+
+      const subjectMap = new Map<string, string[]>();
+      for (const row of (subjectRows ?? []) as Array<{ branch_id: string; subject: string }>) {
+        const existing = subjectMap.get(row.branch_id) ?? [];
+        existing.push(row.subject);
+        subjectMap.set(row.branch_id, existing);
+      }
+
+      setBranchesForClass(
+        typed.map((b) => ({ id: b.id, name: b.name, subjects: subjectMap.get(b.id) ?? [] })),
+      );
+    }
+
+    void loadBranches();
+  }, [open, classId]);
 
   useEffect(() => {
     if (!feesFullPayment) {
@@ -186,6 +236,7 @@ export function StudentFormDialog({
           .from("students")
           .update({
             class_id: classId,
+            branch_id: branchId || null,
             student_type: studentType,
             is_active: isActive === "active",
             fees_amount: parseInt(feesAmount || "0", 10) || 0,
@@ -221,6 +272,7 @@ export function StudentFormDialog({
     const result = await createStudent({
       profileId: selectedProfileId,
       classId,
+      branchId: branchId || undefined,
       studentType,
       isActive: isActive === "active",
       feesAmount: parseInt(feesAmount || "0", 10) || 0,
@@ -367,8 +419,10 @@ export function StudentFormDialog({
                 onClick={() => photoInputRef.current?.click()}
               >
                 {photoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" />
                 ) : existingAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={existingAvatarUrl} alt="Current" className="h-full w-full object-cover" />
                 ) : (
                   <Camera className="h-5 w-5 text-muted-foreground" />
@@ -439,7 +493,7 @@ export function StudentFormDialog({
 
           <div className="space-y-2">
             <Label>Class</Label>
-            <Select value={classId} onValueChange={(value) => value && setClassId(value)}>
+            <Select value={classId} onValueChange={(value) => { if (value) { setClassId(value); setBranchId(""); } }}>
               <SelectTrigger>
                 <SelectValue placeholder="Select class">
                   {selectedClass
@@ -456,6 +510,32 @@ export function StudentFormDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {branchesForClass.length > 0 ? (
+            <div className="space-y-2">
+              <Label>Branch</Label>
+              <Select
+                value={branchId || "__none"}
+                onValueChange={(value) => setBranchId(!value || value === "__none" ? "" : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="No branch assigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">No branch assigned</SelectItem>
+                  {branchesForClass.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                      {branch.subjects.length > 0 ? ` (${branch.subjects.join(", ")})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Assign a branch under the selected class.
+              </p>
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="sf-fees">Fees Amount (INR)</Label>

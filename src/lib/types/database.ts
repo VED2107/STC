@@ -82,6 +82,7 @@ export interface Student {
   id: string;
   profile_id: string;
   class_id: string;
+  branch_id: string | null;
   student_type: StudentType;
   enrollment_date: string;
   is_active: boolean;
@@ -93,6 +94,7 @@ export interface Student {
   /** Joined data */
   profile?: Profile;
   class?: Class;
+  branch?: Branch;
 }
 
 export interface Enrollment {

@@ -29,6 +29,7 @@ export interface StudentExportSource {
     board?: string;
   } | null;
   enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
+  branch?: { name: string } | null;
 }
 
 export const studentExportHeaders = [
@@ -37,6 +38,7 @@ export const studentExportHeaders = [
   { key: "email", label: "Email" },
   { key: "studentId", label: "Student ID" },
   { key: "className", label: "Class" },
+  { key: "branch", label: "Branch" },
   { key: "board", label: "Board" },
   { key: "accessType", label: "Access Type" },
   { key: "status", label: "Status" },
@@ -83,6 +85,7 @@ export function buildStudentExportRows(
           ? `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`
           : "Pending",
       className: student.class?.name ?? "Awaiting assignment",
+      branch: student.branch?.name ?? "",
       board: student.class?.board ?? "Pending",
       accessType:
         student.rowKind === "pending"

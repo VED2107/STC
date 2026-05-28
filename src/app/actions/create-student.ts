@@ -6,6 +6,7 @@ import type { StudentType } from "@/lib/types/database";
 interface CreateStudentInput {
   profileId: string;
   classId: string;
+  branchId?: string;
   studentType: StudentType;
   isActive: boolean;
   feesAmount?: number;
@@ -80,6 +81,7 @@ export async function createStudent(
   const {
     profileId,
     classId,
+    branchId,
     studentType,
     isActive,
     feesAmount,
@@ -155,6 +157,7 @@ export async function createStudent(
   const { error: studentError } = await admin.from("students").insert({
     profile_id: profileId,
     class_id: classId,
+    branch_id: branchId || null,
     student_type: studentType,
     enrollment_date: new Date().toISOString().split("T")[0],
     is_active: isActive,

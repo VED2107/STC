@@ -48,6 +48,7 @@ interface StudentRow {
   id: string;
   profile_id: string;
   class_id: string | null;
+  branch_id: string | null;
   enrollment_date: string | null;
   created_at?: string;
   is_active: boolean;
@@ -58,6 +59,7 @@ interface StudentRow {
   fees_installment2_paid: boolean;
   profile: { full_name: string; phone: string; email?: string | null; avatar_url?: string | null } | null;
   class: { name: string; board: string } | null;
+  branch: { name: string } | null;
   enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
 }
 
@@ -134,7 +136,7 @@ function AdminStudentsPageInner() {
       const { data } = await supabase
         .from("students")
         .select(
-          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), enrollments(status, course:courses(title))"
+          "id, profile_id, class_id, branch_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), branch:branches(name), enrollments(status, course:courses(title))"
         )
         .in("class_id", classIds)
         .order("created_at", { ascending: false })
@@ -158,7 +160,7 @@ function AdminStudentsPageInner() {
       supabase
         .from("students")
         .select(
-          "id, profile_id, class_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), enrollments(status, course:courses(title))"
+          "id, profile_id, class_id, branch_id, enrollment_date, created_at, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), branch:branches(name), enrollments(status, course:courses(title))"
         )
         .order("created_at", { ascending: false })
         .order("enrollment_date", { ascending: false }),
@@ -184,6 +186,7 @@ function AdminStudentsPageInner() {
         id: profile.id,
         profile_id: profile.id,
         class_id: null,
+        branch_id: null,
         enrollment_date: null,
         created_at: profile.created_at,
         is_active: false,
@@ -199,6 +202,7 @@ function AdminStudentsPageInner() {
           avatar_url: profile.avatar_url,
         },
         class: null,
+        branch: null,
         enrollments: [],
       }));
 
@@ -589,12 +593,13 @@ function AdminStudentsPageInner() {
                 </button>
               )}
             </div>
-            <table className="w-full min-w-[920px] text-left">
+            <table className="w-full min-w-[1040px] text-left">
               <thead className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                 <tr>
                   <th className="pb-4 font-medium">Name & Profile</th>
                   <th className="pb-4 font-medium">Student ID</th>
                   <th className="pb-4 font-medium">Class Level</th>
+                  <th className="pb-4 font-medium">Branch</th>
                   <th className="pb-4 font-medium">Academic Board</th>
                   <th className="pb-4 font-medium">Subject Access</th>
                   <th className="pb-4 font-medium">Access Type</th>
@@ -621,6 +626,9 @@ function AdminStudentsPageInner() {
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
                       {student.class?.name ?? "Awaiting assignment"}
+                    </td>
+                    <td className="py-4 text-sm text-muted-foreground">
+                      {student.branch?.name ?? "—"}
                     </td>
                     <td className="py-4 text-sm text-muted-foreground">
                       {student.class?.board ?? "Pending"}

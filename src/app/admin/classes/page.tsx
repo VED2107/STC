@@ -17,9 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Download, GitBranch, GripVertical, Loader2, Pencil, Save, Trash2 } from "lucide-react";
-import type { BoardType, Branch, Class, ClassLevel } from "@/lib/types/database";
+import type { BoardType, Class, ClassLevel } from "@/lib/types/database";
 import { BranchManagementDialog } from "@/components/admin/branch-management-dialog";
-import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
+import { downloadXLSX } from "@/lib/export-utils";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -68,6 +68,7 @@ interface ClassesOverviewCache {
   teacherNamesByClass: Record<string, string[]>;
   subjectsByClass: Record<string, string[]>;
   branchCountsByClass: Record<string, number>;
+  branchesByClass: Record<string, Array<{ id: string; name: string }>>;
 }
 
 function AdminClassesPageInner() {
@@ -113,6 +114,10 @@ function AdminClassesPageInner() {
   const [branchDialogOpen, setBranchDialogOpen] = useState(false);
   const [branchDialogClassId, setBranchDialogClassId] = useState<string | null>(null);
   const [branchDialogClassName, setBranchDialogClassName] = useState("");
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
+  const [branchesByClass, setBranchesByClass] = useState<Record<string, Array<{ id: string; name: string }>>>(
+    () => getAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY)?.branchesByClass ?? {},
+  );
 
   function normalizeSubject(value: string) {
     return value.trim().replace(/\s+/g, " ");
@@ -129,7 +134,7 @@ function AdminClassesPageInner() {
     setFormSubjects((current) => current.filter((item) => item !== subject));
   }
 
-  async function exportClassStudents(classId: string, className: string, format: "csv" | "xlsx") {
+  async function exportClassStudents(classId: string, className: string) {
     setExportingClassId(classId);
     try {
       type ExportStudentRow = {
@@ -144,12 +149,13 @@ function AdminClassesPageInner() {
         fees_installment2_paid: boolean;
         profile: { full_name: string; phone: string; email?: string | null; avatar_url?: string | null } | null;
         class: { name: string; board: string } | null;
+        branch?: { name: string } | null;
         enrollments?: Array<{ status: string; course: { title: string } | null }> | null;
       };
 
       const { data, error } = await supabase
         .from("students")
-        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), enrollments(status, course:courses(title))")
+        .select("id, profile_id, enrollment_date, is_active, student_type, fees_amount, fees_full_payment_paid, fees_installment1_paid, fees_installment2_paid, profile:profiles(full_name, phone, email, avatar_url), class:classes(name, board), branch:branches(name), enrollments(status, course:courses(title))")
         .eq("class_id", classId)
         .order("created_at", { ascending: false })
         .overrideTypes<ExportStudentRow[], { merge: false }>();
@@ -197,11 +203,7 @@ function AdminClassesPageInner() {
       const rows = buildStudentExportRows(typedRows, attendanceByStudentId);
 
       const filename = `${className.replace(/\s+/g, "_")}_students_${new Date().toISOString().split("T")[0]}`;
-      if (format === "csv") {
-        downloadCSV(rows, studentExportHeaders, filename);
-      } else {
-        await downloadXLSX(rows, studentExportHeaders, filename);
-      }
+      await downloadXLSX(rows, studentExportHeaders, filename);
     } finally {
       setExportingClassId(null);
     }
@@ -244,7 +246,7 @@ function AdminClassesPageInner() {
       supabase.from("students").select("class_id, is_active").eq("is_active", true),
       supabase.from("courses").select("class_id, teacher:teachers(name)").not("teacher_id", "is", null),
       supabase.from("syllabus").select("class_id, subject").order("subject"),
-      supabase.from("branches").select("class_id"),
+      supabase.from("branches").select("id, class_id, name").order("name"),
     ]);
 
     const classRows = normalizeClasses((classesRes.data as Class[] | null) ?? []);
@@ -276,8 +278,12 @@ function AdminClassesPageInner() {
     });
 
     const nextBranchCounts: Record<string, number> = {};
-    ((branchesRes.data as Array<{ class_id: string }> | null) ?? []).forEach((row) => {
+    const nextBranchesByClass: Record<string, Array<{ id: string; name: string }>> = {};
+    ((branchesRes.data as Array<{ id: string; class_id: string; name: string }> | null) ?? []).forEach((row) => {
       nextBranchCounts[row.class_id] = (nextBranchCounts[row.class_id] ?? 0) + 1;
+      const existing = nextBranchesByClass[row.class_id] ?? [];
+      existing.push({ id: row.id, name: row.name });
+      nextBranchesByClass[row.class_id] = existing;
     });
 
     setClasses(classRows);
@@ -285,12 +291,14 @@ function AdminClassesPageInner() {
     setTeacherNamesByClass(normalizedTeachersMap);
     setSubjectsByClass(nextSubjectsByClass);
     setBranchCountsByClass(nextBranchCounts);
+    setBranchesByClass(nextBranchesByClass);
     setAdminPageCache<ClassesOverviewCache>(CLASSES_CACHE_KEY, {
       classes: classRows,
       studentCounts: counts,
       teacherNamesByClass: normalizedTeachersMap,
       subjectsByClass: nextSubjectsByClass,
       branchCountsByClass: nextBranchCounts,
+      branchesByClass: nextBranchesByClass,
     });
     setLoading(false);
   }, []);
@@ -700,7 +708,7 @@ function AdminClassesPageInner() {
               </div>
               <div className="min-w-[260px]">
                 <label className="text-sm font-medium">Class</label>
-                <Select value={selectedClassId} onValueChange={(value) => setSelectedClassId(value ?? "all")}>
+                <Select value={selectedClassId} onValueChange={(value) => { setSelectedClassId(value ?? "all"); setSelectedBranchId("all"); }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue>
                       {selectedClassOption ? `${selectedClassOption.name} (${selectedClassOption.board})` : "All classes"}
@@ -716,6 +724,28 @@ function AdminClassesPageInner() {
                   </SelectContent>
                 </Select>
               </div>
+              {selectedClassId !== "all" && (branchesByClass[selectedClassId] ?? []).length > 0 ? (
+              <div className="min-w-[220px]">
+                <label className="text-sm font-medium">Branch</label>
+                <Select value={selectedBranchId} onValueChange={(value) => setSelectedBranchId(value ?? "all")}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue>
+                      {selectedBranchId === "all"
+                        ? "All branches"
+                        : (branchesByClass[selectedClassId] ?? []).find((b) => b.id === selectedBranchId)?.name ?? "All branches"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All branches</SelectItem>
+                    {(branchesByClass[selectedClassId] ?? []).map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              ) : null}
               <button
                 type="button"
                 className={cn(stitchSecondaryButtonClass, "lg:ml-auto")}
@@ -723,8 +753,9 @@ function AdminClassesPageInner() {
                   setDivisionFilter("all");
                   setBoardFilter("all");
                   setSelectedClassId("all");
+                  setSelectedBranchId("all");
                 }}
-                disabled={divisionFilter === "all" && boardFilter === "all" && selectedClassId === "all"}
+                disabled={divisionFilter === "all" && boardFilter === "all" && selectedClassId === "all" && selectedBranchId === "all"}
               >
                 Clear Filters
               </button>
@@ -823,16 +854,7 @@ function AdminClassesPageInner() {
                           <button
                             type="button"
                             className="rounded-md bg-muted/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-                            onClick={() => void exportClassStudents(item.id, item.name, "csv")}
-                            disabled={exportingClassId === item.id}
-                            title="Download students CSV"
-                          >
-                            <Download className="mr-1 inline h-3 w-3" />CSV
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-md bg-muted/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-                            onClick={() => void exportClassStudents(item.id, item.name, "xlsx")}
+                            onClick={() => void exportClassStudents(item.id, item.name)}
                             disabled={exportingClassId === item.id}
                             title="Download students Excel"
                           >
@@ -943,9 +965,9 @@ function AdminClassesPageInner() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => void exportClassStudents(item.id, item.name, "csv")}
+                            onClick={() => void exportClassStudents(item.id, item.name)}
                             className="text-muted-foreground"
-                            title="Download students CSV"
+                            title="Download students Excel"
                             disabled={exportingClassId === item.id}
                           >
                             <Download className="h-4 w-4" />

@@ -78,6 +78,7 @@ type StudentRow = {
   id: string;
   profile_id: string;
   class_id: string;
+  branch_id: string | null;
   student_type: string;
   enrollment_date: string;
   is_active: boolean;
