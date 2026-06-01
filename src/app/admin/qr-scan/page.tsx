@@ -173,6 +173,8 @@ export default function QrScanPage() {
   const [courses, setCourses] = useState<CourseForScanner[]>([]);
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedCourseId, setSelectedCourseId] = useState("general");
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [activeSession, setActiveSession] = useState<AttendanceSession | null>(null);
   const [loadingSession, setLoadingSession] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
@@ -303,6 +305,24 @@ export default function QrScanPage() {
       setSelectedClassId(classes[0].id);
     }
   }, [classes, selectedClassId]);
+
+  useEffect(() => {
+    if (!selectedClassId) {
+      setBranches([]);
+      setSelectedBranchId("");
+      return;
+    }
+    const supabase = createClient();
+    supabase
+      .from("branches")
+      .select("id, name")
+      .eq("class_id", selectedClassId)
+      .order("name")
+      .then(({ data }) => {
+        setBranches((data as Array<{ id: string; name: string }> | null) ?? []);
+        setSelectedBranchId("");
+      });
+  }, [selectedClassId]);
 
   const classCourses = useMemo(
     () => courses.filter((course) => course.class_id === selectedClassId),
@@ -495,7 +515,7 @@ export default function QrScanPage() {
       <div className="mt-8 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <div className={stitchPanelClass}>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className={cn("grid gap-4", branches.length > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
               <Select
                 value={selectedClassId}
                 onValueChange={(value) => setSelectedClassId(value ?? "")}
@@ -513,6 +533,29 @@ export default function QrScanPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {branches.length > 0 && (
+                <Select
+                  value={selectedBranchId || "__all"}
+                  onValueChange={(value) => setSelectedBranchId(value === "__all" ? "" : (value ?? ""))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All branches">
+                      {selectedBranchId
+                        ? branches.find((b) => b.id === selectedBranchId)?.name
+                        : "All branches"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all">All branches</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
               <Select
                 value={selectedCourseId}

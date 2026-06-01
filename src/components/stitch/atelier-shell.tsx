@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
+  BarChart3,
   BookCopy,
   BookOpen,
   CalendarCheck,
@@ -18,6 +19,7 @@ import {
   Menu,
   QrCode,
   ScanLine,
+  Shield,
   ShieldQuestion,
   Sparkles,
   Users,
@@ -56,6 +58,8 @@ const adminLinks = [
   { href: "/admin/qr-scan", label: "QR Scanner", icon: ScanLine },
   { href: "/admin/syllabus", label: "Syllabus", icon: BookCopy },
   { href: "/admin/materials", label: "Assets", icon: FolderOpen },
+  { href: "/admin/reports", label: "Reports", icon: BarChart3 },
+  { href: "/admin/audit-logs", label: "Audit Logs", icon: Shield },
 ];
 
 const teacherLinks = [
