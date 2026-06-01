@@ -27,6 +27,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
+import { invalidateAfterSyllabusMutation } from "@/lib/cache-invalidation";
 
 interface MaterialSummary {
   id: string;
@@ -285,12 +286,14 @@ function AdminSyllabusPageInner() {
     setActionError("");
     setSaving(false);
     setDialogOpen(false);
+    invalidateAfterSyllabusMutation();
     void fetchData();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this syllabus entry?")) return;
     await supabase.from("syllabus").delete().eq("id", id);
+    invalidateAfterSyllabusMutation();
     void fetchData();
   }
 

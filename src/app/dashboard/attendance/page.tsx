@@ -7,17 +7,21 @@ import {
   AlertTriangle,
   CalendarCheck,
   CheckCircle2,
+  Download,
   XCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
+import { getCached, setCache } from "@/lib/dashboard-cache";
 import {
   StitchEmptyState,
   StitchSectionHeader,
   stitchPanelClass,
   stitchPanelSoftClass,
+  stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
+import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { cn } from "@/lib/utils";
 
 const REQUIRED_ATTENDANCE = 75;
@@ -64,7 +68,16 @@ export default function StudentAttendancePage() {
       return;
     }
 
-    setLoading(true);
+    const cacheKey = `student:attendance:${user.id}`;
+    const cached = getCached<{ records: AttendanceRow[]; stats: { total: number; present: number; absent: number } }>(cacheKey);
+    if (cached) {
+      setRecords(cached.records);
+      setStats(cached.stats);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     const { data: student } = await supabase
       .from("students")
       .select("id, student_type")
@@ -93,10 +106,12 @@ export default function StudentAttendancePage() {
 
     const rows = (data as AttendanceRow[] | null) ?? [];
     const present = rows.filter((entry) => entry.status === "present").length;
+    const nextStats = { total: rows.length, present, absent: rows.length - present };
 
     setRecords(rows);
-    setStats({ total: rows.length, present, absent: rows.length - present });
+    setStats(nextStats);
     setLoading(false);
+    setCache(cacheKey, { records: rows, stats: nextStats });
   }, [authLoading, router, user]);
 
   useEffect(() => {
@@ -150,6 +165,42 @@ export default function StudentAttendancePage() {
 
   const isLowAttendance = rate > 0 && rate < REQUIRED_ATTENDANCE;
 
+  const reportHeaders = [
+    { key: "date", label: "Date" },
+    { key: "subject", label: "Subject" },
+    { key: "status", label: "Status" },
+    { key: "lateMinutes", label: "Late (min)" },
+    { key: "checkInAt", label: "Check-In Time" },
+    { key: "checkOutAt", label: "Check-Out Time" },
+    { key: "scanMethod", label: "Scan Method" },
+    { key: "remarks", label: "Remarks" },
+  ];
+
+  function buildReportRows() {
+    const formatTime = (iso: string | null) =>
+      iso ? new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }) : "";
+    return records.map((r) => ({
+      date: new Date(r.date).toLocaleDateString("en-IN"),
+      subject: r.course?.title ?? r.class?.name ?? "General",
+      status: r.status === "present" ? "Present" : "Absent",
+      lateMinutes: r.status === "present" ? String(r.late_minutes ?? 0) : "",
+      checkInAt: formatTime(r.check_in_at),
+      checkOutAt: formatTime(r.check_out_at),
+      scanMethod: r.scan_method ?? "manual",
+      remarks: r.remarks ?? "",
+    }));
+  }
+
+  function handleDownloadCSV() {
+    const today = new Date().toISOString().split("T")[0];
+    downloadCSV(buildReportRows(), reportHeaders, `my_attendance_${today}`);
+  }
+
+  async function handleDownloadXLSX() {
+    const today = new Date().toISOString().split("T")[0];
+    await downloadXLSX(buildReportRows(), reportHeaders, `my_attendance_${today}`);
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -177,6 +228,27 @@ export default function StudentAttendancePage() {
               </p>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {records.length > 0 ? (
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className={cn(stitchSecondaryButtonClass, "gap-2")}
+            onClick={handleDownloadCSV}
+          >
+            <Download className="h-4 w-4" />
+            Download Report (CSV)
+          </button>
+          <button
+            type="button"
+            className={cn(stitchSecondaryButtonClass, "gap-2")}
+            onClick={() => void handleDownloadXLSX()}
+          >
+            <Download className="h-4 w-4" />
+            Download Report (Excel)
+          </button>
         </div>
       ) : null}
 

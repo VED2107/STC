@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
+import { getCached, setCache } from "@/lib/dashboard-cache";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -47,7 +48,15 @@ export default function StudentMaterialsPage() {
       return;
     }
 
-    setLoading(true);
+    const cacheKey = `student:materials:${user.id}`;
+    const cached = getCached<{ materials: MaterialRow[]; className: string }>(cacheKey);
+    if (cached) {
+      setMaterials(cached.materials);
+      setClassName(cached.className);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     const { data: student } = await supabase
       .from("students")
       .select("id, class_id, student_type, class:classes(name)")
@@ -97,8 +106,10 @@ export default function StudentMaterialsPage() {
       }
     }
 
-    setMaterials(data ?? []);
+    const nextMaterials = data ?? [];
+    setMaterials(nextMaterials);
     setLoading(false);
+    setCache(cacheKey, { materials: nextMaterials, className: (typedStudent.class as { name?: string } | null)?.name ?? "" });
   }, [authLoading, router, user]);
 
   useEffect(() => {

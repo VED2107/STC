@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
   }
 
   const classId = request.nextUrl.searchParams.get("class_id");
+  const branchId = request.nextUrl.searchParams.get("branch_id");
   const admin = createAdminClient();
 
   // Get all active students with their tokens
@@ -87,6 +88,10 @@ export async function GET(request: NextRequest) {
 
   if (classId) {
     studentQuery = studentQuery.eq("class_id", classId);
+  }
+
+  if (branchId) {
+    studentQuery = studentQuery.eq("branch_id", branchId);
   }
 
   const { data: students, error: studentsError } = await studentQuery;

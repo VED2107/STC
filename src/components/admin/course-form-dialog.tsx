@@ -25,6 +25,7 @@ import { Loader2 } from "lucide-react";
 import type { Class, Course } from "@/lib/types/database";
 import type { Database } from "@/lib/types/supabase";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
+import { invalidateAfterCourseMutation } from "@/lib/cache-invalidation";
 
 interface CourseFormDialogProps {
   open: boolean;
@@ -223,6 +224,7 @@ export function CourseFormDialog({
           }
         }
       }
+      invalidateAfterCourseMutation();
       onOpenChange(false);
       onSuccess();
     } catch (error) {

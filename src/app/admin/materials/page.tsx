@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
+import { invalidateAfterMaterialsMutation } from "@/lib/cache-invalidation";
 
 type MaterialRecord = Material & {
   class?: Pick<Class, "id" | "name" | "board" | "level"> | null;
@@ -70,6 +71,8 @@ function AdminMaterialsPageInner() {
   const [selectedClassId, setSelectedClassId] = useState("all");
   const [materialTypeFilter, setMaterialTypeFilter] = useState<"all" | MaterialType | "link">("all");
   const [materialSearch, setMaterialSearch] = useState("");
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -274,6 +277,24 @@ function AdminMaterialsPageInner() {
   }, [availableSubjects, selectedSubject]);
 
   useEffect(() => {
+    if (selectedClassId === "all") {
+      setBranches([]);
+      setSelectedBranchId("");
+      return;
+    }
+    async function loadBranches() {
+      const { data } = await supabase
+        .from("branches")
+        .select("id, name")
+        .eq("class_id", selectedClassId)
+        .order("name");
+      setBranches((data as Array<{ id: string; name: string }> | null) ?? []);
+      setSelectedBranchId("");
+    }
+    void loadBranches();
+  }, [selectedClassId]);
+
+  useEffect(() => {
     if (selectedClassId !== "all" && !availableClasses.some((item) => item.id === selectedClassId)) {
       setSelectedClassId("all");
     }
@@ -445,12 +466,14 @@ function AdminMaterialsPageInner() {
     setType("pdf");
     setUploadMethod("file");
     setUploadError("");
+    invalidateAfterMaterialsMutation();
     void fetchMaterials();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this material?")) return;
     await supabase.from("materials").delete().eq("id", id);
+    invalidateAfterMaterialsMutation();
     void fetchMaterials();
   }
 
@@ -525,7 +548,7 @@ function AdminMaterialsPageInner() {
         <div className="space-y-6">
           <div className={stitchPanelClass}>
             <p className="stitch-kicker">Publishing Scope</p>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className={cn("mt-5 grid gap-4", branches.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3")}>
               <div>
                 <Label>Board</Label>
                 <Select
@@ -567,6 +590,29 @@ function AdminMaterialsPageInner() {
                   </SelectContent>
                 </Select>
               </div>
+              {branches.length > 0 ? (
+                <div>
+                  <Label>Branch</Label>
+                  <Select
+                    value={selectedBranchId || "__all"}
+                    onValueChange={(v) => setSelectedBranchId(v === "__all" ? "" : (v ?? ""))}
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="All branches">
+                        {selectedBranchId
+                          ? branches.find((b) => b.id === selectedBranchId)?.name
+                          : "All branches"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all">All branches</SelectItem>
+                      {branches.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
               <div>
                 <Label>Subject</Label>
                 <Select

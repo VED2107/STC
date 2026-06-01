@@ -24,6 +24,7 @@ const TeacherFormDialog = dynamic(() => import("@/components/admin/teacher-form-
   loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
 });
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
+import { invalidateAfterTeacherMutation } from "@/lib/cache-invalidation";
 import type { Teacher } from "@/lib/types/database";
 
 const supabase = createClient();
@@ -99,6 +100,7 @@ function AdminTeachersPageInner() {
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this teacher?")) return;
     await supabase.from("teachers").delete().eq("id", id);
+    invalidateAfterTeacherMutation();
     void fetchTeachers();
   }, [fetchTeachers]);
 

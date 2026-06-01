@@ -52,6 +52,8 @@ export default function AdminQrCodesPage() {
     () => getAdminPageCache<Class[]>(QR_CLASSES_CACHE_KEY) ?? [],
   );
   const [selectedClassId, setSelectedClassId] = useState("");
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [students, setStudents] = useState<StudentQrRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -101,11 +103,29 @@ export default function AdminQrCodesPage() {
     void loadClasses();
   }, [authLoading, role, selectedClassId]);
 
+  useEffect(() => {
+    if (!selectedClassId) {
+      setBranches([]);
+      setSelectedBranchId("");
+      return;
+    }
+    async function loadBranches() {
+      const { data } = await supabase
+        .from("branches")
+        .select("id, name")
+        .eq("class_id", selectedClassId)
+        .order("name");
+      setBranches((data as Array<{ id: string; name: string }> | null) ?? []);
+      setSelectedBranchId("");
+    }
+    void loadBranches();
+  }, [selectedClassId]);
+
   const fetchStudents = useCallback(async () => {
     if (authLoading) return;
     if (role !== "admin" && role !== "super_admin") return;
     if (!selectedClassId) return;
-    const studentsCacheKey = `admin:qr:students:${selectedClassId}`;
+    const studentsCacheKey = `admin:qr:students:${selectedClassId}:${selectedBranchId || "all"}`;
     const cachedStudents = getAdminPageStorageCache<StudentQrRow[]>(studentsCacheKey);
     if (cachedStudents) {
       setStudents(cachedStudents);
@@ -116,7 +136,9 @@ export default function AdminQrCodesPage() {
     setActionMessage("");
 
     try {
-      const url = `/api/admin/qr-tokens?class_id=${encodeURIComponent(selectedClassId)}`;
+      const params = new URLSearchParams({ class_id: selectedClassId });
+      if (selectedBranchId) params.set("branch_id", selectedBranchId);
+      const url = `/api/admin/qr-tokens?${params.toString()}`;
       const res = await fetch(url);
       const json = (await res.json()) as { data?: StudentQrRow[] };
       const nextStudents = json.data ?? [];
@@ -127,7 +149,7 @@ export default function AdminQrCodesPage() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, role, selectedClassId]);
+  }, [authLoading, role, selectedBranchId, selectedClassId]);
 
   useEffect(() => {
     void fetchStudents();
@@ -385,7 +407,7 @@ export default function AdminQrCodesPage() {
         <div className="space-y-6">
           {/* Controls */}
           <div className={stitchPanelClass}>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className={cn("grid gap-4", branches.length > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
               <Select
                 value={selectedClassId}
                 onValueChange={(v) => { if (v) setSelectedClassId(v); }}
@@ -405,6 +427,29 @@ export default function AdminQrCodesPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {branches.length > 0 ? (
+                <Select
+                  value={selectedBranchId || "__all"}
+                  onValueChange={(v) => setSelectedBranchId(v === "__all" ? "" : (v ?? ""))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All branches">
+                      {selectedBranchId
+                        ? branches.find((b) => b.id === selectedBranchId)?.name
+                        : "All branches"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all">All branches</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
 
               <div className="relative">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

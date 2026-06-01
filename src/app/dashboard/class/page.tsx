@@ -8,6 +8,7 @@ import { BookOpen, GraduationCap, QrCode } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
+import { getCached, setCache } from "@/lib/dashboard-cache";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -21,8 +22,10 @@ import { cn } from "@/lib/utils";
 interface StudentClassRecord {
   id: string;
   class_id?: string | null;
+  branch_id?: string | null;
   student_type: "tuition" | "online";
   class?: { id: string; name: string; board: string; level: string } | null;
+  branch?: { id: string; name: string } | null;
 }
 
 interface CourseRow {
@@ -68,7 +71,16 @@ export default function StudentClassPage() {
       return;
     }
 
-    setLoading(true);
+    const cacheKey = `student:class:${user.id}`;
+    const cached = getCached<{ classRecord: StudentClassRecord; courses: CourseRow[] }>(cacheKey);
+    if (cached) {
+      setClassRecord(cached.classRecord);
+      setCourses(cached.courses);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     const response = await fetch("/api/student/class-context", {
       method: "GET",
       credentials: "include",
@@ -85,6 +97,7 @@ export default function StudentClassPage() {
     const payload = (await response.json()) as {
       student: StudentClassRecord | null;
       class: StudentClassRecord["class"];
+      branch: StudentClassRecord["branch"];
       courses: EnrollmentCourseRow[];
     };
 
@@ -92,6 +105,7 @@ export default function StudentClassPage() {
       ? {
           ...payload.student,
           class: payload.class ?? null,
+          branch: payload.branch ?? null,
         }
       : null;
 
@@ -122,6 +136,9 @@ export default function StudentClassPage() {
 
     setClassRecord(resolvedStudent);
     setLoading(false);
+    if (resolvedStudent) {
+      setCache(cacheKey, { classRecord: resolvedStudent, courses });
+    }
   }, [authLoading, role, router, user]);
 
   useEffect(() => {
@@ -189,7 +206,7 @@ export default function StudentClassPage() {
         }
       />
 
-      <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 md:grid-cols-3">
+      <div className={cn("mt-10 grid grid-cols-2 gap-4 md:gap-6", classRecord.branch ? "md:grid-cols-4" : "md:grid-cols-3")}>
         <div className={stitchPanelClass}>
           <p className="stitch-kicker">Board</p>
           <p className="mt-5 font-heading text-5xl text-foreground">
@@ -202,7 +219,15 @@ export default function StudentClassPage() {
             {classRecord.class.level}
           </p>
         </div>
-        <div className={cn(stitchPanelClass, "col-span-2 md:col-span-1")}>
+        {classRecord.branch ? (
+          <div className={stitchPanelClass}>
+            <p className="stitch-kicker">Branch</p>
+            <p className="mt-5 font-heading text-3xl text-foreground">
+              {classRecord.branch.name}
+            </p>
+          </div>
+        ) : null}
+        <div className={cn(stitchPanelClass, classRecord.branch ? "" : "col-span-2 md:col-span-1")}>
           <p className="stitch-kicker">{classRecord.student_type === "online" ? "Purchased Courses" : "Active Subjects"}</p>
           <p className="mt-5 font-heading text-5xl text-foreground">{courses.length}</p>
         </div>

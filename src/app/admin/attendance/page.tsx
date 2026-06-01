@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
+import { invalidateAfterAttendanceSave } from "@/lib/cache-invalidation";
 import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 
 type AttendanceStatus = "present" | "absent";
@@ -157,6 +158,8 @@ export default function AdminAttendancePage() {
   );
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedClassId, setSelectedClassId] = useState("");
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [students, setStudents] = useState<StudentForAttendance[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -371,6 +374,24 @@ export default function AdminAttendancePage() {
 
   useEffect(() => {
     if (!selectedClassId) {
+      setBranches([]);
+      setSelectedBranchId("");
+      return;
+    }
+    async function loadBranches() {
+      const { data } = await supabase
+        .from("branches")
+        .select("id, name")
+        .eq("class_id", selectedClassId)
+        .order("name");
+      setBranches((data as Array<{ id: string; name: string }> | null) ?? []);
+      setSelectedBranchId("");
+    }
+    void loadBranches();
+  }, [selectedClassId]);
+
+  useEffect(() => {
+    if (!selectedClassId) {
       setSelectedCourseId("");
       return;
     }
@@ -405,7 +426,7 @@ export default function AdminAttendancePage() {
     }
 
     const requestId = ++requestSequenceRef.current;
-    const attendanceSessionCacheKey = `admin:attendance:session:${selectedClassId}:${selectedCourseId || "none"}:${date}`;
+    const attendanceSessionCacheKey = `admin:attendance:session:${selectedClassId}:${selectedCourseId || "none"}:${selectedBranchId || "none"}:${date}`;
     const cachedSession = getAdminPageStorageCache<AttendanceSessionCache>(attendanceSessionCacheKey);
     if (cachedSession) {
       setStudents(cachedSession.students);
@@ -422,16 +443,20 @@ export default function AdminAttendancePage() {
 
 
     try {
-      const cachedStudents = studentCacheRef.current[selectedClassId];
+      const cachedStudents = !selectedBranchId ? studentCacheRef.current[selectedClassId] : null;
 
+      let studentQuery = supabase
+        .from("students")
+        .select("id, profile:profiles(full_name)")
+        .eq("class_id", selectedClassId)
+        .eq("is_active", true)
+        .order("id");
+      if (selectedBranchId) {
+        studentQuery = studentQuery.eq("branch_id", selectedBranchId);
+      }
       const studentPromise = cachedStudents
         ? Promise.resolve({ data: cachedStudents, error: null })
-        : supabase
-            .from("students")
-            .select("id, profile:profiles(full_name)")
-            .eq("class_id", selectedClassId)
-            .eq("is_active", true)
-            .order("id");
+        : studentQuery;
 
       let sessionQuery = supabase
         .from("attendance_sessions")
@@ -492,7 +517,9 @@ export default function AdminAttendancePage() {
       }
 
       const fetchedStudents = ((studentData || []) as unknown as StudentForAttendance[]) ?? [];
-      studentCacheRef.current[selectedClassId] = fetchedStudents;
+      if (!selectedBranchId) {
+        studentCacheRef.current[selectedClassId] = fetchedStudents;
+      }
       setStudents(fetchedStudents);
       const existingMap = new Map(
         ((existing as AttendanceRecord[] | null) ?? []).map((entry) => [
@@ -536,7 +563,7 @@ export default function AdminAttendancePage() {
         setLoading(false);
       }
     }
-  }, [date, role, selectedClassId, selectedResolvedCourseId, selectedSubjectName, selectedCourseId]);
+  }, [date, role, selectedBranchId, selectedClassId, selectedResolvedCourseId, selectedSubjectName, selectedCourseId]);
 
   useEffect(() => {
     void fetchStudents();
@@ -689,6 +716,7 @@ export default function AdminAttendancePage() {
     }
     setSaved(true);
     setEditingSaved(false);
+    invalidateAfterAttendanceSave();
     setRecords((previous) =>
       previous.map((record) => ({
         ...record,
@@ -722,11 +750,16 @@ export default function AdminAttendancePage() {
     { key: "date", label: "Date" },
     { key: "batch", label: "Batch" },
     { key: "course", label: "Subject" },
+    { key: "checkInAt", label: "Check-In Time" },
+    { key: "checkOutAt", label: "Check-Out Time" },
+    { key: "scanMethod", label: "Scan Method" },
   ];
 
   function buildAttendanceExportRows() {
     return records.map((record) => {
       const student = students.find((s) => s.id === record.student_id);
+      const formatTime = (iso: string | null) =>
+        iso ? new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }) : "";
       return {
         studentId: record.student_id,
         name: student?.profile?.full_name ?? "Unknown",
@@ -736,6 +769,9 @@ export default function AdminAttendancePage() {
         date: new Date(date).toLocaleDateString("en-IN"),
         batch: selectedClass?.name ?? "N/A",
         course: selectedSubjectName || selectedCourse?.title || "General",
+        checkInAt: formatTime(record.check_in_at),
+        checkOutAt: formatTime(record.check_out_at),
+        scanMethod: record.scan_method ?? "manual",
       };
     });
   }
@@ -904,9 +940,14 @@ export default function AdminAttendancePage() {
     { key: "remarks", label: "Remarks" },
     { key: "className", label: "Batch" },
     { key: "courseTitle", label: "Subject" },
+    { key: "checkInAt", label: "Check-In Time" },
+    { key: "checkOutAt", label: "Check-Out Time" },
+    { key: "scanMethod", label: "Scan Method" },
   ];
 
   function buildHistoryExportRows() {
+    const formatTime = (iso: string | null) =>
+      iso ? new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }) : "";
     return historyRecords.map((r) => ({
       studentId: r.student_id,
       date: new Date(r.date).toLocaleDateString("en-IN"),
@@ -915,6 +956,9 @@ export default function AdminAttendancePage() {
       remarks: r.remarks ?? "",
       className: r.class_name,
       courseTitle: r.course_title,
+      checkInAt: formatTime(r.check_in_at),
+      checkOutAt: formatTime(r.check_out_at),
+      scanMethod: r.scan_method ?? "manual",
     }));
   }
 
@@ -958,22 +1002,25 @@ export default function AdminAttendancePage() {
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           <div className={stitchPanelClass}>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className={cn("grid gap-4", branches.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3")}>
               <Select
-                value={selectedCourseId}
+                value={selectedCourseId || "__general"}
                 onValueChange={(value) =>
-                  setSelectedCourseId(value ?? "")
+                  setSelectedCourseId(value === "__general" ? "" : (value ?? ""))
                 }
                 disabled={!editingSaved}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={role === "teacher" ? "Choose subject" : "Choose a subject (optional)"}>
+                  <SelectValue placeholder={role === "teacher" ? "Choose subject" : "General Attendance"}>
                     {selectedCourse
                       ? `${selectedCourse.title} (${selectedCourse.subject})`
-                      : undefined}
+                      : role === "teacher" ? "Choose subject" : "General Attendance"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
+                  {role === "teacher" ? null : (
+                    <SelectItem value="__general">General Attendance (All Subjects)</SelectItem>
+                  )}
                   {selectedClassId && classCourses.length === 0 ? (
                     <SelectItem value="__none" disabled>
                       No subjects available
@@ -1014,6 +1061,32 @@ export default function AdminAttendancePage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {branches.length > 0 ? (
+                <Select
+                  value={selectedBranchId || "__all"}
+                  onValueChange={(value) =>
+                    setSelectedBranchId(value === "__all" ? "" : (value ?? ""))
+                  }
+                  disabled={!editingSaved}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All branches">
+                      {selectedBranchId
+                        ? branches.find((b) => b.id === selectedBranchId)?.name
+                        : "All branches"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all">All branches</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
 
               <input
                 type="date"
@@ -1470,31 +1543,50 @@ export default function AdminAttendancePage() {
               </span>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">{lateCount} marked late today</p>
-            {saveError ? <p className="mt-4 text-sm text-destructive">{saveError}</p> : null}
-            {!editingSaved ? (
-              <Button
-                onClick={() => {
-                  setEditingSaved(true);
-                  setSaved(false);
-                  setSaveError("");
-                }}
-                variant="outline"
-                className="mt-6 w-full"
-              >
-                Edit Saved Attendance
-              </Button>
-            ) : null}
-            <Button
-              onClick={handleSave}
-              disabled={saving || !selectedClassId || records.length === 0 || !editingSaved || (role === "teacher" && !selectedCourseId)}
-              className="mt-3 w-full gap-2"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-              {saved ? "Saved" : "Save Attendance"}
-            </Button>
           </div>
         </div>
       </div>
+
+      {records.length > 0 && (
+        <div className="sticky bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-md shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)]">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-3 md:px-10">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 text-primary">
+                <Check className="h-3.5 w-3.5" /> {presentCount}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-destructive">
+                <X className="h-3.5 w-3.5" /> {absentCount}
+              </span>
+              {lateCount > 0 && <span>{lateCount} late</span>}
+              {saveError ? <span className="text-destructive">{saveError}</span> : null}
+            </div>
+            <div className="flex items-center gap-3">
+              {!editingSaved ? (
+                <Button
+                  onClick={() => {
+                    setEditingSaved(true);
+                    setSaved(false);
+                    setSaveError("");
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  Edit Saved Attendance
+                </Button>
+              ) : null}
+              <Button
+                onClick={handleSave}
+                disabled={saving || !selectedClassId || records.length === 0 || !editingSaved || (role === "teacher" && !selectedCourseId)}
+                className="gap-2"
+                size="sm"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
+                {saved ? "Saved" : "Save Attendance"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

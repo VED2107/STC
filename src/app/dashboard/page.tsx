@@ -16,6 +16,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
+import { getCached, setCache } from "@/lib/dashboard-cache";
 import {
   StitchSectionHeader,
   stitchButtonClass,
@@ -57,8 +58,10 @@ interface SyllabusRow {
 interface StudentRecord {
   id: string;
   class_id: string;
+  branch_id?: string | null;
   student_type: "tuition" | "online";
   class?: { name: string; board: string; level: string } | null;
+  branch?: { id: string; name: string } | null;
 }
 
 function StudentDashboardInner() {
@@ -88,12 +91,31 @@ function StudentDashboardInner() {
         return;
       }
 
-      setLoading(true);
       setUserName(profile?.full_name || user.user_metadata?.full_name || user.email || "Scholar");
 
     if (role === "admin" || role === "super_admin" || role === "teacher") {
         setLoading(false);
         return;
+      }
+
+      const dashCacheKey = `student:dashboard:${user.id}`;
+      const cached = getCached<{
+        studentRecord: StudentRecord;
+        stats: typeof stats;
+        recentAttendance: AttendanceRow[];
+        enrolledCourses: CourseRow[];
+        recentMaterials: MaterialRow[];
+      }>(dashCacheKey);
+
+      if (cached) {
+        setStudentRecord(cached.studentRecord);
+        setStats(cached.stats);
+        setRecentAttendance(cached.recentAttendance);
+        setEnrolledCourses(cached.enrolledCourses);
+        setRecentMaterials(cached.recentMaterials);
+        setLoading(false);
+      } else {
+        setLoading(true);
       }
 
       const classContextResponse = await fetch("/api/student/class-context", {
@@ -110,6 +132,7 @@ function StudentDashboardInner() {
       const classContext = (await classContextResponse.json()) as {
         student: StudentRecord | null;
         class: StudentRecord["class"];
+        branch: StudentRecord["branch"];
         courses: CourseRow[];
       };
 
@@ -121,6 +144,7 @@ function StudentDashboardInner() {
       const typedStudent = {
         ...classContext.student,
         class: classContext.class ?? null,
+        branch: classContext.branch ?? null,
       } as StudentRecord;
 
       const isTuition = typedStudent.student_type === "tuition";
@@ -250,17 +274,27 @@ function StudentDashboardInner() {
       }
 
       if (cancelled) return;
-      setStudentRecord(typedStudent);
-      setRecentAttendance((attendanceRes.data as AttendanceRow[] | null) ?? []);
-      setEnrolledCourses(studies);
-      setRecentMaterials(recentMats);
-      setStats({
+      const nextStats = {
         courses: studies.length,
         attendanceRate: rate,
         materials: materialsCount,
         notifications: notifsRes.count ?? 0,
-      });
+      };
+      const nextAttendance = (attendanceRes.data as AttendanceRow[] | null) ?? [];
+      setStudentRecord(typedStudent);
+      setRecentAttendance(nextAttendance);
+      setEnrolledCourses(studies);
+      setRecentMaterials(recentMats);
+      setStats(nextStats);
       setLoading(false);
+
+      setCache(`student:dashboard:${user.id}`, {
+        studentRecord: typedStudent,
+        stats: nextStats,
+        recentAttendance: nextAttendance,
+        enrolledCourses: studies,
+        recentMaterials: recentMats,
+      });
     };
 
     void run();
@@ -360,6 +394,7 @@ function StudentDashboardInner() {
           <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
             {studentRecord?.class?.board ?? "Board pending"} · Level{" "}
             {studentRecord?.class?.level ?? "-"}
+            {studentRecord?.branch ? ` · ${studentRecord.branch.name}` : ""}
           </p>
         </Link>
         {isOnlineStudent ? null : (

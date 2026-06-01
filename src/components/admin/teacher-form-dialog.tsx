@@ -25,6 +25,7 @@ import { Loader2 } from "lucide-react";
 import type { Branch, Class, Teacher } from "@/lib/types/database";
 import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
+import { invalidateAfterTeacherMutation } from "@/lib/cache-invalidation";
 
 interface TeacherProfileOption {
   id: string;
@@ -394,6 +395,7 @@ export function TeacherFormDialog({
         await syncTeacherClassAccess(profileId, null);
         await syncTeacherSubjectAccess(profileId, null);
       }
+      invalidateAfterTeacherMutation();
       onOpenChange(false);
       onSuccess();
     } catch (error) {

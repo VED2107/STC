@@ -18,7 +18,7 @@ export async function GET() {
 
     const { data: student, error: studentError } = await admin
       .from("students")
-      .select("id, class_id, student_type")
+      .select("id, class_id, branch_id, student_type")
       .eq("profile_id", user.id)
       .maybeSingle();
 
@@ -27,39 +27,44 @@ export async function GET() {
     }
 
     if (!student) {
-      return NextResponse.json({ student: null, class: null, courses: [] });
+      return NextResponse.json({ student: null, class: null, branch: null, courses: [] });
     }
 
-    let resolvedClass = null as {
-      id: string;
-      name: string;
-      board: string;
-      level: string;
-    } | null;
+    const typedStudent = student as { id: string; class_id: string | null; branch_id: string | null; student_type: string };
 
-    if (student.class_id) {
-      const { data: classData } = await admin
-        .from("classes")
-        .select("id, name, board, level")
-        .eq("id", student.class_id)
-        .maybeSingle();
+    // Parallel fetch: branch, class, and enrollments all at once
+    const [branchResult, classResult, enrollmentResult] = await Promise.all([
+      typedStudent.branch_id
+        ? admin
+            .from("branches")
+            .select("id, name")
+            .eq("id", typedStudent.branch_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      typedStudent.class_id
+        ? admin
+            .from("classes")
+            .select("id, name, board, level")
+            .eq("id", typedStudent.class_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      admin
+        .from("enrollments")
+        .select("course:courses(id, title, subject, class_id)")
+        .eq("student_id", typedStudent.id)
+        .eq("status", "active"),
+    ]);
 
-      resolvedClass =
-        (classData as { id: string; name: string; board: string; level: string } | null) ?? null;
-    }
+    const resolvedBranch = (branchResult.data as { id: string; name: string } | null) ?? null;
+    let resolvedClass =
+      (classResult.data as { id: string; name: string; board: string; level: string } | null) ?? null;
 
-    const { data: enrollmentRows, error: enrollmentError } = await admin
-      .from("enrollments")
-      .select("course:courses(id, title, subject, class_id)")
-      .eq("student_id", student.id)
-      .eq("status", "active");
-
-    if (enrollmentError) {
-      return NextResponse.json({ error: enrollmentError.message }, { status: 500 });
+    if (enrollmentResult.error) {
+      return NextResponse.json({ error: enrollmentResult.error.message }, { status: 500 });
     }
 
     const courses =
-      ((enrollmentRows as unknown as Array<{
+      ((enrollmentResult.data as unknown as Array<{
         course: { id: string; title: string; subject: string; class_id?: string | null } | null;
       }>) ?? [])
         .map((entry) => entry.course)
@@ -87,11 +92,13 @@ export async function GET() {
 
     return NextResponse.json({
       student: {
-        id: student.id,
-        class_id: student.class_id,
-        student_type: student.student_type,
+        id: typedStudent.id,
+        class_id: typedStudent.class_id,
+        branch_id: typedStudent.branch_id,
+        student_type: typedStudent.student_type,
       },
       class: resolvedClass,
+      branch: resolvedBranch,
       courses,
     });
   } catch (error) {

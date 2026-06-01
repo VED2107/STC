@@ -4,6 +4,13 @@
 import { Suspense, useCallback, useEffect, useState, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download, FileSpreadsheet, FileText, Search, Users } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -93,6 +100,8 @@ function AdminStudentsPageInner() {
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentRow | null>(null);
   const [initialProfileId, setInitialProfileId] = useState<string | null>(null);
+  const [selectedClassFilterId, setSelectedClassFilterId] = useState("");
+  const [selectedBranchFilterId, setSelectedBranchFilterId] = useState("");
 
   function handleDialogOpenChange(nextOpen: boolean) {
     setDialogOpen(nextOpen);
@@ -235,12 +244,50 @@ function AdminStudentsPageInner() {
     }
   }, [role, searchParams, router, pathname]);
 
+  // Class and branch filter lists derived from loaded student data
+  const filterClasses = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const s of students) {
+      if (s.class_id && s.class?.name && !seen.has(s.class_id)) {
+        seen.set(s.class_id, s.class.name);
+      }
+    }
+    return [...seen.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [students]);
+
+  const filterBranches = useMemo(() => {
+    if (!selectedClassFilterId) return [];
+    const seen = new Map<string, string>();
+    for (const s of students) {
+      if (s.class_id === selectedClassFilterId && s.branch_id && s.branch?.name && !seen.has(s.branch_id)) {
+        seen.set(s.branch_id, s.branch.name);
+      }
+    }
+    return [...seen.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [students, selectedClassFilterId]);
+
+  // Reset branch when class changes
+  useEffect(() => {
+    setSelectedBranchFilterId("");
+  }, [selectedClassFilterId]);
+
   // Memoized filtered students for better performance
   const filtered = useMemo(() => {
-    if (!search.trim()) return students;
+    let result = students;
+    if (selectedClassFilterId) {
+      result = result.filter((s) => s.class_id === selectedClassFilterId);
+    }
+    if (selectedBranchFilterId) {
+      result = result.filter((s) => s.branch_id === selectedBranchFilterId);
+    }
+    if (!search.trim()) return result;
 
     const searchTerm = search.toLowerCase();
-    return students.filter((student) => {
+    return result.filter((student) => {
       const courseTitles = (student.enrollments ?? [])
         .map((entry) => entry.course?.title ?? "")
         .join(" ");
@@ -256,7 +303,7 @@ function AdminStudentsPageInner() {
 
       return haystack.includes(searchTerm);
     });
-  }, [students, search]);
+  }, [students, search, selectedClassFilterId, selectedBranchFilterId]);
 
   // Memoized student statistics for better performance
   const studentStats = useMemo(() => {
@@ -559,6 +606,61 @@ function AdminStudentsPageInner() {
           </p>
         </div>
       </div>
+
+      {filterClasses.length > 0 ? (
+        <div className={cn(stitchPanelClass, "mt-6")}>
+          <div className={cn("grid gap-4", filterBranches.length > 0 ? "md:grid-cols-2" : "md:grid-cols-1 max-w-xs")}>
+            <Select
+              value={selectedClassFilterId || "__all"}
+              onValueChange={(v) => setSelectedClassFilterId(v === "__all" ? "" : (v ?? ""))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All classes">
+                  {selectedClassFilterId
+                    ? filterClasses.find((c) => c.id === selectedClassFilterId)?.name ?? "All classes"
+                    : "All classes"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">All classes</SelectItem>
+                {filterClasses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {filterBranches.length > 0 ? (
+              <Select
+                value={selectedBranchFilterId || "__all"}
+                onValueChange={(v) => setSelectedBranchFilterId(v === "__all" ? "" : (v ?? ""))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All branches">
+                    {selectedBranchFilterId
+                      ? filterBranches.find((b) => b.id === selectedBranchFilterId)?.name ?? "All branches"
+                      : "All branches"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">All branches</SelectItem>
+                  {filterBranches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+          </div>
+          {(selectedClassFilterId || selectedBranchFilterId) ? (
+            <button
+              type="button"
+              className="mt-3 text-xs text-muted-foreground transition hover:text-foreground"
+              onClick={() => { setSelectedClassFilterId(""); setSelectedBranchFilterId(""); }}
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">

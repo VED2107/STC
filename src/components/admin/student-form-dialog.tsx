@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import type { Class, StudentType } from "@/lib/types/database";
+import { invalidateAfterStudentMutation } from "@/lib/cache-invalidation";
 
 interface EditableStudent {
   id: string;
@@ -77,6 +78,8 @@ export function StudentFormDialog({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [existingAvatarUrl, setExistingAvatarUrl] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [branchesForClass, setBranchesForClass] = useState<
     Array<{ id: string; name: string; subjects: string[] }>
   >([]);
@@ -121,6 +124,8 @@ export function StudentFormDialog({
       setExistingAvatarUrl(editStudent.profile?.avatar_url ?? null);
       setPhotoFile(null);
       setPhotoPreview(null);
+      setConfirmDelete(false);
+      setDeleting(false);
       return;
     }
 
@@ -221,6 +226,25 @@ export function StudentFormDialog({
     }
   }, [filteredProfiles, isEditMode, profileSearch, selectedProfileId]);
 
+  async function handleDelete() {
+    if (!editStudent) return;
+    setDeleting(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("students")
+      .delete()
+      .eq("id", editStudent.id);
+    setDeleting(false);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setConfirmDelete(false);
+    invalidateAfterStudentMutation();
+    onOpenChange(false);
+    onSuccess();
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -264,6 +288,7 @@ export function StudentFormDialog({
         await uploadPhoto(editStudent.profile_id);
       }
 
+      invalidateAfterStudentMutation();
       onOpenChange(false);
       onSuccess();
       return;
@@ -294,6 +319,7 @@ export function StudentFormDialog({
       await uploadPhoto(selectedProfileId);
     }
 
+    invalidateAfterStudentMutation();
     onOpenChange(false);
     onSuccess();
   }
@@ -587,24 +613,78 @@ export function StudentFormDialog({
             </p>
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                loading ||
-                (!isEditMode && (!selectedProfileId || availableProfiles.length === 0))
-              }
-            >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditMode ? "Update Student" : "Enroll Student"}
-            </Button>
+          {isEditMode && confirmDelete ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm font-medium text-destructive">
+                Permanently delete {editStudent?.profile?.full_name || "this student"}?
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This removes the student record, enrollments, attendance, QR tokens, and notifications. This action cannot be undone.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => void handleDelete()}
+                  disabled={deleting}
+                >
+                  {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Yes, Delete Student
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter className={isEditMode ? "flex-row justify-between sm:justify-between" : ""}>
+            {isEditMode && !confirmDelete ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete Student
+              </Button>
+            ) : !isEditMode ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+            ) : <div />}
+            <div className="flex gap-2">
+              {isEditMode ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+              ) : null}
+              <Button
+                type="submit"
+                disabled={
+                  loading ||
+                  (!isEditMode && (!selectedProfileId || availableProfiles.length === 0))
+                }
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditMode ? "Update Student" : "Enroll Student"}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

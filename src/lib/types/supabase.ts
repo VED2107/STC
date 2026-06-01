@@ -223,6 +223,21 @@ type AttendanceSessionRow = {
   updated_at: string;
 };
 
+type GetAdminDashboardStatsFunction = {
+  Args: Record<string, never>;
+  Returns: {
+    student_count: number;
+    course_count: number;
+    teacher_count: number;
+    material_count: number;
+    class_count: number;
+    attendance_count: number;
+    fees_paid: number;
+    fees_partial: number;
+    fees_not_paid: number;
+  }[];
+};
+
 type MarkAttendanceFunction = {
   Args: {
     p_student_token: string;
@@ -279,6 +294,7 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      get_admin_dashboard_stats: GetAdminDashboardStatsFunction;
       mark_attendance: MarkAttendanceFunction;
     };
   };

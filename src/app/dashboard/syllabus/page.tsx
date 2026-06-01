@@ -7,6 +7,7 @@ import { BookOpen, ExternalLink, FileText, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
+import { getCached, setCache } from "@/lib/dashboard-cache";
 import {
   StitchEmptyState,
   StitchSectionHeader,
@@ -65,7 +66,17 @@ export default function StudentSyllabusPage() {
       return;
     }
 
-    setLoading(true);
+    const cacheKey = `student:syllabus:${user.id}`;
+    const cached = getCached<{ syllabi: SyllabusRow[]; materials: MaterialRow[]; className: string }>(cacheKey);
+    if (cached) {
+      setSyllabi(cached.syllabi);
+      setMaterials(cached.materials);
+      setClassName(cached.className);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     const { data: student } = await supabase
       .from("students")
       .select("id, class_id, student_type")
@@ -128,10 +139,12 @@ export default function StudentSyllabusPage() {
     }
 
     const rows = data ?? [];
+    const resolvedClassName = rows[0]?.class?.name ?? "";
     setSyllabi(rows);
     setMaterials(materialRows);
-    setClassName(rows[0]?.class?.name ?? "");
+    setClassName(resolvedClassName);
     setLoading(false);
+    setCache(cacheKey, { syllabi: rows, materials: materialRows, className: resolvedClassName });
   }, [authLoading, router, user]);
 
   useEffect(() => {

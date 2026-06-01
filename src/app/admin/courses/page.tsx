@@ -24,6 +24,7 @@ const CourseFormDialog = dynamic(() => import("@/components/admin/course-form-di
   loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
 });
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
+import { invalidateAfterCourseMutation } from "@/lib/cache-invalidation";
 import type { Course } from "@/lib/types/database";
 
 type CourseRow = Omit<Course, "class" | "teacher"> & {
@@ -121,6 +122,7 @@ function AdminCoursesPageInner() {
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this course?")) return;
     await supabase.from("courses").delete().eq("id", id);
+    invalidateAfterCourseMutation();
     void fetchCourses();
   }, [fetchCourses]);
 

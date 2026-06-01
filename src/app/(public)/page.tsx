@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen, Brain, Building2, Flame, GraduationCap, Microscop
 import { Reveal } from "@/components/stitch/reveal";
 import { HeroMedia } from "@/components/stitch/hero-media";
 import { AnnouncementBadge } from "@/components/stitch/announcement-badge";
+import { FacultyMarquee } from "@/components/stitch/faculty-marquee";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 
@@ -24,12 +25,6 @@ type HomeTeacherRow = {
   qualification: string;
 };
 
-type HomeCourseRow = {
-  id: string;
-  title: string;
-  subject: string;
-  class?: { name: string; board: string } | null;
-};
 
 const departments = [
   {
@@ -112,19 +107,12 @@ const differentiators = [
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const [teacherCountRes, courseCountRes, materialCountRes, classCountRes, teachersRes, coursesRes] = await Promise.all([
+  const [teacherCountRes, courseCountRes, materialCountRes, classCountRes, teachersRes] = await Promise.all([
     supabase.from("teachers").select("id", { count: "exact", head: true }),
     supabase.from("courses").select("id", { count: "exact", head: true }).eq("is_online_only", true).eq("is_active", true),
     supabase.from("materials").select("id", { count: "exact", head: true }),
     supabase.from("classes").select("id", { count: "exact", head: true }),
-    supabase.from("teachers").select("id, name, subject, qualification").order("created_at", { ascending: false }).limit(3),
-    supabase
-      .from("courses")
-      .select("id, title, subject, class:classes(name, board)")
-      .eq("is_online_only", true)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(4),
+    supabase.from("teachers").select("id, name, subject, qualification").order("created_at", { ascending: false }).limit(12),
   ]);
 
   const stats = [
@@ -134,7 +122,6 @@ export default async function HomePage() {
     { value: String(classCountRes.count ?? 0), label: "Academic Structures" },
   ];
   const latestTeachers = (teachersRes.data as HomeTeacherRow[] | null) ?? [];
-  const latestCourses = (coursesRes.data as HomeCourseRow[] | null) ?? [];
 
   return (
     <div className="overflow-x-hidden">
@@ -322,72 +309,30 @@ export default async function HomePage() {
 
       <section className="bg-muted py-24 md:py-32">
         <div className="mx-auto max-w-[1600px] px-6 md:px-12">
-          <div className="grid gap-10 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-            <Reveal variant="mask-up">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">Live From The Academy</p>
-                <h2 className="mt-4 text-4xl font-light text-primary sm:text-5xl md:text-6xl">
-                  Fresh additions from the <span className="italic text-secondary">admin desk</span>
-                </h2>
-                <p className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
-                  Newly published online subjects and recently added faculty now surface here automatically from the live academy records.
-                </p>
-              </div>
+          <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+            <Reveal variant="mask-up" className="max-w-2xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">Live From The Academy</p>
+              <h2 className="mt-4 text-4xl font-light text-primary sm:text-5xl md:text-6xl">
+                Fresh additions from the <span className="italic text-secondary">admin desk</span>
+              </h2>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
+                Recently added faculty surface here automatically from the live academy records.
+              </p>
             </Reveal>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <Reveal delay={80} variant="soft-zoom">
-                <div className="stitch-panel h-full">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-3xl italic text-primary">Latest Subjects</h3>
-                    <Link href="/online-courses" className="text-xs uppercase tracking-[0.2em] text-secondary">
-                      View All
-                    </Link>
-                  </div>
-                  <div className="mt-6 space-y-3">
-                    {latestCourses.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No online subjects published yet.</p>
-                    ) : (
-                      latestCourses.map((course) => (
-                        <Link key={course.id} href={`/online-courses/${course.id}`} className="block rounded-[20px] border border-black/5 bg-white/80 px-4 py-4 transition hover:border-primary/20">
-                          <p className="text-base text-foreground">{course.title}</p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {course.subject} · {course.class?.name ?? "Independent"} · {course.class?.board ?? "STC"}
-                          </p>
-                        </Link>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </Reveal>
-
-              <Reveal delay={140} variant="soft-zoom">
-                <div className="stitch-panel h-full">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-3xl italic text-primary">Latest Faculty</h3>
-                    <Link href="/faculty" className="text-xs uppercase tracking-[0.2em] text-secondary">
-                      View All
-                    </Link>
-                  </div>
-                  <div className="mt-6 space-y-3">
-                    {latestTeachers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No faculty profiles added yet.</p>
-                    ) : (
-                      latestTeachers.map((teacher) => (
-                        <Link key={teacher.id} href="/faculty" className="block rounded-[20px] border border-black/5 bg-white/80 px-4 py-4 transition hover:border-primary/20">
-                          <p className="text-base text-foreground">{teacher.name}</p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {teacher.subject} · {teacher.qualification}
-                          </p>
-                        </Link>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </Reveal>
-            </div>
+            <Reveal delay={120} variant="fade">
+              <Link href="/faculty" className="inline-flex items-center gap-2 border-b border-secondary pb-1 text-sm font-semibold text-secondary transition hover:gap-3">
+                View all faculty
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Reveal>
           </div>
         </div>
+
+        <Reveal delay={160} variant="fade">
+          <div className="mt-12">
+            <FacultyMarquee teachers={latestTeachers} />
+          </div>
+        </Reveal>
       </section>
 
       {/* CTA */}

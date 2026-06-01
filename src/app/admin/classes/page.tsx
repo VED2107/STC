@@ -29,6 +29,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
+import { invalidateAfterClassMutation } from "@/lib/cache-invalidation";
 import {
   buildStudentExportRows,
   studentExportHeaders,
@@ -336,6 +337,7 @@ function AdminClassesPageInner() {
   }, [role, searchParams, dialogOpen, classes.length, router, pathname]);
 
   function refreshClasses() {
+    invalidateAfterClassMutation();
     void loadClassData();
   }
 
