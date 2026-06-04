@@ -95,7 +95,7 @@ function StudentDashboardInner() {
 
       setUserName(profile?.full_name || user.user_metadata?.full_name || user.email || "Scholar");
 
-    if (role === "admin" || role === "super_admin" || role === "teacher") {
+      if (role === "admin" || role === "super_admin" || role === "teacher") {
         setLoading(false);
         return;
       }
@@ -385,6 +385,80 @@ function StudentDashboardInner() {
   }
 
   const leadCourse = enrolledCourses[0];
+  const renderMaterialLink = (material: MaterialRow) => {
+    const matMeta = materialIconMap[material.type] ?? materialIconMap.notes;
+    const MatIcon = matMeta.icon;
+
+    return (
+      <Link
+        key={material.id}
+        href="/dashboard/materials"
+        className={cn(
+          stitchPanelSoftClass,
+          "flex items-center justify-between gap-4 transition hover:border-primary/12"
+        )}
+      >
+        <div className="flex items-center gap-4">
+          <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", matMeta.accent)}>
+            <MatIcon className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-base text-foreground">{material.title}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+              {material.type}
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 text-primary" />
+      </Link>
+    );
+  };
+  const renderAttendanceRow = (entry: AttendanceRow) => {
+    const entryName = entry.class?.name ?? "Class Session";
+    const hue = (entryName.charCodeAt(0) * 7) % 360;
+
+    return (
+      <div
+        key={entry.id}
+        className={cn(stitchPanelSoftClass, "flex items-center justify-between")}
+      >
+        <div className="flex items-center gap-4">
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold"
+            style={{ background: `hsl(${hue}, 45%, 92%)`, color: `hsl(${hue}, 40%, 45%)` }}
+          >
+            {entryName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p className="text-sm text-foreground">{entryName}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+              {new Date(entry.date).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={`h-2 w-2 rounded-full ${
+              entry.status === "present" ? "bg-primary" : "bg-destructive"
+            }`}
+          />
+          <span
+            className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
+              entry.status === "present"
+                ? "bg-primary/10 text-primary"
+                : "bg-destructive/10 text-destructive"
+            }`}
+          >
+            {entry.status}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="px-6 py-8 md:px-10">
@@ -570,33 +644,7 @@ function StudentDashboardInner() {
                 </p>
               </div>
             ) : (
-              recentMaterials.map((material) => {
-                const matMeta = materialIconMap[material.type] ?? materialIconMap.notes;
-                const MatIcon = matMeta.icon;
-                return (
-                  <Link
-                    key={material.id}
-                    href="/dashboard/materials"
-                    className={cn(
-                      stitchPanelSoftClass,
-                      "flex items-center justify-between gap-4 transition hover:border-primary/12"
-                    )}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", matMeta.accent)}>
-                        <MatIcon className="h-4 w-4" />
-                      </span>
-                      <div>
-                        <p className="text-base text-foreground">{material.title}</p>
-                        <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                          {material.type}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-primary" />
-                  </Link>
-                );
-              }))
+              recentMaterials.map(renderMaterialLink)
             )}
           </div>
         </div>
@@ -620,53 +668,7 @@ function StudentDashboardInner() {
                   </p>
                 </div>
               ) : (
-                recentAttendance.map((entry) => {
-                  const entryName = entry.class?.name ?? "Class Session";
-                  const hue = entryName.charCodeAt(0) * 7 % 360;
-                  return (
-                    <div
-                      key={entry.id}
-                      className={cn(stitchPanelSoftClass, "flex items-center justify-between")}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold"
-                          style={{ background: `hsl(${hue}, 45%, 92%)`, color: `hsl(${hue}, 40%, 45%)` }}
-                        >
-                          {entryName.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm text-foreground">
-                            {entryName}
-                          </p>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                            {new Date(entry.date).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            entry.status === "present" ? "bg-primary" : "bg-destructive"
-                          }`}
-                        />
-                        <span
-                          className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
-                            entry.status === "present"
-                              ? "bg-primary/10 text-primary"
-                              : "bg-destructive/10 text-destructive"
-                          }`}
-                        >
-                          {entry.status}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }))
+                recentAttendance.map(renderAttendanceRow)
               )}
             </div>
           </div>
