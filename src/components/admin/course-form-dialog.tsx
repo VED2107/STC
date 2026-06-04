@@ -2,15 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -21,11 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import {
+  BookOpen,
+  CreditCard,
+  FileText,
+  Image,
+  Loader2,
+  PlayCircle,
+  Video,
+} from "lucide-react";
 import type { Class, Course } from "@/lib/types/database";
 import type { Database } from "@/lib/types/supabase";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
 import { invalidateAfterCourseMutation } from "@/lib/cache-invalidation";
+import { cn } from "@/lib/utils";
 
 interface CourseFormDialogProps {
   open: boolean;
@@ -36,6 +39,14 @@ interface CourseFormDialogProps {
 
 type CourseInsert = Database["public"]["Tables"]["courses"]["Insert"];
 type CourseUpdate = Database["public"]["Tables"]["courses"]["Update"];
+
+const sectionClass =
+  "rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
+const labelClass =
+  "flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+const inputClass = "stitch-input w-full";
+const checkboxClass =
+  "h-[18px] w-[18px] rounded-md border-2 border-black/12 bg-white text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
 
 export function CourseFormDialog({
   open,
@@ -193,9 +204,7 @@ export function CourseFormDialog({
           .select("id")
           .single();
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
         const newCourseId = (data as { id: string } | null)?.id;
         if (newCourseId) {
@@ -240,121 +249,167 @@ export function CourseFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editCourse?.id ? "Edit Course" : "New Course"}</DialogTitle>
-          <DialogDescription>
-            {editCourse?.id
-              ? "Update the online course details."
-              : "Create a free online subject using a class label for display only, without mixing it into offline class access."}
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d0e9d4]/55 text-[#374c3d]">
+              <PlayCircle className="h-5 w-5" />
+            </span>
+            <div>
+              <DialogTitle className="text-xl">
+                {editCourse?.id ? "Edit Course" : "New Course"}
+              </DialogTitle>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                {editCourse?.id ? "Update online course details" : "Create online subject for students"}
+              </p>
+            </div>
+          </div>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="cf-title">Course</Label>
-            <Input id="cf-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+
+        <form onSubmit={handleSubmit} className="mt-2 space-y-5">
+          {/* ── Course details ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <BookOpen className="h-3.5 w-3.5" />
+              Course Details
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Course Title</label>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} required className={inputClass} />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Subject</label>
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} required className={inputClass} />
+                <p className="mt-1 text-xs text-muted-foreground">Online course label only.</p>
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">Description</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={cn(inputClass, "resize-none")} />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cf-subject">Subject</Label>
-            <Input id="cf-subject" value={subject} onChange={(e) => setSubject(e.target.value)} required />
-            <p className="text-xs text-muted-foreground">
-              This subject label is for the online course record only.
-            </p>
+
+          {/* ── Pricing & class ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <CreditCard className="h-3.5 w-3.5" />
+              Pricing & Classification
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Online Student Fee (₹)</label>
+                <input
+                  inputMode="numeric"
+                  value={feeInr}
+                  onChange={(e) => setFeeInr(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="0"
+                  className={inputClass}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">Online students only.</p>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Show Under Class</label>
+                <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
+                  <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                    <SelectValue placeholder="Select class">
+                      {selectedClass ? `${selectedClass.name} (${selectedClass.board})` : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.board})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-black/[0.04] bg-white/60 px-3.5 py-3 transition hover:bg-white">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className={checkboxClass}
+              />
+              <span className="text-sm text-foreground">Active — visible to students</span>
+            </label>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cf-fee">Online Student Fee (₹)</Label>
-            <Input
-              id="cf-fee"
-              inputMode="numeric"
-              value={feeInr}
-              onChange={(e) => setFeeInr(e.target.value.replace(/[^0-9]/g, ""))}
-              placeholder="0"
-            />
-            <p className="text-xs text-muted-foreground">
-              This fee applies to online students who buy this course. Tuition students do not need to buy it.
-            </p>
+
+          {/* ── Media attachments ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <Video className="h-3.5 w-3.5" />
+              Media & Attachments
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">Video Link</label>
+              <input
+                value={videoLink}
+                onChange={(e) => setVideoLink(e.target.value)}
+                placeholder="https://..."
+                className={inputClass}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Image className="h-3.5 w-3.5" />
+                  Thumbnail
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setThumbnailFile(e.target.files?.[0] ?? null)}
+                  className={inputClass}
+                />
+                {thumbnailUrl ? (
+                  <p className="mt-1 text-xs text-muted-foreground">Current thumbnail attached.</p>
+                ) : null}
+              </div>
+              <div>
+                <label className="mb-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+                  <FileText className="h-3.5 w-3.5" />
+                  Course PDF
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                  className={inputClass}
+                />
+                {pdfUrl ? (
+                  <p className="mt-1 text-xs text-muted-foreground">Current PDF attached.</p>
+                ) : null}
+              </div>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cf-desc">Description</Label>
-            <Textarea id="cf-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cf-video">Video Link</Label>
-            <Input
-              id="cf-video"
-              value={videoLink}
-              onChange={(e) => setVideoLink(e.target.value)}
-              placeholder="https://..."
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cf-thumb">Thumbnail Image</Label>
-            <Input
-              id="cf-thumb"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setThumbnailFile(e.target.files?.[0] ?? null)}
-            />
-            {thumbnailUrl ? (
-              <p className="text-xs text-muted-foreground">Current thumbnail attached.</p>
-            ) : null}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cf-pdf">Course PDF</Label>
-            <Input
-              id="cf-pdf"
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-            />
-            {pdfUrl ? (
-              <p className="text-xs text-muted-foreground">Current PDF attached.</p>
-            ) : null}
-          </div>
-          <div className="space-y-2">
-            <Label>Show Under Class</Label>
-            <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select class">
-                  {selectedClass
-                    ? `${selectedClass.name} (${selectedClass.board})`
-                    : undefined}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name} ({c.board})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              This only shows which class the online subject belongs under for students. It does not assign teachers or mix with offline tuition class access.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="cf-active"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="rounded"
-            />
-            <Label htmlFor="cf-active" className="text-sm">Active</Label>
-          </div>
+
           {errorMessage ? (
-            <p className="text-sm text-destructive">{errorMessage}</p>
+            <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
           ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+
+          {/* ── Footer ── */}
+          <div className="flex items-center justify-end gap-2.5 border-t border-black/[0.04] pt-5">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+            >
               Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {editCourse?.id ? "Update" : "Create"}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

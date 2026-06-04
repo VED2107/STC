@@ -31,6 +31,7 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
+import { getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 
 interface AuditLogRow {
   id: string;
@@ -69,6 +70,18 @@ const ACTION_ICONS: Record<string, typeof Plus> = {
 
 const PAGE_SIZE = 50;
 
+const FK_FIELDS: Record<string, { table: string; nameCol: string; join?: string }> = {
+  class_id: { table: "classes", nameCol: "name" },
+  teacher_id: { table: "teachers", nameCol: "name" },
+  course_id: { table: "courses", nameCol: "title" },
+  student_id: { table: "students", nameCol: "full_name", join: "full_name:profiles!students_profile_id_fkey(full_name)" },
+  profile_id: { table: "profiles", nameCol: "full_name" },
+  branch_id: { table: "branches", nameCol: "name" },
+  teacher_profile_id: { table: "profiles", nameCol: "full_name" },
+};
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const supabase = createClient();
 
 function getDefaultDateRange() {
@@ -80,23 +93,41 @@ function getDefaultDateRange() {
   };
 }
 
-function extractEntityLabel(log: AuditLogRow): string {
+function extractEntityLabel(log: AuditLogRow, names: Record<string, string>): string {
   const details = log.details as {
     new?: Record<string, unknown>;
     old?: Record<string, unknown>;
   };
   const entity = details?.new ?? details?.old;
-  if (!entity) return log.entity_id?.slice(0, 8) ?? "—";
 
-  if (typeof entity.full_name === "string") return entity.full_name;
-  if (typeof entity.name === "string") return entity.name;
-  if (typeof entity.title === "string") return entity.title;
-  if (typeof entity.subject === "string") return entity.subject;
+  if (entity) {
+    if (typeof entity.full_name === "string") return entity.full_name;
+    if (typeof entity.name === "string") return entity.name;
+    if (typeof entity.title === "string") return entity.title;
+    if (typeof entity.subject === "string") return entity.subject;
 
+    // Resolve FK-based name (e.g. students → profile_id → profile name)
+    if (typeof entity.profile_id === "string" && names[entity.profile_id]) {
+      return names[entity.profile_id];
+    }
+  }
+
+  if (log.entity_id && names[log.entity_id]) return names[log.entity_id];
   return log.entity_id?.slice(0, 8) ?? "—";
 }
 
-function formatChanges(log: AuditLogRow): string[] {
+function resolveValue(key: string, val: unknown, names: Record<string, string>): string {
+  if (typeof val === "string" && UUID_RE.test(val) && key in FK_FIELDS) {
+    return names[val] ?? val.slice(0, 8);
+  }
+  return JSON.stringify(val);
+}
+
+function formatFieldLabel(key: string): string {
+  return key.replace(/_id$/, "").replace(/_/g, " ");
+}
+
+function formatChanges(log: AuditLogRow, names: Record<string, string>): string[] {
   if (log.action !== "update") return [];
   const details = log.details as {
     old?: Record<string, unknown>;
@@ -113,7 +144,7 @@ function formatChanges(log: AuditLogRow): string[] {
     const newVal = details.new[key];
     if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
       changes.push(
-        `${key}: ${JSON.stringify(oldVal)} → ${JSON.stringify(newVal)}`,
+        `${formatFieldLabel(key)}: ${resolveValue(key, oldVal, names)} → ${resolveValue(key, newVal, names)}`,
       );
     }
   }
@@ -135,6 +166,14 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [nameMap, setNameMap] = useState<Record<string, string>>({});
+
+  interface AuditLogsCacheData {
+    logs: AuditLogRow[];
+    hasMore: boolean;
+  }
+
+  const auditCacheKey = `admin:audit-logs:${dateFrom}:${dateTo}:${entityFilter}:${actionFilter}`;
 
   useEffect(() => {
     if (authLoading) return;
@@ -143,8 +182,52 @@ export default function AuditLogsPage() {
     }
   }, [authLoading, role, router]);
 
+  const resolveNames = useCallback(async (rows: AuditLogRow[]) => {
+    const idsByTable: Record<string, Set<string>> = {};
+
+    for (const log of rows) {
+      const details = log.details as { old?: Record<string, unknown>; new?: Record<string, unknown> };
+      for (const record of [details.old, details.new]) {
+        if (!record) continue;
+        for (const [key, val] of Object.entries(record)) {
+          const fk = FK_FIELDS[key];
+          if (!fk || typeof val !== "string" || !UUID_RE.test(val)) continue;
+          (idsByTable[key] ??= new Set()).add(val);
+        }
+      }
+    }
+
+    const map: Record<string, string> = {};
+    const fetches = Object.entries(idsByTable).map(async ([field, ids]) => {
+      const fk = FK_FIELDS[field];
+      if (!fk) return;
+      const idArr = Array.from(ids);
+      const selectCol = fk.join ?? fk.nameCol;
+      const { data } = await supabase.from(fk.table).select(`id, ${selectCol}`).in("id", idArr);
+      if (!data) return;
+      for (const row of data) {
+        const r = row as Record<string, unknown>;
+        const name = fk.join
+          ? (r[fk.nameCol] as { full_name?: string } | null)?.full_name
+          : (r[fk.nameCol] as string);
+        if (name) map[r.id as string] = name;
+      }
+    });
+
+    await Promise.all(fetches);
+    setNameMap(map);
+  }, []);
+
   const fetchLogs = useCallback(async () => {
-    setLoading(true);
+    const cached = getAdminPageStorageCache<AuditLogsCacheData>(auditCacheKey);
+    if (cached) {
+      setLogs(cached.logs);
+      setHasMore(cached.hasMore);
+      setExpandedIds(new Set());
+      setLoading(false);
+      void resolveNames(cached.logs);
+    }
+    if (!cached) setLoading(true);
 
     let query = supabase
       .from("audit_logs")
@@ -164,17 +247,20 @@ export default function AuditLogsPage() {
     const { data } = await query;
     const rows = (data as AuditLogRow[] | null) ?? [];
 
-    if (rows.length > PAGE_SIZE) {
-      setHasMore(true);
-      setLogs(rows.slice(0, PAGE_SIZE));
-    } else {
-      setHasMore(false);
-      setLogs(rows);
-    }
+    const finalLogs = rows.length > PAGE_SIZE ? rows.slice(0, PAGE_SIZE) : rows;
+    const finalHasMore = rows.length > PAGE_SIZE;
+    setHasMore(finalHasMore);
+    setLogs(finalLogs);
+
+    setAdminPageCache<AuditLogsCacheData>(auditCacheKey, {
+      logs: finalLogs,
+      hasMore: finalHasMore,
+    });
 
     setExpandedIds(new Set());
     setLoading(false);
-  }, [dateFrom, dateTo, entityFilter, actionFilter]);
+    void resolveNames(finalLogs);
+  }, [dateFrom, dateTo, entityFilter, actionFilter, auditCacheKey, resolveNames]);
 
   useEffect(() => {
     if (role === "admin" || role === "super_admin") {
@@ -189,7 +275,7 @@ export default function AuditLogsPage() {
       (log) =>
         log.summary.toLowerCase().includes(q) ||
         log.entity_type.toLowerCase().includes(q) ||
-        extractEntityLabel(log).toLowerCase().includes(q) ||
+        extractEntityLabel(log, nameMap).toLowerCase().includes(q) ||
         (log.actor?.full_name ?? "").toLowerCase().includes(q),
     );
   }, [logs, search]);
@@ -223,7 +309,7 @@ export default function AuditLogsPage() {
       actor_name: log.actor?.full_name ?? "System",
       action: log.action,
       entity_type: log.entity_type,
-      entity_label: extractEntityLabel(log),
+      entity_label: extractEntityLabel(log, nameMap),
       summary: log.summary,
     }));
   }
@@ -369,8 +455,8 @@ export default function AuditLogsPage() {
         <div className="mt-8 grid gap-3">
           {filteredLogs.map((log) => {
             const isExpanded = expandedIds.has(log.id);
-            const changes = formatChanges(log);
-            const entityLabel = extractEntityLabel(log);
+            const changes = formatChanges(log, nameMap);
+            const entityLabel = extractEntityLabel(log, nameMap);
             const ActionIcon = ACTION_ICONS[log.action] ?? Shield;
 
             return (

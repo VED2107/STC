@@ -4,6 +4,7 @@ import { Reveal } from "@/components/stitch/reveal";
 import { HeroMedia } from "@/components/stitch/hero-media";
 import { AnnouncementBadge } from "@/components/stitch/announcement-badge";
 import { FacultyMarquee } from "@/components/stitch/faculty-marquee";
+import { Typewriter } from "@/components/stitch/typewriter";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 
@@ -144,9 +145,11 @@ export default async function HomePage() {
 
             <Reveal delay={140} variant="mask-up">
               <h1 className="mt-6 text-[2.5rem] font-light leading-[1.05] text-primary sm:text-5xl md:text-7xl xl:text-8xl xl:leading-[1.04] 2xl:text-[6.5rem]">
-                Cultivating the
+                <Typewriter text="Cultivating the" delay={400} speed={50} />
                 <br />
-                <span className="italic">Intellect of Tomorrow.</span>
+                <span className="italic">
+                  <Typewriter text="Intellect of Tomorrow." delay={1300} speed={50} />
+                </span>
               </h1>
             </Reveal>
 

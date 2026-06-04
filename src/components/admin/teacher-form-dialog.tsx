@@ -2,15 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -21,11 +15,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import {
+  BookOpen,
+  Camera,
+  GraduationCap,
+  Loader2,
+  ShieldCheck,
+  UserCog,
+} from "lucide-react";
 import type { Branch, Class, Teacher } from "@/lib/types/database";
 import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 import { resolveUploadContentType, sanitizeUploadFileName } from "@/lib/supabase/upload";
 import { invalidateAfterTeacherMutation } from "@/lib/cache-invalidation";
+import { cn } from "@/lib/utils";
 
 interface TeacherProfileOption {
   id: string;
@@ -38,6 +40,14 @@ interface TeacherFormDialogProps {
   onSuccess: () => void;
   editTeacher?: Teacher;
 }
+
+const sectionClass =
+  "rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
+const labelClass =
+  "flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+const inputClass = "stitch-input w-full";
+const checkboxClass =
+  "h-[18px] w-[18px] rounded-md border-2 border-black/12 bg-white text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
 
 export function TeacherFormDialog({
   open,
@@ -267,9 +277,7 @@ export function TeacherFormDialog({
       if (error) throw error;
     }
 
-    if (!nextProfileId) {
-      return;
-    }
+    if (!nextProfileId) return;
 
     const { error: clearError } = await supabase
       .from("teacher_class_access")
@@ -277,9 +285,7 @@ export function TeacherFormDialog({
       .eq("teacher_profile_id", nextProfileId);
     if (clearError) throw clearError;
 
-    if (selectedClassIds.length === 0) {
-      return;
-    }
+    if (selectedClassIds.length === 0) return;
 
     const { error: insertError } = await supabase.from("teacher_class_access").insert(
       selectedClassIds.map((classId) => ({
@@ -301,9 +307,7 @@ export function TeacherFormDialog({
       if (error) throw error;
     }
 
-    if (!nextProfileId) {
-      return;
-    }
+    if (!nextProfileId) return;
 
     const { error: clearError } = await supabase
       .from("teacher_subject_access")
@@ -312,9 +316,7 @@ export function TeacherFormDialog({
     if (clearError) throw clearError;
 
     const selectedOptions = classSubjectOptions.filter((item) => selectedSubjectKeys.includes(item.key));
-    if (selectedOptions.length === 0) {
-      return;
-    }
+    if (selectedOptions.length === 0) return;
 
     const { error: insertError } = await supabase.from("teacher_subject_access").insert(
       selectedOptions.map((item) => ({
@@ -427,50 +429,79 @@ export function TeacherFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editTeacher ? "Edit Teacher" : "New Teacher"}</DialogTitle>
-          <DialogDescription>
-            {editTeacher ? "Update teacher details and access scope." : "Add a new teacher to the platform."}
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+              <UserCog className="h-5 w-5" />
+            </span>
+            <div>
+              <DialogTitle className="text-xl">
+                {editTeacher ? "Edit Teacher" : "New Teacher"}
+              </DialogTitle>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                {editTeacher ? "Update details and access scope" : "Add new teacher to platform"}
+              </p>
+            </div>
+          </div>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="tf-name">Name</Label>
-            <Input id="tf-name" value={name} onChange={(e) => setName(e.target.value)} required />
+
+        <form onSubmit={handleSubmit} className="mt-2 space-y-5">
+          {/* ── Profile details ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <UserCog className="h-3.5 w-3.5" />
+              Profile Details
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Name</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Qualification</label>
+                <input value={qualification} onChange={(e) => setQualification(e.target.value)} required className={inputClass} />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">Subject</label>
+              <input value={subject} readOnly placeholder="Select class subjects below" required className={cn(inputClass, "bg-muted/30")} />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Built from selected class subjects below.
+              </p>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">Bio</label>
+              <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={2} className={cn(inputClass, "resize-none")} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">Teacher Photo</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                className={inputClass}
+              />
+              {photoUrl ? (
+                <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                  <Camera className="h-3.5 w-3.5" />
+                  Current photo attached
+                </div>
+              ) : null}
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="tf-subject">Subject</Label>
-            <Input id="tf-subject" value={subject} readOnly placeholder="Select class subjects below" required />
-            <p className="text-xs text-muted-foreground">
-              Subject assignment is built from the selected class subjects below.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tf-qual">Qualification</Label>
-            <Input id="tf-qual" value={qualification} onChange={(e) => setQualification(e.target.value)} required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tf-bio">Bio</Label>
-            <Textarea id="tf-bio" value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tf-photo">Teacher Photo</Label>
-            <Input
-              id="tf-photo"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-            />
-            {photoUrl ? <p className="text-xs text-muted-foreground">Current photo attached.</p> : null}
-          </div>
-          <div className="space-y-2">
-            <Label>Teacher Login Profile</Label>
+
+          {/* ── Login profile link ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Login Profile
+            </div>
             <Select
               value={profileId || "__none"}
               onValueChange={(value) => setProfileId(!value || value === "__none" ? "" : value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
                 <SelectValue placeholder="Not linked to a login profile" />
               </SelectTrigger>
               <SelectContent>
@@ -483,37 +514,46 @@ export function TeacherFormDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Class Access Scope</Label>
-            <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-3">
+
+          {/* ── Class & subject access ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <GraduationCap className="h-3.5 w-3.5" />
+              Class Access Scope
+            </div>
+            <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-3">
               {classes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No classes found.</p>
               ) : (
                 classes.map((classItem) => (
-                  <label key={classItem.id} className="flex items-center gap-2 text-sm">
+                  <label key={classItem.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-muted/40">
                     <input
                       type="checkbox"
                       checked={selectedClassIds.includes(classItem.id)}
                       onChange={() => toggleClass(classItem.id)}
                       disabled={!profileId}
+                      className={checkboxClass}
                     />
-                    <span>
-                      {classItem.name} ({classItem.board})
-                    </span>
+                    <span className="text-sm">{classItem.name} ({classItem.board})</span>
                   </label>
                 ))
               )}
             </div>
             {!profileId ? (
               <p className="text-xs text-muted-foreground">
-                Link a teacher login profile to enable class-level access assignment.
+                Link a teacher login profile to enable class-level access.
               </p>
             ) : null}
           </div>
+
+          {/* ── Branches (read-only) ── */}
           {Object.keys(branchesByClass).length > 0 ? (
-            <div className="space-y-2">
-              <Label>Branches</Label>
-              <div className="max-h-40 space-y-3 overflow-y-auto rounded-md border p-3">
+            <div className={sectionClass}>
+              <div className={labelClass}>
+                <BookOpen className="h-3.5 w-3.5" />
+                Branches
+              </div>
+              <div className="max-h-40 space-y-3 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-3">
                 {selectedClassIds.map((classId) => {
                   const classBranches = branchesByClass[classId];
                   if (!classBranches || classBranches.length === 0) return null;
@@ -538,53 +578,72 @@ export function TeacherFormDialog({
                 })}
               </div>
               <p className="text-xs text-muted-foreground">
-                Branches defined under selected classes. Select subjects below for access.
+                Branches under selected classes. Select subjects below for access.
               </p>
             </div>
           ) : null}
-          <div className="space-y-2">
-            <Label>Subjects For Selected Classes</Label>
-            <div className="max-h-40 space-y-3 overflow-y-auto rounded-md border p-3">
+
+          {/* ── Subject selection ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <BookOpen className="h-3.5 w-3.5" />
+              Subject Access
+            </div>
+            <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-3">
               {selectedClassIds.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Select classes first to load their subjects.
+                <p className="py-2 text-center text-sm text-muted-foreground">
+                  Select classes first to load subjects.
                 </p>
               ) : classSubjectOptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No subjects found yet for the selected classes.
+                <p className="py-2 text-center text-sm text-muted-foreground">
+                  No subjects found for selected classes.
                 </p>
               ) : (
                 classSubjectOptions.map((item) => (
                   <label
                     key={item.key}
-                    className="flex items-center gap-2 text-sm"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-muted/40"
                   >
                     <input
                       type="checkbox"
                       checked={selectedSubjectKeys.includes(item.key)}
                       onChange={() => toggleSubject(item.key)}
                       disabled={!profileId}
+                      className={checkboxClass}
                     />
-                    <span>
-                      {item.subject} - {item.classLabel}
+                    <span className="text-sm">
+                      {item.subject} — <span className="text-muted-foreground">{item.classLabel}</span>
                     </span>
                   </label>
                 ))
               )}
             </div>
           </div>
+
           {errorMessage ? (
-            <p className="text-sm text-destructive">{errorMessage}</p>
+            <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
           ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+
+          {/* ── Footer ── */}
+          <div className="flex items-center justify-end gap-2.5 border-t border-black/[0.04] pt-5">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+            >
               Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {editTeacher ? "Update" : "Create"}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

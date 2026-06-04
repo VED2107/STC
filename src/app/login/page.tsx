@@ -1,9 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  ArrowLeft,
   Clock3,
   Eye,
   EyeOff,
@@ -21,6 +23,7 @@ import {
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
+import { markJustLoggedIn } from "@/components/stitch/welcome-greeting";
 import { cn } from "@/lib/utils";
 import type { Profile, UserRole } from "@/lib/types/database";
 
@@ -39,11 +42,7 @@ type AuthActionPrompt = "signup" | null;
 
 function GoogleLogo({ className }: { className?: string }) {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={className}
-    >
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className}>
       <path
         d="M21.805 10.023H12.24v3.955h5.48c-.236 1.273-.945 2.352-2.009 3.08v2.558h3.254c1.904-1.754 3-4.337 3-7.393 0-.728-.065-1.427-.16-2.2Z"
         fill="#4285F4"
@@ -64,6 +63,81 @@ function GoogleLogo({ className }: { className?: string }) {
   );
 }
 
+/* ── OTP Digit Boxes ── */
+function OtpDigitInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const digits = value.padEnd(6, "").slice(0, 6).split("");
+
+  const focusInput = useCallback((index: number) => {
+    inputRefs.current[index]?.focus();
+  }, []);
+
+  function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace" && !digits[index] && index > 0) {
+      e.preventDefault();
+      const next = digits.slice();
+      next[index - 1] = "";
+      onChange(next.join(""));
+      focusInput(index - 1);
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      focusInput(index - 1);
+    } else if (e.key === "ArrowRight" && index < 5) {
+      focusInput(index + 1);
+    }
+  }
+
+  function handleInput(index: number, e: React.FormEvent<HTMLInputElement>) {
+    const char = (e.nativeEvent as InputEvent).data;
+    if (!char || !/^\d$/.test(char)) return;
+
+    const next = digits.slice();
+    next[index] = char;
+    onChange(next.join(""));
+
+    if (index < 5) {
+      focusInput(index + 1);
+    }
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    onChange(pasted);
+    focusInput(Math.min(pasted.length, 5));
+  }
+
+  return (
+    <div className="flex justify-center gap-2 sm:gap-3">
+      {digits.map((digit, i) => (
+        <input
+          key={i}
+          ref={(el) => { inputRefs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          autoComplete={i === 0 ? "one-time-code" : "off"}
+          maxLength={1}
+          value={digit}
+          disabled={disabled}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          onInput={(e) => handleInput(i, e)}
+          onPaste={handlePaste}
+          onFocus={(e) => e.target.select()}
+          className="h-13 w-11 rounded-xl border border-black/10 bg-surface-container-low text-center text-lg font-semibold text-foreground shadow-sm transition-all focus:border-secondary focus:shadow-[0_0_0_3px_rgba(115,92,0,0.12)] focus:ring-0 sm:h-14 sm:w-12"
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ── OTP Delivery Panel ── */
 interface OtpDeliveryPanelProps {
   title: string;
   eyebrow: string;
@@ -88,27 +162,27 @@ function OtpDeliveryPanel({
   onResend,
 }: OtpDeliveryPanelProps) {
   return (
-    <div className="overflow-hidden rounded-[26px] border border-black/6 bg-linear-to-br from-[#fffaf0] via-white to-[#f5f7fb]">
+    <div className="overflow-hidden rounded-[22px] border border-black/6 bg-linear-to-br from-[#fffaf0] via-white to-[#f5f7fb]">
       <div className="border-b border-black/6 px-5 py-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-secondary/75">
               {eyebrow}
             </p>
-            <h3 className="mt-2 flex items-center gap-2 text-xl text-primary">
+            <h3 className="mt-2 flex items-center gap-2 text-lg text-primary">
               <MailCheck className="h-5 w-5 text-secondary" />
               {title}
             </h3>
           </div>
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Secure delivery
+            Secure
           </span>
         </div>
       </div>
 
-      <div className="space-y-5 px-5 py-5">
-        <div className="rounded-[22px] border border-black/6 bg-white/90 p-4 shadow-[0_18px_34px_-28px_rgba(26,28,29,0.22)]">
+      <div className="space-y-4 px-5 py-4">
+        <div className="rounded-[18px] border border-black/6 bg-white/90 p-4 shadow-[0_18px_34px_-28px_rgba(26,28,29,0.22)]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Destination inbox
           </p>
@@ -116,14 +190,14 @@ function OtpDeliveryPanel({
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
 
-        <div className="grid gap-3 rounded-[22px] border border-dashed border-black/8 bg-white/55 p-4 text-sm text-muted-foreground sm:grid-cols-2">
+        <div className="grid gap-3 rounded-[18px] border border-dashed border-black/8 bg-white/55 p-4 text-sm text-muted-foreground sm:grid-cols-2">
           <div className="flex items-start gap-3">
-            <Clock3 className="mt-0.5 h-4 w-4 text-secondary" />
-            <p>Check spam or promotions if the email does not land in your main inbox.</p>
+            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
+            <p>Check spam or promotions if not in main inbox.</p>
           </div>
           <div className="flex items-start gap-3">
-            <MailCheck className="mt-0.5 h-4 w-4 text-secondary" />
-            <p>Enter the most recent 6-digit code only. Older codes stop working after resend.</p>
+            <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
+            <p>Enter the most recent 6-digit code only.</p>
           </div>
         </div>
 
@@ -131,7 +205,7 @@ function OtpDeliveryPanel({
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-black/8 bg-white px-4 py-3 text-sm font-medium text-foreground transition hover:bg-muted"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-black/8 bg-white px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
           >
             <PencilLine className="h-4 w-4" />
             {editLabel}
@@ -139,7 +213,7 @@ function OtpDeliveryPanel({
           <button
             type="button"
             onClick={onResend}
-            className={cn(stitchSecondaryButtonClass, "gap-2 px-4 py-3")}
+            className={cn(stitchSecondaryButtonClass, "gap-2 px-4 py-2.5")}
             disabled={loading}
           >
             {loading ? (
@@ -155,22 +229,18 @@ function OtpDeliveryPanel({
   );
 }
 
+/* ── Helpers ── */
+
 function getRoleHome(role: UserRole): string {
   if (role === "admin" || role === "super_admin") return "/admin";
   if (role === "teacher") return "/admin/attendance";
   return "/dashboard";
 }
 
-/**
- * Fetch the user's profile (with retries for eventual-consistency),
- * cache it, and return the correct post-login redirect path.
- */
 async function resolvePostLoginPath(userId: string): Promise<string> {
   const cachedRole = getCachedRole(userId);
   const supabase = createClient();
 
-  // The profile is usually created by a DB trigger; retry a few times
-  // in case it hasn't been committed yet.
   let profile: Profile | null = null;
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -221,6 +291,7 @@ async function ensureStudentAccess() {
   }).catch(() => null);
 }
 
+/* ── Main Login Page ── */
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -240,6 +311,11 @@ function LoginPageInner() {
   const [otp, setOtp] = useState("");
   const [pendingSignup, setPendingSignup] = useState<PendingSignupState | null>(null);
   const [authActionPrompt, setAuthActionPrompt] = useState<AuthActionPrompt>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -251,9 +327,7 @@ function LoginPageInner() {
       if (authCode) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
 
-        if (!active) {
-          return;
-        }
+        if (!active) return;
 
         if (exchangeError) {
           setError(exchangeError.message);
@@ -272,18 +346,15 @@ function LoginPageInner() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!active) {
-        return;
-      }
+      if (!active) return;
 
       if (user) {
         await ensureStudentAccess();
         const defaultPath = await resolvePostLoginPath(user.id);
 
-        if (!active) {
-          return;
-        }
+        if (!active) return;
 
+        markJustLoggedIn();
         const redirectedFrom = searchParams.get("redirectedFrom");
         router.replace(
           redirectedFrom && redirectedFrom.startsWith("/")
@@ -311,10 +382,8 @@ function LoginPageInner() {
   }, [router, searchParams]);
 
   async function resolveLoginIdentifier(identifier: string): Promise<string> {
-    // If it looks like an email, return as-is
     if (identifier.includes("@")) return identifier;
 
-    // Otherwise treat it as a phone number — ask the server to resolve it
     const response = await fetch("/api/auth/resolve-phone", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -372,6 +441,7 @@ function LoginPageInner() {
 
     await ensureStudentAccess();
     const defaultPath = await resolvePostLoginPath(user.id);
+    markJustLoggedIn();
     const redirectedFrom = searchParams.get("redirectedFrom");
     router.replace(
       redirectedFrom && redirectedFrom.startsWith("/")
@@ -463,6 +533,7 @@ function LoginPageInner() {
 
     await ensureStudentAccess();
     const defaultPath = await resolvePostLoginPath(user.id);
+    markJustLoggedIn();
     const redirectedFrom = searchParams.get("redirectedFrom");
     router.replace(
       redirectedFrom && redirectedFrom.startsWith("/")
@@ -628,9 +699,6 @@ function LoginPageInner() {
       return;
     }
 
-    // The server performed sign-in and set session cookies.
-    // If autoSignIn is explicitly false, the server could not sign in
-    // automatically — ask the user to sign in manually.
     if (result.autoSignIn === false) {
       setMode("login");
       setSignupStep("form");
@@ -640,6 +708,7 @@ function LoginPageInner() {
       return;
     }
 
+    markJustLoggedIn(true);
     router.replace("/dashboard");
     router.refresh();
     setLoading(false);
@@ -718,47 +787,90 @@ function LoginPageInner() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      <div className="absolute inset-0">
-        <div className="absolute left-[-10%] top-[-5%] h-[480px] w-[480px] rounded-full bg-primary/6 blur-[150px]" />
-        <div className="absolute bottom-[-12%] right-[-5%] h-[420px] w-[420px] rounded-full bg-[#85a2b1]/6 blur-[150px]" />
+      {/* Layered background */}
+      <div className="pointer-events-none absolute inset-0">
+        {/* Dot grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: "radial-gradient(circle, #1a1c1d 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        {/* Warm gold orb top-left */}
+        <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-accent/10 blur-[180px]" />
+        {/* Cool orb bottom-right */}
+        <div className="absolute -bottom-32 -right-32 h-[500px] w-[500px] rounded-full bg-[#d0e9d4]/12 blur-[160px]" />
+        {/* Small accent orb center-right */}
+        <div className="absolute right-[10%] top-[30%] h-[200px] w-[200px] rounded-full bg-secondary/6 blur-[100px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
-        <div className="mb-10 text-center">
-          <Link href="/" className="font-heading text-5xl text-primary">
+      <div
+        className={cn(
+          "relative z-10 w-full max-w-md transition-all duration-700 ease-out",
+          mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        )}
+      >
+        {/* Logo + Branding */}
+        <div className="mb-10 flex flex-col items-center text-center">
+          <div className="relative mb-5">
+            <div className="absolute -inset-3 rounded-3xl bg-accent/20 blur-xl" />
+            <Image
+              src="/logo.png"
+              alt="STC Academy"
+              width={80}
+              height={80}
+              className="relative h-18 w-18 rounded-2xl object-contain"
+              priority
+            />
+          </div>
+          <Link href="/" className="font-heading text-4xl text-primary sm:text-5xl">
             STC Academy
           </Link>
-          <p className="mt-3 text-xs uppercase tracking-[0.28em] text-muted-foreground">
-            Academy Portal Access
-          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <span className="h-px w-8 bg-secondary/40" />
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">
+              Academy Portal
+            </p>
+            <span className="h-px w-8 bg-secondary/40" />
+          </div>
         </div>
 
-        <div className="rounded-[28px] border border-black/6 bg-white p-7 shadow-[0_20px_90px_rgba(26,28,29,0.12)] backdrop-blur-xl">
-          <div className="grid grid-cols-2 border-b border-black/6">
+        {/* Card — gold accent top border */}
+        <div className="relative overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/85 p-7 shadow-[0_28px_90px_-20px_rgba(26,28,29,0.14)] backdrop-blur-xl">
+          {/* Gold shimmer top edge */}
+          <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-accent/60 to-transparent" />
+          {/* Subtle inner gradient */}
+          <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-linear-to-br from-accent/[0.03] via-transparent to-[#d0e9d4]/[0.03]" />
+          {/* Mode tabs */}
+          <div className="relative grid grid-cols-2 rounded-2xl border border-black/6 bg-muted/50 p-1">
             <button
               type="button"
-              className={`pb-4 text-sm font-medium transition ${
+              className={cn(
+                "rounded-xl py-3 text-sm font-medium transition-all",
                 mode === "login"
-                  ? "border-b border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+                  ? "bg-white text-primary shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)]"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
               onClick={() => switchMode("login")}
             >
               Login
             </button>
             <button
               type="button"
-              className={`pb-4 text-sm font-medium transition ${
+              className={cn(
+                "rounded-xl py-3 text-sm font-medium transition-all",
                 mode === "signup"
-                  ? "border-b border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+                  ? "bg-white text-primary shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)]"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
               onClick={() => switchMode("signup")}
             >
               Sign Up
             </button>
           </div>
 
+          {/* Notices */}
           {notice ? (
             <div className="mt-6 rounded-2xl border border-primary/15 bg-primary/10 px-4 py-3 text-sm text-primary">
               {notice}
@@ -778,12 +890,12 @@ function LoginPageInner() {
           ) : null}
 
           {authActionPrompt === "signup" ? (
-            <div className="mt-6 overflow-hidden rounded-[24px] border border-secondary/18 bg-linear-to-br from-[#fff9e6] via-white to-[#f7f8fb]">
+            <div className="mt-6 overflow-hidden rounded-[20px] border border-secondary/18 bg-linear-to-br from-[#fff9e6] via-white to-[#f7f8fb]">
               <div className="border-b border-secondary/12 px-5 py-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-secondary/75">
                   New To STC
                 </p>
-                <h3 className="mt-2 text-xl text-primary">Create your account to continue</h3>
+                <h3 className="mt-2 text-lg text-primary">Create your account to continue</h3>
               </div>
               <div className="space-y-4 px-5 py-5">
                 <p className="text-sm leading-7 text-muted-foreground">
@@ -801,8 +913,10 @@ function LoginPageInner() {
             </div>
           ) : null}
 
+          {/* ── LOGIN FORMS ── */}
           {mode === "login" ? (
             <div className="mt-7 space-y-5">
+              {/* Method toggle */}
               <div className="grid grid-cols-2 rounded-full border border-black/8 bg-muted/60 p-1">
                 <button
                   type="button"
@@ -814,7 +928,7 @@ function LoginPageInner() {
                     setNotice("");
                   }}
                   className={cn(
-                    "rounded-full px-4 py-3 text-sm font-medium transition",
+                    "rounded-full px-4 py-2.5 text-sm font-medium transition",
                     loginMethod === "password"
                       ? "bg-white text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
@@ -830,7 +944,7 @@ function LoginPageInner() {
                     setNotice("");
                   }}
                   className={cn(
-                    "rounded-full px-4 py-3 text-sm font-medium transition",
+                    "rounded-full px-4 py-2.5 text-sm font-medium transition",
                     loginMethod === "otp"
                       ? "bg-white text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
@@ -845,7 +959,7 @@ function LoginPageInner() {
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
-                    className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-black/8 bg-white text-base font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                    className="group flex h-13 w-full items-center justify-center gap-3 rounded-2xl border border-black/8 bg-white text-sm font-medium text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
                     disabled={loading || googleLoading}
                   >
                     {googleLoading ? (
@@ -865,7 +979,9 @@ function LoginPageInner() {
                   </div>
 
                   <label className="block">
-                    <span className="mb-2 block text-sm text-muted-foreground">Email or Phone Number</span>
+                    <span className="mb-2 block text-sm font-medium text-foreground">
+                      Email or Phone Number
+                    </span>
                     <input
                       name="email"
                       type="text"
@@ -877,7 +993,7 @@ function LoginPageInner() {
                   </label>
 
                   <label className="block">
-                    <span className="mb-2 block text-sm text-muted-foreground">Password</span>
+                    <span className="mb-2 block text-sm font-medium text-foreground">Password</span>
                     <div className="relative">
                       <input
                         name="password"
@@ -890,7 +1006,8 @@ function LoginPageInner() {
                       <button
                         type="button"
                         onClick={() => setShowPassword((value) => !value)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -903,7 +1020,7 @@ function LoginPageInner() {
 
                   <button
                     type="submit"
-                    className={cn(stitchButtonClass, "h-14 w-full text-base")}
+                    className={cn(stitchButtonClass, "h-13 w-full text-base")}
                     disabled={loading || googleLoading}
                   >
                     {loading ? (
@@ -916,13 +1033,15 @@ function LoginPageInner() {
               ) : !loginOtpSent ? (
                 <form onSubmit={handleSendLoginOtp} className="space-y-5">
                   <label className="block">
-                    <span className="mb-2 block text-sm text-muted-foreground">Email Address</span>
+                    <span className="mb-2 block text-sm font-medium text-foreground">
+                      Email Address
+                    </span>
                     <input
                       name="login_otp_email"
                       type="email"
                       autoComplete="email"
                       required
-                      placeholder="julian.voss@academy.edu"
+                      placeholder="scholar@academy.edu"
                       value={loginEmail}
                       onChange={(event) => setLoginEmail(event.target.value)}
                       className={stitchInputClass}
@@ -931,7 +1050,7 @@ function LoginPageInner() {
 
                   <button
                     type="submit"
-                    className={cn(stitchButtonClass, "h-14 w-full text-base")}
+                    className={cn(stitchButtonClass, "h-13 w-full text-base")}
                     disabled={loading}
                   >
                     {loading ? (
@@ -945,9 +1064,9 @@ function LoginPageInner() {
                 <form onSubmit={handleVerifyLoginOtp} className="space-y-5">
                   <OtpDeliveryPanel
                     eyebrow="OTP Login"
-                    title="Check your email for the latest code"
+                    title="Check your email for the code"
                     email={loginEmail}
-                    description="We sent a one-time sign-in code through our Resend mail flow. It is valid for a short window and refreshes each time you request a new code."
+                    description="We sent a one-time sign-in code. It refreshes each time you request a new one."
                     editLabel="Change email"
                     resendLabel="Resend OTP"
                     loading={loading}
@@ -961,36 +1080,31 @@ function LoginPageInner() {
                     onResend={handleResendLoginOtp}
                   />
 
-                  <label className="block">
-                    <span className="mb-2 block text-sm text-muted-foreground">6-digit OTP</span>
-                    <input
-                      name="login_otp"
+                  <div>
+                    <p className="mb-3 text-center text-sm font-medium text-foreground">
+                      Enter 6-digit code
+                    </p>
+                    <OtpDigitInput
                       value={loginOtp}
-                      onChange={(event) =>
-                        setLoginOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
-                      }
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      pattern="[0-9]{6}"
-                      required
-                      placeholder="123456"
-                      className={cn(stitchInputClass, "text-center text-lg tracking-[0.35em]")}
+                      onChange={setLoginOtp}
+                      disabled={loading}
                     />
-                    <span className="mt-2 block text-sm leading-6 text-muted-foreground">
-                      Use the newest code from your inbox. If you requested another email, previous
-                      codes will no longer verify.
-                    </span>
-                  </label>
+                    <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
+                      Use the newest code from your inbox.
+                    </p>
+                  </div>
+
+                  <input type="hidden" name="login_otp" value={loginOtp} />
 
                   <button
                     type="submit"
-                    className={cn(stitchButtonClass, "h-14 w-full text-base")}
-                    disabled={loading}
+                    className={cn(stitchButtonClass, "h-13 w-full text-base")}
+                    disabled={loading || loginOtp.length < 6}
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      "Verify OTP and Sign In"
+                      "Verify & Sign In"
                     )}
                   </button>
                 </form>
@@ -1001,7 +1115,7 @@ function LoginPageInner() {
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-black/8 bg-white text-base font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                className="group flex h-13 w-full items-center justify-center gap-3 rounded-2xl border border-black/8 bg-white text-sm font-medium text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={loading || googleLoading}
               >
                 {googleLoading ? (
@@ -1021,17 +1135,17 @@ function LoginPageInner() {
               </div>
 
               <label className="block">
-                <span className="mb-2 block text-sm text-muted-foreground">Full Name</span>
+                <span className="mb-2 block text-sm font-medium text-foreground">Full Name</span>
                 <input
                   name="full_name"
                   autoComplete="name"
                   required
-                  placeholder="Julian Voss"
+                  placeholder="Your full name"
                   className={stitchInputClass}
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm text-muted-foreground">Phone Number</span>
+                <span className="mb-2 block text-sm font-medium text-foreground">Phone Number</span>
                 <input
                   name="phone"
                   autoComplete="tel"
@@ -1041,18 +1155,18 @@ function LoginPageInner() {
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm text-muted-foreground">Email Address</span>
+                <span className="mb-2 block text-sm font-medium text-foreground">Email Address</span>
                 <input
                   name="signup_email"
                   type="email"
                   autoComplete="email"
                   required
-                  placeholder="scholar@academy.edu"
+                  placeholder="you@example.com"
                   className={stitchInputClass}
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm text-muted-foreground">Password</span>
+                <span className="mb-2 block text-sm font-medium text-foreground">Password</span>
                 <input
                   name="signup_password"
                   type="password"
@@ -1066,7 +1180,7 @@ function LoginPageInner() {
 
               <button
                 type="submit"
-                className={cn(stitchButtonClass, "h-14 w-full text-base")}
+                className={cn(stitchButtonClass, "h-13 w-full text-base")}
                 disabled={loading}
               >
                 {loading ? (
@@ -1082,7 +1196,7 @@ function LoginPageInner() {
                 eyebrow="Pending Signup"
                 title="Finish creating your account"
                 email={pendingSignup?.email ?? ""}
-                description="Your verification email has been queued through Resend. Open the latest message, copy the 6-digit code, and enter it below to activate the student portal."
+                description="Your verification email has been sent. Copy the 6-digit code and enter it below."
                 editLabel="Edit details"
                 resendLabel="Resend OTP"
                 loading={loading}
@@ -1096,49 +1210,59 @@ function LoginPageInner() {
                 onResend={handleResendOtp}
               />
 
-              <label className="block">
-                <span className="mb-2 block text-sm text-muted-foreground">6-digit OTP</span>
-                <input
-                  name="signup_otp"
+              <div>
+                <p className="mb-3 text-center text-sm font-medium text-foreground">
+                  Enter 6-digit code
+                </p>
+                <OtpDigitInput
                   value={otp}
-                  onChange={(event) =>
-                    setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]{6}"
-                  required
-                  placeholder="123456"
-                  className={cn(stitchInputClass, "text-center text-lg tracking-[0.35em]")}
+                  onChange={setOtp}
+                  disabled={loading}
                 />
-                <span className="mt-2 block text-sm leading-6 text-muted-foreground">
-                  The code in the most recent email is the one that will complete account creation.
-                </span>
-              </label>
+                <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
+                  The most recent code completes account creation.
+                </p>
+              </div>
+
+              <input type="hidden" name="signup_otp" value={otp} />
 
               <button
                 type="submit"
-                className={cn(stitchButtonClass, "h-14 w-full text-base")}
-                disabled={loading}
+                className={cn(stitchButtonClass, "h-13 w-full text-base")}
+                disabled={loading || otp.length < 6}
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Verify OTP and Create Account"
+                  "Verify & Create Account"
                 )}
               </button>
             </form>
           )}
 
+          {/* Footer inside card */}
           <p className="mt-7 text-center text-xs leading-6 text-muted-foreground">
-            By accessing the portal, you agree to our Academic Terms and Honor
-            Code.
+            By accessing the portal, you agree to our{" "}
+            <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+              Privacy Policy
+            </Link>
+            .
           </p>
         </div>
 
-        <div className="mt-8 flex items-center justify-center gap-6 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          <span>Support</span>
-          <span>Language</span>
+        {/* Below card */}
+        <div className="mt-8 flex items-center justify-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Link>
         </div>
       </div>
     </div>

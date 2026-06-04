@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AtelierShell } from "@/components/stitch/atelier-shell";
+import { AdminGreeting } from "@/components/stitch/admin-greeting";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/types/database";
 
@@ -28,5 +29,16 @@ export default async function AdminLayout({
     redirect("/dashboard");
   }
 
-  return <AtelierShell area="admin">{children}</AtelierShell>;
+  const { data: fullProfile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return (
+    <AtelierShell area="admin">
+      <AdminGreeting name={fullProfile?.full_name || user.email || "Admin"} />
+      {children}
+    </AtelierShell>
+  );
 }

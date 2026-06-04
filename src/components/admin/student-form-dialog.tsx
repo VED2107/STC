@@ -2,24 +2,28 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2 } from "lucide-react";
+import {
+  Camera,
+  CreditCard,
+  GraduationCap,
+  Loader2,
+  Search,
+  Trash2,
+  User,
+  UserPlus,
+} from "lucide-react";
 import {
   createStudent,
   getAvailableStudentProfiles,
   type AvailableStudentProfile,
 } from "@/app/actions/create-student";
 import { uploadStudentPhotoAdmin } from "@/app/actions/upload-student-photo";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -30,6 +34,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { Class, StudentType } from "@/lib/types/database";
 import { invalidateAfterStudentMutation } from "@/lib/cache-invalidation";
+import { cn } from "@/lib/utils";
 
 interface EditableStudent {
   id: string;
@@ -52,6 +57,15 @@ interface StudentFormDialogProps {
   editStudent?: EditableStudent | null;
   initialProfileId?: string | null;
 }
+
+const sectionClass =
+  "rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
+const labelClass =
+  "flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+const inputClass =
+  "stitch-input w-full";
+const checkboxClass =
+  "h-[18px] w-[18px] rounded-md border-2 border-black/12 bg-white text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
 
 export function StudentFormDialog({
   open,
@@ -93,12 +107,9 @@ export function StudentFormDialog({
   });
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
+    if (!open) return;
 
     const supabase = createClient();
-
     void supabase
       .from("classes")
       .select("*")
@@ -151,7 +162,6 @@ export function StudentFormDialog({
     })();
   }, [open, editStudent, initialProfileId]);
 
-  // Load branches when classId changes
   useEffect(() => {
     if (!open || !classId) {
       setBranchesForClass([]);
@@ -195,10 +205,7 @@ export function StudentFormDialog({
   }, [open, classId]);
 
   useEffect(() => {
-    if (!feesFullPayment) {
-      return;
-    }
-
+    if (!feesFullPayment) return;
     setFeesInst1(true);
     setFeesInst2(true);
   }, [feesFullPayment]);
@@ -211,15 +218,10 @@ export function StudentFormDialog({
   }, [isEditMode, selectedProfile]);
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
-    }
+    if (isEditMode) return;
 
     const normalizedSearch = profileSearch.trim().toLowerCase();
-
-    if (!normalizedSearch) {
-      return;
-    }
+    if (!normalizedSearch) return;
 
     if (filteredProfiles.length === 1 && filteredProfiles[0]?.id !== selectedProfileId) {
       setSelectedProfileId(filteredProfiles[0].id);
@@ -230,10 +232,7 @@ export function StudentFormDialog({
     if (!editStudent) return;
     setDeleting(true);
     const supabase = createClient();
-    const { error } = await supabase
-      .from("students")
-      .delete()
-      .eq("id", editStudent.id);
+    const { error } = await supabase.from("students").delete().eq("id", editStudent.id);
     setDeleting(false);
     if (error) {
       alert(error.message);
@@ -283,7 +282,6 @@ export function StudentFormDialog({
 
       setLoading(false);
 
-      // Upload photo if selected (edit mode)
       if (photoFile && editStudent.profile_id) {
         await uploadPhoto(editStudent.profile_id);
       }
@@ -314,7 +312,6 @@ export function StudentFormDialog({
 
     setLoading(false);
 
-    // Upload photo if selected (enroll mode)
     if (photoFile && selectedProfileId) {
       await uploadPhoto(selectedProfileId);
     }
@@ -350,98 +347,118 @@ export function StudentFormDialog({
         contentType: photoFile.type || "image/jpeg",
       });
     } catch {
-      // Photo upload failure shouldn't block the enrollment
       console.error("Photo upload failed");
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? "Edit Student" : "Enroll Signed-Up Student"}</DialogTitle>
-          <DialogDescription>
-            {isEditMode
-              ? "Update student profile, class mapping, and access mode."
-              : "Only existing signed-up student accounts can be added to the student registry."}
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+              {isEditMode ? <User className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+            </span>
+            <div>
+              <DialogTitle className="text-xl">
+                {isEditMode ? "Edit Student" : "Enroll Student"}
+              </DialogTitle>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                {isEditMode ? "Update profile, class, and access" : "Assign signed-up account to class"}
+              </p>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="mt-2 space-y-5">
+          {/* ── Select student account (enroll mode) ── */}
           {!isEditMode ? (
-            <div className="space-y-2">
-              <Label>Student Account</Label>
-              <Input
-                value={profileSearch}
-                onChange={(event) => setProfileSearch(event.target.value)}
-                placeholder="Search signed-up students by name, phone, or email"
-              />
-              <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg border border-input p-2">
+            <div className={sectionClass}>
+              <div className={labelClass}>
+                <Search className="h-3.5 w-3.5" />
+                Student Account
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={profileSearch}
+                  onChange={(event) => setProfileSearch(event.target.value)}
+                  placeholder="Search by name, phone, or email"
+                  className={cn(inputClass, "pl-10")}
+                />
+              </div>
+              <div className="max-h-44 space-y-1.5 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-2">
                 {filteredProfiles.map((profile) => {
                   const isSelected = profile.id === selectedProfileId;
-
                   return (
                     <button
                       key={profile.id}
                       type="button"
                       onClick={() => setSelectedProfileId(profile.id)}
-                      className={`w-full rounded-md px-3 py-2 text-left transition ${
+                      className={cn(
+                        "w-full rounded-xl px-3.5 py-2.5 text-left transition-all duration-200",
                         isSelected
-                          ? "bg-primary/10 text-primary"
-                          : "hover:bg-muted"
-                      }`}
+                          ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                          : "hover:bg-muted/60"
+                      )}
                     >
                       <div className="text-sm font-medium">
                         {profile.full_name || "Unnamed student"}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {[profile.phone, profile.email].filter(Boolean).join(" • ") || profile.id}
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {[profile.phone, profile.email].filter(Boolean).join(" · ") || profile.id}
                       </div>
                     </button>
                   );
                 })}
                 {filteredProfiles.length === 0 && availableProfiles.length > 0 ? (
-                  <p className="px-1 py-2 text-sm text-muted-foreground">
+                  <p className="px-2 py-3 text-center text-sm text-muted-foreground">
                     No students match your search.
                   </p>
                 ) : null}
               </div>
               {availableProfiles.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No signed-up student profiles are available to enroll yet.
+                  No signed-up student profiles available to enroll.
                 </p>
               ) : null}
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="sf-name">Full Name</Label>
-            <Input
-              id="sf-name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              readOnly={!isEditMode}
-              required
-            />
-          </div>
+          {/* ── Personal info ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <User className="h-3.5 w-3.5" />
+              Personal Information
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Full Name</label>
+                <input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  readOnly={!isEditMode}
+                  required
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Phone</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  readOnly={!isEditMode}
+                  required
+                  className={inputClass}
+                />
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sf-phone">Phone</Label>
-            <Input
-              id="sf-phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              readOnly={!isEditMode}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Student Photo</Label>
-            <div className="flex items-center gap-4">
+            {/* Photo */}
+            <div className="flex items-center gap-4 pt-1">
               <div
-                className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-input bg-muted/30 cursor-pointer hover:border-primary/50 transition"
+                className="relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-black/8 bg-muted/20 transition hover:border-primary/40 hover:bg-muted/40"
                 onClick={() => photoInputRef.current?.click()}
               >
                 {photoPreview ? (
@@ -454,22 +471,17 @@ export function StudentFormDialog({
                   <Camera className="h-5 w-5 text-muted-foreground" />
                 )}
               </div>
-              <div className="flex flex-col gap-1">
-                <Button
+              <div>
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
                   onClick={() => photoInputRef.current?.click()}
+                  className="rounded-xl border border-black/8 bg-white px-3.5 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
                 >
                   {photoPreview || existingAvatarUrl ? "Change Photo" : "Upload Photo"}
-                </Button>
-                {photoFile ? (
-                  <p className="text-xs text-muted-foreground">{photoFile.name}</p>
-                ) : existingAvatarUrl ? (
-                  <p className="text-xs text-muted-foreground">Current photo set</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Optional — JPG, PNG</p>
-                )}
+                </button>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {photoFile ? photoFile.name : existingAvatarUrl ? "Current photo set" : "Optional — JPG, PNG"}
+                </p>
               </div>
               <input
                 ref={photoInputRef}
@@ -481,211 +493,209 @@ export function StudentFormDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Student Type</Label>
-            <Select
-              value={studentType}
-              onValueChange={(value) =>
-                setStudentType((value as StudentType) ?? "tuition")
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tuition">Tuition (Offline)</SelectItem>
-                <SelectItem value="online">Online (Course Purchase)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* ── Academic assignment ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <GraduationCap className="h-3.5 w-3.5" />
+              Academic Assignment
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Student Type</label>
+                <Select
+                  value={studentType}
+                  onValueChange={(value) => setStudentType((value as StudentType) ?? "tuition")}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tuition">Tuition (Offline)</SelectItem>
+                    <SelectItem value="online">Online (Course Purchase)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Status</label>
+                <Select
+                  value={isActive}
+                  onValueChange={(value) => setIsActive((value as "active" | "inactive") ?? "active")}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={isActive}
-              onValueChange={(value) =>
-                setIsActive((value as "active" | "inactive") ?? "active")
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Class</Label>
-            <Select value={classId} onValueChange={(value) => { if (value) { setClassId(value); setBranchId(""); } }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select class">
-                  {selectedClass
-                    ? `${selectedClass.name} (${selectedClass.board})`
-                    : undefined}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {classes.map((classItem) => (
-                  <SelectItem key={classItem.id} value={classItem.id}>
-                    {classItem.name} ({classItem.board})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {branchesForClass.length > 0 ? (
-            <div className="space-y-2">
-              <Label>Branch</Label>
-              <Select
-                value={branchId || "__none"}
-                onValueChange={(value) => setBranchId(!value || value === "__none" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="No branch assigned" />
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">Class</label>
+              <Select value={classId} onValueChange={(value) => { if (value) { setClassId(value); setBranchId(""); } }}>
+                <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                  <SelectValue placeholder="Select class">
+                    {selectedClass ? `${selectedClass.name} (${selectedClass.board})` : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">No branch assigned</SelectItem>
-                  {branchesForClass.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                      {branch.subjects.length > 0 ? ` (${branch.subjects.join(", ")})` : ""}
+                  {classes.map((classItem) => (
+                    <SelectItem key={classItem.id} value={classItem.id}>
+                      {classItem.name} ({classItem.board})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Assign a branch under the selected class.
-              </p>
             </div>
-          ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="sf-fees">Fees Amount (INR)</Label>
-            <Input
-              id="sf-fees"
-              type="number"
-              min={0}
-              value={feesAmount}
-              onChange={(e) => setFeesAmount(e.target.value)}
-              placeholder="Annual fee amount"
-            />
+            {branchesForClass.length > 0 ? (
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Branch</label>
+                <Select
+                  value={branchId || "__none"}
+                  onValueChange={(value) => setBranchId(!value || value === "__none" ? "" : value)}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                    <SelectValue placeholder="No branch assigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No branch assigned</SelectItem>
+                    {branchesForClass.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                        {branch.subjects.length > 0 ? ` (${branch.subjects.join(", ")})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Assign a branch under the selected class.
+                </p>
+              </div>
+            ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label>Installment Status</Label>
+          {/* ── Fees & installments ── */}
+          <div className={sectionClass}>
+            <div className={labelClass}>
+              <CreditCard className="h-3.5 w-3.5" />
+              Fees & Payments
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-muted-foreground">Fees Amount (INR)</label>
+              <input
+                type="number"
+                min={0}
+                value={feesAmount}
+                onChange={(e) => setFeesAmount(e.target.value)}
+                placeholder="Annual fee amount"
+                className={inputClass}
+              />
+            </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-black/[0.04] bg-white/60 px-3.5 py-3 transition hover:bg-white">
                 <input
                   type="checkbox"
                   checked={feesFullPayment}
                   onChange={(e) => setFeesFullPayment(e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
+                  className={checkboxClass}
                 />
-                Full Payment Marked
+                <span className="text-sm text-foreground">Full Payment</span>
               </label>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-black/[0.04] bg-white/60 px-3.5 py-3 transition hover:bg-white">
                 <input
                   type="checkbox"
                   checked={feesInst1}
                   onChange={(e) => setFeesInst1(e.target.checked)}
                   disabled={feesFullPayment}
-                  className="h-4 w-4 rounded border-input"
+                  className={checkboxClass}
                 />
-                Installment 1 Paid
+                <span className="text-sm text-foreground">Installment 1</span>
               </label>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-black/[0.04] bg-white/60 px-3.5 py-3 transition hover:bg-white">
                 <input
                   type="checkbox"
                   checked={feesInst2}
                   onChange={(e) => setFeesInst2(e.target.checked)}
                   disabled={feesFullPayment}
-                  className="h-4 w-4 rounded border-input"
+                  className={checkboxClass}
                 />
-                Installment 2 Paid
+                <span className="text-sm text-foreground">Installment 2</span>
               </label>
             </div>
             <p className="text-xs text-muted-foreground">
-              Mark full payment when the student pays in one shot. That will automatically count both installments as paid.
+              Full payment automatically marks both installments as paid.
             </p>
           </div>
 
+          {/* ── Delete confirmation (edit mode) ── */}
           {isEditMode && confirmDelete ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <div className="rounded-2xl border border-destructive/25 bg-destructive/5 p-5">
               <p className="text-sm font-medium text-destructive">
                 Permanently delete {editStudent?.profile?.full_name || "this student"}?
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                This removes the student record, enrollments, attendance, QR tokens, and notifications. This action cannot be undone.
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                This removes the student record, enrollments, attendance, QR tokens, and notifications. Cannot be undone.
               </p>
-              <div className="mt-3 flex gap-2">
-                <Button
+              <div className="mt-4 flex gap-2">
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
                   onClick={() => setConfirmDelete(false)}
                   disabled={deleting}
+                  className="rounded-xl border border-black/8 bg-white px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant="destructive"
-                  size="sm"
                   onClick={() => void handleDelete()}
                   disabled={deleting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
                 >
-                  {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
                   Yes, Delete Student
-                </Button>
+                </button>
               </div>
             </div>
           ) : null}
 
-          <DialogFooter className={isEditMode ? "flex-row justify-between sm:justify-between" : ""}>
-            {isEditMode && !confirmDelete ? (
-              <Button
+          {/* ── Footer actions ── */}
+          <div className="flex items-center justify-between border-t border-black/[0.04] pt-5">
+            <div>
+              {isEditMode && !confirmDelete ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-destructive transition hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Student
+                </button>
+              ) : null}
+            </div>
+            <div className="flex gap-2.5">
+              <button
                 type="button"
-                variant="ghost"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={() => setConfirmDelete(true)}
-              >
-                Delete Student
-              </Button>
-            ) : !isEditMode ? (
-              <Button
-                type="button"
-                variant="outline"
                 onClick={() => onOpenChange(false)}
+                className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
               >
                 Cancel
-              </Button>
-            ) : <div />}
-            <div className="flex gap-2">
-              {isEditMode ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                >
-                  Cancel
-                </Button>
-              ) : null}
-              <Button
+              </button>
+              <button
                 type="submit"
                 disabled={
                   loading ||
                   (!isEditMode && (!selectedProfileId || availableProfiles.length === 0))
                 }
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
               >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isEditMode ? "Update Student" : "Enroll Student"}
-              </Button>
+              </button>
             </div>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

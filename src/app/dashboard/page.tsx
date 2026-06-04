@@ -26,6 +26,7 @@ import {
   stitchPanelSoftClass,
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
+import { WelcomeGreeting } from "@/components/stitch/welcome-greeting";
 import { cn } from "@/lib/utils";
 
 /** Stable singleton — never changes between renders */
@@ -320,6 +321,8 @@ function StudentDashboardInner() {
     link: { icon: ExternalLink, accent: "bg-[#fff2dc] text-[#9a6500]" },
   };
 
+  const showGreeting = !loading && !authLoading && !!user;
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -331,6 +334,7 @@ function StudentDashboardInner() {
   if (role === "admin" || role === "super_admin" || role === "teacher") {
     return (
       <div className="px-6 py-10 md:px-10">
+        {showGreeting && <WelcomeGreeting name={userName} />}
         <div className={stitchPanelClass}>
           <h1 className="text-5xl text-foreground">
             {role === "teacher" ? "Teacher Access Active" : "Admin Access Active"}
@@ -360,6 +364,7 @@ function StudentDashboardInner() {
   if (!studentRecord) {
     return (
       <div className="px-6 py-8 md:px-10">
+        <WelcomeGreeting name={userName} isNewUser />
         <StitchSectionHeader
           eyebrow="Student Dashboard"
           title={`Welcome,\n${userName.split(" ")[0]}.`}
@@ -462,6 +467,7 @@ function StudentDashboardInner() {
 
   return (
     <div className="px-6 py-8 md:px-10">
+      <WelcomeGreeting name={userName} />
       <StitchSectionHeader
         eyebrow="Student Dashboard"
         title={`Welcome back,\n${userName.split(" ")[0]}.`}

@@ -228,7 +228,13 @@
   }
 
   .stitch-input {
-    @apply h-12 w-full rounded-full border border-black/8 bg-surface-container-low px-4 text-sm text-foreground placeholder:text-muted-foreground/60;
+    @apply h-12 w-full rounded-full border border-black/8 bg-surface-container-low px-4 text-sm text-foreground placeholder:text-muted-foreground/60 transition-shadow;
+  }
+
+  .stitch-input:focus {
+    border-color: var(--color-secondary);
+    box-shadow: 0 0 0 3px rgba(115, 92, 0, 0.10);
+    outline: none;
   }
 
   .stitch-sidebar-link {

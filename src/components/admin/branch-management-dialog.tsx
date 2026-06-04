@@ -2,17 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { GitBranch, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { Branch } from "@/lib/types/database";
+import { cn } from "@/lib/utils";
 
 interface BranchManagementDialogProps {
   open: boolean;
@@ -27,13 +25,21 @@ interface BranchWithSubjects extends Branch {
   subjects: string[];
 }
 
+const sectionClass =
+  "rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
+const labelClass =
+  "flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+const inputClass = "stitch-input w-full";
+const checkboxClass =
+  "h-[18px] w-[18px] rounded-md border-2 border-black/12 bg-white text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
+
 const supabase = createClient();
 
 export function BranchManagementDialog({
   open,
   onOpenChange,
   classId,
-  className,
+  className: classDisplayName,
   classSubjects,
   onBranchesChanged,
 }: BranchManagementDialogProps) {
@@ -198,28 +204,41 @@ export function BranchManagementDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Branches — {className}</DialogTitle>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+              <GitBranch className="h-5 w-5" />
+            </span>
+            <div>
+              <DialogTitle className="text-xl">Branches</DialogTitle>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                {classDisplayName}
+              </p>
+            </div>
+          </div>
         </DialogHeader>
 
         {formMode === "list" ? (
-          <div className="space-y-4">
+          <div className="mt-2 space-y-5">
             {loading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : branches.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                No branches yet. Create one to subdivide this class.
-              </p>
+              <div className={cn(sectionClass, "py-8 text-center")}>
+                <GitBranch className="mx-auto h-8 w-8 text-muted-foreground/40" />
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No branches yet. Create one to subdivide this class.
+                </p>
+              </div>
             ) : (
-              <div className="max-h-72 space-y-3 overflow-y-auto">
+              <div className="max-h-72 space-y-2 overflow-y-auto">
                 {branches.map((branch) => (
                   <div
                     key={branch.id}
-                    className="flex items-start justify-between rounded-lg border p-3"
+                    className="flex items-start justify-between rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/20 p-4 transition hover:border-black/8"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{branch.name}</p>
+                      <p className="text-sm font-medium text-foreground">{branch.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {branch.subjects.length > 0
                           ? branch.subjects.join(", ")
@@ -230,14 +249,14 @@ export function BranchManagementDialog({
                       <button
                         type="button"
                         onClick={() => openEdit(branch)}
-                        className="text-muted-foreground hover:text-foreground"
+                        className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleDelete(branch.id)}
-                        className="text-destructive hover:text-destructive/80"
+                        className="rounded-lg p-1.5 text-destructive/60 transition hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -246,73 +265,104 @@ export function BranchManagementDialog({
                 ))}
               </div>
             )}
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {error ? (
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
+            <div className="flex justify-end gap-2.5 border-t border-black/[0.04] pt-5">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+              >
                 Close
-              </Button>
-              <Button onClick={openAdd} className="gap-1.5">
+              </button>
+              <button
+                type="button"
+                onClick={openAdd}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105"
+              >
                 <Plus className="h-4 w-4" />
                 Add Branch
-              </Button>
+              </button>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="mt-2 space-y-5">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setFormMode("list")}
-                className="text-muted-foreground hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
-              <span className="text-sm font-medium">
+              <span className="text-sm font-medium text-foreground">
                 {formMode === "edit" ? "Edit Branch" : "New Branch"}
               </span>
             </div>
-            <div className="space-y-2">
-              <Label>Branch Name</Label>
-              <Input
-                placeholder="e.g. Science, Commerce, Arts"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Subjects</Label>
-              {classSubjects.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No subjects defined for this class yet. Add subjects to the class first.
-                </p>
-              ) : (
-                <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
-                  {classSubjects.map((subject) => (
-                    <label key={subject} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={formSelectedSubjects.includes(subject)}
-                        onChange={() => toggleSubject(subject)}
-                      />
-                      <span>{subject}</span>
-                    </label>
-                  ))}
+
+            <div className={sectionClass}>
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">Branch Name</label>
+                <input
+                  placeholder="e.g. Science, Commerce, Arts"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <div className={labelClass}>
+                  <GitBranch className="h-3.5 w-3.5" />
+                  Subjects
                 </div>
-              )}
+                {classSubjects.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    No subjects defined for this class yet.
+                  </p>
+                ) : (
+                  <div className="mt-2 max-h-48 space-y-1.5 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-3">
+                    {classSubjects.map((subject) => (
+                      <label key={subject} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-muted/40">
+                        <input
+                          type="checkbox"
+                          checked={formSelectedSubjects.includes(subject)}
+                          onChange={() => toggleSubject(subject)}
+                          className={checkboxClass}
+                        />
+                        <span className="text-sm">{subject}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setFormMode("list")}>
+
+            {error ? (
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-2.5 border-t border-black/[0.04] pt-5">
+              <button
+                type="button"
+                onClick={() => setFormMode("list")}
+                className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+              >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
+                type="button"
                 onClick={() => void handleSave()}
                 disabled={saving || !formName.trim()}
-                className="gap-1.5"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 {formMode === "edit" ? "Update" : "Create"}
-              </Button>
+              </button>
             </div>
           </div>
         )}

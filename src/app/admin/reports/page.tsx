@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
@@ -103,6 +104,15 @@ export default function AttendanceReportsPage() {
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
   const [loading, setLoading] = useState(true);
 
+  interface ReportsCacheData {
+    classSummary: ClassSummary[];
+    lowStudents: LowAttendanceStudent[];
+    teacherStats: TeacherStat[];
+    monthlyTrend: MonthlyTrend[];
+  }
+
+  const reportsCacheKey = `admin:reports:${dateFrom}:${dateTo}:${selectedClassId}:${threshold}`;
+
   useEffect(() => {
     if (authLoading) return;
     if (role !== "admin" && role !== "super_admin") {
@@ -119,7 +129,15 @@ export default function AttendanceReportsPage() {
   }, []);
 
   const fetchReports = useCallback(async () => {
-    setLoading(true);
+    const cached = getAdminPageStorageCache<ReportsCacheData>(reportsCacheKey);
+    if (cached) {
+      setClassSummary(cached.classSummary);
+      setLowStudents(cached.lowStudents);
+      setTeacherStats(cached.teacherStats);
+      setMonthlyTrend(cached.monthlyTrend);
+      setLoading(false);
+    }
+    if (!cached) setLoading(true);
 
     const classIdParam =
       selectedClassId !== "all" ? selectedClassId : undefined;
@@ -156,12 +174,20 @@ export default function AttendanceReportsPage() {
       lowData = lowData.filter((row) => row.class_id === selectedClassId);
     }
 
+    const nextTeacherStats = (teacherRes.data as TeacherStat[] | null) ?? [];
+    const nextMonthlyTrend = (trendRes.data as MonthlyTrend[] | null) ?? [];
     setClassSummary(summaryData);
     setLowStudents(lowData);
-    setTeacherStats((teacherRes.data as TeacherStat[] | null) ?? []);
-    setMonthlyTrend((trendRes.data as MonthlyTrend[] | null) ?? []);
+    setTeacherStats(nextTeacherStats);
+    setMonthlyTrend(nextMonthlyTrend);
+    setAdminPageCache<ReportsCacheData>(reportsCacheKey, {
+      classSummary: summaryData,
+      lowStudents: lowData,
+      teacherStats: nextTeacherStats,
+      monthlyTrend: nextMonthlyTrend,
+    });
     setLoading(false);
-  }, [dateFrom, dateTo, selectedClassId, threshold]);
+  }, [dateFrom, dateTo, selectedClassId, threshold, reportsCacheKey]);
 
   useEffect(() => {
     if (role === "admin" || role === "super_admin") {

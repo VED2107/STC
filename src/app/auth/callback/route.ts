@@ -87,5 +87,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(new URL(redirectPath, requestUrl.origin));
+  const dest = new URL(redirectPath, requestUrl.origin);
+  dest.searchParams.set("login", "1");
+  return NextResponse.redirect(dest);
 }
