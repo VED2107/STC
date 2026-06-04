@@ -403,11 +403,16 @@ function AdminSyllabusPageInner() {
             {visibleSyllabi.map((item) => {
               const linkedMaterials = materialMap[`${item.class_id}::${item.subject.toLowerCase()}`] ?? [];
               return (
-                <article key={item.id} className={cn(stitchPanelClass, "p-5 md:p-6")}>
+                <article key={item.id} className={cn(stitchPanelClass, "stitch-hover-lift p-5 md:p-6")}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="stitch-kicker">{item.class?.name ?? "STC Curriculum"}</p>
-                      <h2 className="mt-2 text-2xl text-foreground md:text-3xl">{item.subject}</h2>
+                      <div className="mt-2 flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
+                          <BookOpen className="h-4 w-4" />
+                        </div>
+                        <h2 className="text-2xl text-foreground md:text-3xl">{item.subject}</h2>
+                      </div>
                       <p className="mt-2 text-xs uppercase tracking-[0.22em] text-muted-foreground">
                         {item.class?.board ?? "STC"} · Level {item.class?.level ?? "-"} · {linkedMaterials.length} materials
                       </p>

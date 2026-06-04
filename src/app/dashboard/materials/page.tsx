@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, FileText, FolderOpen } from "lucide-react";
+import { ExternalLink, FileText, FolderOpen, PlayCircle, StickyNote } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,6 +12,7 @@ import {
   StitchEmptyState,
   StitchSectionHeader,
   stitchPanelClass,
+  stitchPanelSoftClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,18 @@ interface StudentAccessRow {
 }
 
 const supabase = createClient();
+
+const typeConfig: Record<string, { icon: typeof FileText; accent: string; label: string }> = {
+  pdf: { icon: FileText, accent: "bg-[#fce4ec] text-[#c62828]", label: "PDF Document" },
+  video: { icon: PlayCircle, accent: "bg-[#e8f5e9] text-[#2e7d32]", label: "Video Lesson" },
+  notes: { icon: StickyNote, accent: "bg-[#eef2ff] text-[#3651a5]", label: "Study Notes" },
+  link: { icon: ExternalLink, accent: "bg-[#fff2dc] text-[#9a6500]", label: "External Link" },
+};
+
+const materialCardClass = cn(
+  stitchPanelClass,
+  "group relative overflow-hidden stitch-hover-lift transition hover:border-primary/12"
+);
 
 export default function StudentMaterialsPage() {
   const router = useRouter();
@@ -146,39 +159,72 @@ export default function StudentMaterialsPage() {
         </div>
       ) : (
         <>
-          <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-3">
-            {materials.map((material) => (
-              <a
-                key={material.id}
-                href={material.file_url}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(stitchPanelClass, "transition hover:border-primary/12")}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="stitch-pill border-primary/10 bg-primary/10 px-3 py-1 text-[10px] text-primary">
-                    {material.type}
+          {/* Stats summary bar */}
+          <div className="mt-8 flex flex-wrap gap-3">
+            {Object.entries(
+              materials.reduce<Record<string, number>>((acc, m) => {
+                acc[m.type] = (acc[m.type] || 0) + 1;
+                return acc;
+              }, {})
+            ).map(([type, count]) => {
+              const config = typeConfig[type] ?? typeConfig.pdf;
+              const TypeIcon = config.icon;
+              return (
+                <div key={type} className={cn(stitchPanelSoftClass, "flex items-center gap-3 px-4 py-2")}>
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${config.accent}`}>
+                    <TypeIcon className="h-4 w-4" />
                   </span>
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                    {material.course?.title ?? "Academy Faculty"}
-                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{count}</p>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{type}</p>
+                  </div>
                 </div>
-                <h2 className="mt-8 text-4xl leading-tight text-foreground">
-                  {material.title}
-                </h2>
-                <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                  Curated study material published through the STC academic
-                  library for focused self-paced mastery.
-                </p>
-                <div className="mt-8 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileText className="h-4 w-4 text-primary" />
-                    Open Resource
-                  </span>
-                  <ExternalLink className="h-4 w-4 text-primary" />
-                </div>
-              </a>
-            ))}
+              );
+            })}
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
+            {materials.map((material) => {
+              const config = typeConfig[material.type] ?? typeConfig.pdf;
+              const TypeIcon = config.icon;
+              return (
+                <a
+                  key={material.id}
+                  href={material.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={materialCardClass}
+                >
+                  {/* Hover gradient overlays */}
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#f1edff]/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+
+                  <div className="relative flex items-center justify-between gap-3">
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${config.accent}`}>
+                      <TypeIcon className="h-5 w-5" />
+                    </span>
+                    <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      {material.course?.title ?? "Academy Faculty"}
+                    </span>
+                  </div>
+                  <h2 className="relative mt-6 text-2xl font-semibold leading-tight text-foreground md:text-3xl">
+                    {material.title}
+                  </h2>
+                  <p className="relative mt-3 text-sm leading-7 text-muted-foreground">
+                    {material.course?.title
+                      ? `${config.label} for ${material.course.title}`
+                      : config.label}
+                  </p>
+                  <div className="relative mt-6 flex items-center justify-between border-t border-border/40 pt-4">
+                    <span className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors group-hover:text-primary">
+                      <FileText className="h-4 w-4 text-primary" />
+                      Open Resource
+                    </span>
+                    <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                  </div>
+                </a>
+              );
+            })}
           </div>
         </>
       )}

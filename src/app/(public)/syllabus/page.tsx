@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { FileText, PlayCircle } from "lucide-react";
+import { ArrowRight, FileText, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { Reveal } from "@/components/stitch/reveal";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -78,99 +79,123 @@ export default async function PublicSyllabusPage({
   }, {});
 
   return (
-    <div className="mx-auto max-w-[1600px] px-6 py-16 md:px-12">
-      <p className="stitch-kicker">Public Syllabus</p>
-      <h1 className="mt-4 text-5xl italic text-primary md:text-7xl">
-        Live syllabus mapped by board, subject, and resources.
-      </h1>
-      <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">
-        This page now reflects the latest materials published by our teaching team for each syllabus track.
-      </p>
-
-      {classOptions.length > 0 ? (
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/syllabus"
-            className={`rounded-full px-4 py-2 text-sm transition ${
-              !selectedClassId
-                ? "bg-primary text-primary-foreground"
-                : "border border-border bg-background text-foreground hover:border-primary/20"
-            }`}
-          >
-            All classes
-          </Link>
-          {classOptions.map((item) => (
-            <Link
-              key={item.id}
-              href={`/syllabus?class=${item.id}`}
-              className={`rounded-full px-4 py-2 text-sm transition ${
-                selectedClassId === item.id
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border bg-background text-foreground hover:border-primary/20"
-              }`}
-            >
-              {item.name}
-            </Link>
-          ))}
+    <div className="overflow-x-hidden">
+      <section className="relative bg-muted py-24 md:py-32">
+        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+          <div className="max-w-3xl">
+            <Reveal variant="fade">
+              <p className="stitch-kicker">Public Syllabus</p>
+            </Reveal>
+            <Reveal delay={80} variant="mask-up">
+              <h1 className="mt-4 text-5xl font-light italic leading-tight text-primary md:text-7xl xl:text-8xl">
+                Live syllabus mapped by <span className="text-secondary">board & subject</span>.
+              </h1>
+            </Reveal>
+            <Reveal delay={160}>
+              <p className="mt-8 max-w-2xl text-base font-light leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
+                Reflects the latest materials published by our teaching team for each syllabus track.
+              </p>
+            </Reveal>
+          </div>
         </div>
-      ) : null}
+      </section>
 
-      {filteredRows.length === 0 ? (
-        <div className="stitch-panel mt-12 p-10 text-center">
-          <h2 className="text-4xl text-primary">No Syllabus Published Yet</h2>
-          <p className="mt-4 text-muted-foreground">Updated syllabus topics will appear here soon.</p>
-        </div>
-      ) : (
-        <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {filteredRows.map((item) => {
-            const linkedMaterials = materialMap[`${item.class_id}::${item.subject.toLowerCase()}`] ?? [];
-            return (
-              <article key={item.id} className="stitch-panel p-7">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-secondary">
-                  {item.class?.board ?? "STC"} · Level {item.class?.level ?? "-"}
-                </p>
-                <h2 className="mt-3 text-3xl text-primary">{item.subject}</h2>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {item.class?.name ?? "Independent Class"}
-                </p>
-                <div className="mt-6 space-y-3">
-                  {linkedMaterials.length > 0 ? linkedMaterials.slice(0, 4).map((material) => (
-                    <a
-                      key={material.id}
-                      href={material.file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center justify-between rounded-2xl border border-border bg-muted/40 px-4 py-3 transition hover:border-primary/20"
-                    >
-                      <div className="flex items-center gap-3">
-                        {material.type === "video" ? (
-                          <PlayCircle className="h-4 w-4 text-primary" />
-                        ) : (
-                          <FileText className="h-4 w-4 text-primary" />
-                        )}
-                        <span className="text-sm text-foreground">{material.title}</span>
-                      </div>
-                      <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                        {material.type}
-                      </span>
-                    </a>
-                  )) : (
-                    <div className="rounded-2xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-                      No materials published yet for this subject.
+      <section className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
+        {classOptions.length > 0 ? (
+          <Reveal variant="fade">
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/syllabus"
+                className={`cursor-pointer rounded-full px-4 py-2 text-sm transition ${
+                  !selectedClassId
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-background text-foreground hover:border-primary/20"
+                }`}
+              >
+                All classes
+              </Link>
+              {classOptions.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/syllabus?class=${item.id}`}
+                  className={`cursor-pointer rounded-full px-4 py-2 text-sm transition ${
+                    selectedClassId === item.id
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-background text-foreground hover:border-primary/20"
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </Reveal>
+        ) : null}
+
+        {filteredRows.length === 0 ? (
+          <Reveal variant="soft-zoom">
+            <div className="stitch-panel mt-12 p-10 text-center">
+              <h2 className="text-4xl italic text-primary">No Syllabus Published Yet</h2>
+              <p className="mt-4 text-base leading-8 text-muted-foreground">Updated syllabus topics will appear here soon.</p>
+            </div>
+          </Reveal>
+        ) : (
+          <div className={`${classOptions.length > 0 ? "mt-10" : ""} grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3`}>
+            {filteredRows.map((item, index) => {
+              const linkedMaterials = materialMap[`${item.class_id}::${item.subject.toLowerCase()}`] ?? [];
+              return (
+                <Reveal key={item.id} delay={index * 60} variant="fade-up">
+                  <article className="stitch-panel relative overflow-hidden p-6 sm:p-7">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-secondary/15 to-transparent" />
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-secondary">
+                      {item.class?.board ?? "STC"} · Level {item.class?.level ?? "-"}
+                    </p>
+                    <h2 className="mt-3 text-2xl italic text-primary sm:text-3xl">{item.subject}</h2>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {item.class?.name ?? "Independent Class"}
+                    </p>
+                    <div className="mt-6 space-y-2">
+                      {linkedMaterials.length > 0 ? linkedMaterials.slice(0, 4).map((material) => (
+                        <a
+                          key={material.id}
+                          href={material.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-muted/40 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-[0_8px_20px_-12px_rgba(26,28,29,0.12)]"
+                        >
+                          <div className="flex items-center gap-3">
+                            {material.type === "video" ? (
+                              <PlayCircle className="h-4 w-4 text-primary" />
+                            ) : (
+                              <FileText className="h-4 w-4 text-primary" />
+                            )}
+                            <span className="text-sm text-foreground">{material.title}</span>
+                          </div>
+                          <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                            {material.type}
+                          </span>
+                        </a>
+                      )) : (
+                        <div className="rounded-2xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+                          No materials published yet for this subject.
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+                  </article>
+                </Reveal>
+              );
+            })}
+          </div>
+        )}
 
-      <div className="mt-12">
-        <Link href="/online-courses" className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white">
-          Browse Online Courses
-        </Link>
-      </div>
+        <Reveal delay={200} variant="fade">
+          <div className="mt-14">
+            <Link href="/online-courses" className="stitch-press inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(26,28,29,0.35)]">
+              Browse Online Courses
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </Reveal>
+      </section>
     </div>
   );
 }

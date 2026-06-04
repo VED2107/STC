@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, GitBranch, GripVertical, Loader2, Pencil, Save, Trash2 } from "lucide-react";
+import { BarChart3, Download, GitBranch, GripVertical, Loader2, Pencil, Save, Trash2, Users } from "lucide-react";
 import type { BoardType, Class, ClassLevel } from "@/lib/types/database";
 import { BranchManagementDialog } from "@/components/admin/branch-management-dialog";
 import { downloadXLSX } from "@/lib/export-utils";
@@ -658,19 +658,43 @@ function AdminClassesPageInner() {
       ) : (
         <>
           <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-          <div className={stitchPanelClass}>
-            <p className="stitch-kicker">Total Enrollment</p>
-            <p className="mt-5 font-heading text-6xl text-foreground">{totalActiveStudents}</p>
+          <div className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+            <div className="flex items-center justify-between">
+              <p className="stitch-kicker">Total Enrollment</p>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-primary/15">
+                <Users className="h-5 w-5" />
+              </div>
+            </div>
+            <p className="mt-4 font-heading text-6xl text-foreground">{totalActiveStudents}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Active students across all classes
+              Active students across {classes.length} classes
             </p>
           </div>
-          <div className={stitchPanelClass}>
-            <p className="stitch-kicker">Capacity Utilization</p>
-            <p className="mt-5 font-heading text-6xl text-foreground">{utilizationPercent}%</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {totalActiveStudents}/{totalCapacity} filled seats
-            </p>
+          <div className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+            <div className="flex items-center justify-between">
+              <p className="stitch-kicker">Capacity Utilization</p>
+              <div className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                utilizationPercent >= 90 ? "bg-rose-500/8 text-rose-600 group-hover:bg-rose-500/15" :
+                utilizationPercent >= 70 ? "bg-amber-500/8 text-amber-600 group-hover:bg-amber-500/15" :
+                "bg-emerald-500/8 text-emerald-600 group-hover:bg-emerald-500/15"
+              )}>
+                <BarChart3 className="h-5 w-5" />
+              </div>
+            </div>
+            <p className={cn(
+              "mt-4 font-heading text-6xl",
+              utilizationPercent >= 90 ? "text-rose-600" : utilizationPercent >= 70 ? "text-amber-600" : "text-emerald-600"
+            )}>{utilizationPercent}%</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                <div className={cn(
+                  "h-full rounded-full transition-all duration-700",
+                  utilizationPercent >= 90 ? "bg-rose-500/60" : utilizationPercent >= 70 ? "bg-amber-500/60" : "bg-emerald-500/60"
+                )} style={{ width: `${utilizationPercent}%` }} />
+              </div>
+              <span className="text-xs text-muted-foreground">{totalActiveStudents}/{totalCapacity}</span>
+            </div>
           </div>
         </div>
 
@@ -778,7 +802,7 @@ function AdminClassesPageInner() {
                   key={item.id}
                   className={cn(
                     stitchPanelClass,
-                    "p-4 md:p-5",
+                    "stitch-hover-lift p-4 md:p-5",
                     reordering ? "opacity-70" : "",
                     draggingClassId === item.id ? "ring-2 ring-primary/40" : "",
                   )}
@@ -845,8 +869,11 @@ function AdminClassesPageInner() {
                             ? `${branchCountsByClass[item.id]} branch${branchCountsByClass[item.id] > 1 ? "es" : ""}`
                             : "Add branches"}
                         </button>
-                        <div className="mt-3 h-1 rounded-full bg-border">
-                          <div className="h-1 rounded-full bg-primary" style={{ width: `${usage}%` }} />
+                        <div className="mt-3 h-1.5 rounded-full bg-border">
+                          <div className={cn(
+                            "h-1.5 rounded-full transition-all duration-500",
+                            usage >= 90 ? "bg-rose-500/70" : usage >= 70 ? "bg-amber-500/70" : "bg-primary/60"
+                          )} style={{ width: `${usage}%` }} />
                         </div>
                         <div className="mt-2.5 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                           <span>Capacity</span>
@@ -898,7 +925,7 @@ function AdminClassesPageInner() {
                   {visibleSeniorClasses.map((item) => (
                     <tr
                       key={item.id}
-                      className={cn(draggingClassId === item.id ? "ring-2 ring-primary/40" : "", reordering ? "opacity-70" : "")}
+                      className={cn("transition-colors hover:bg-surface-container-low/60", draggingClassId === item.id ? "ring-2 ring-primary/40" : "", reordering ? "opacity-70" : "")}
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={() => void handleDrop(item.id, "senior")}
                     >
@@ -940,8 +967,11 @@ function AdminClassesPageInner() {
                           const capacity = item.capacity ?? DEFAULT_CLASS_CAPACITY;
                           const usage = Math.min(100, Math.round((enrolled / Math.max(1, capacity)) * 100));
                           return (
-                            <div className="h-1 rounded-full bg-border">
-                              <div className="h-1 rounded-full bg-[#9db7c5]" style={{ width: `${usage}%` }} />
+                            <div className="h-1.5 rounded-full bg-border">
+                              <div className={cn(
+                                "h-1.5 rounded-full transition-all duration-500",
+                                usage >= 90 ? "bg-rose-500/70" : usage >= 70 ? "bg-amber-500/70" : "bg-primary/60"
+                              )} style={{ width: `${usage}%` }} />
                             </div>
                           );
                         })()}

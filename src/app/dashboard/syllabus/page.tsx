@@ -15,6 +15,22 @@ import {
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 
+const subjectColors = [
+  "bg-[#eef2ff] text-[#3651a5]",
+  "bg-[#fff2dc] text-[#9a6500]",
+  "bg-[#f1edff] text-[#6a4bc4]",
+  "bg-[#d0e9d4]/55 text-[#374c3d]",
+  "bg-[#fce4ec] text-[#c62828]",
+  "bg-[#e8f5e9] text-[#2e7d32]",
+];
+
+const typeConfig: Record<string, { accent: string }> = {
+  pdf: { accent: "bg-[#fce4ec] text-[#c62828]" },
+  video: { accent: "bg-[#e8f5e9] text-[#2e7d32]" },
+  notes: { accent: "bg-[#eef2ff] text-[#3651a5]" },
+  link: { accent: "bg-[#fff2dc] text-[#9a6500]" },
+};
+
 interface SyllabusRow {
   id: string;
   class_id: string;
@@ -183,11 +199,12 @@ export default function StudentSyllabusPage() {
               {syllabi.map((syllabus, index) => (
                 <div
                   key={syllabus.id}
-                  className={`rounded-2xl px-4 py-3 text-sm ${
+                  className={cn(
+                    "rounded-2xl px-4 py-3 text-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-sm cursor-default",
                     index === 0
                       ? "bg-primary/10 text-primary"
-                      : "bg-white/3 text-muted-foreground"
-                  }`}
+                      : subjectColors[index % subjectColors.length]
+                  )}
                 >
                   {String(index + 1).padStart(2, "0")}. {syllabus.subject}
                 </div>
@@ -201,43 +218,47 @@ export default function StudentSyllabusPage() {
 
               return (
                 <section key={syllabus.id}>
+                  {index > 0 && (
+                    <div className="mb-8 h-px bg-gradient-to-r from-secondary/20 via-secondary/5 to-transparent" />
+                  )}
                   <div className="mb-4 flex items-center gap-3">
                     <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
-                        index === 0
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-[#163241] text-[#9db7c5]"
-                      }`}
+                      className={`flex h-9 w-9 items-center justify-center rounded-xl ${subjectColors[index % subjectColors.length]}`}
                     >
-                      {String(index + 1).padStart(2, "0")}
+                      <BookOpen className="h-4 w-4" />
                     </span>
                     <h2 className="text-4xl text-foreground">{syllabus.subject}</h2>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-                    {linkedMaterials.length > 0 ? linkedMaterials.map((material) => (
+                    {linkedMaterials.length > 0 ? linkedMaterials.map((material) => {
+                      const materialTypeConfig = typeConfig[material.type] ?? typeConfig.link;
+                      return (
                       <a
                         key={material.id}
                         href={material.file_url}
                         target="_blank"
                         rel="noreferrer"
-                        className={cn(stitchPanelClass, "transition hover:border-primary/12")}
+                        className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/12")}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="stitch-pill border-primary/10 bg-primary/10 px-3 py-1 text-[10px] text-primary">
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#f1edff]/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                        <div className="relative flex items-center justify-between gap-3">
+                          <span className={cn("stitch-pill px-3 py-1 text-[10px] border-transparent", materialTypeConfig.accent)}>
                             {material.type}
                           </span>
-                          {material.type === "video" ? (
-                            <PlayCircle className="h-4 w-4 text-primary" />
-                          ) : (
-                            <FileText className="h-4 w-4 text-primary" />
-                          )}
+                          <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", materialTypeConfig.accent)}>
+                            {material.type === "video" ? (
+                              <PlayCircle className="h-4 w-4" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                          </span>
                         </div>
-                        <h3 className="mt-8 text-3xl leading-tight text-foreground">{material.title}</h3>
-                        <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                        <h3 className="relative mt-8 text-3xl leading-tight text-foreground">{material.title}</h3>
+                        <p className="relative mt-4 text-sm leading-7 text-muted-foreground">
                           Linked study material for this subject.
                         </p>
-                        <div className="mt-8 flex items-center justify-between">
+                        <div className="relative mt-8 flex items-center justify-between">
                           <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                             <FileText className="h-4 w-4 text-primary" />
                             Open Resource
@@ -245,7 +266,8 @@ export default function StudentSyllabusPage() {
                           <ExternalLink className="h-4 w-4 text-primary" />
                         </div>
                       </a>
-                    )) : (
+                      );
+                    }) : (
                       <div className={stitchPanelClass}>
                         <p className="text-sm text-muted-foreground">
                           No materials have been linked to this subject yet.

@@ -76,8 +76,11 @@ export function StitchSectionHeader({
   return (
     <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
       <div className="max-w-3xl">
-        <p className="stitch-kicker">{eyebrow}</p>
-        <h1 className="mt-3 text-5xl leading-none text-primary md:text-7xl">{title}</h1>
+        <div className="flex items-center gap-3">
+          <span className="h-px w-6 bg-secondary/40 sm:w-10" />
+          <p className="stitch-kicker">{eyebrow}</p>
+        </div>
+        <h1 className="mt-3 text-4xl font-light italic leading-none text-primary sm:text-5xl md:text-7xl">{title}</h1>
         {description ? (
           <p className="mt-4 max-w-2xl text-base leading-8 text-muted-foreground">{description}</p>
         ) : null}

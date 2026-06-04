@@ -307,29 +307,33 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-muted py-24 md:py-32">
-        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+      <section className="relative bg-muted py-24 md:py-32">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(254,214,91,0.06),transparent_50%)]" />
+        <div className="relative mx-auto max-w-[1600px] px-6 md:px-12">
           <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
             <Reveal variant="mask-up" className="max-w-2xl">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">Live From The Academy</p>
-              <h2 className="mt-4 text-4xl font-light text-primary sm:text-5xl md:text-6xl">
-                Fresh additions from the <span className="italic text-secondary">admin desk</span>
+              <div className="flex items-center gap-3">
+                <span className="h-px w-8 bg-secondary/40 sm:w-12" />
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">Our Faculty</p>
+              </div>
+              <h2 className="mt-5 text-4xl font-light text-primary sm:text-5xl md:text-6xl">
+                The minds behind the <span className="italic text-secondary">Modern Scholar</span>
               </h2>
               <p className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
-                Recently added faculty surface here automatically from the live academy records.
+                Expert mentors handpicked for clarity, depth, and commitment to every student&apos;s academic journey.
               </p>
             </Reveal>
             <Reveal delay={120} variant="fade">
-              <Link href="/faculty" className="inline-flex items-center gap-2 border-b border-secondary pb-1 text-sm font-semibold text-secondary transition hover:gap-3">
+              <Link href="/faculty" className="group inline-flex items-center gap-2 rounded-full border border-secondary/20 bg-white/60 px-5 py-2.5 text-sm font-semibold text-secondary transition-all hover:-translate-y-0.5 hover:border-secondary/40 hover:shadow-[0_8px_24px_-8px_rgba(115,92,0,0.15)]">
                 View all faculty
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </Reveal>
           </div>
         </div>
 
         <Reveal delay={160} variant="fade">
-          <div className="mt-12">
+          <div className="relative mt-14">
             <FacultyMarquee teachers={latestTeachers} />
           </div>
         </Reveal>

@@ -2,11 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   BookOpen,
+  CalendarCheck,
   ClipboardList,
   FileText,
   GraduationCap,
   IndianRupee,
   LibraryBig,
+  PackageOpen,
+  Users,
 } from "lucide-react";
 import { AdminNukeButton } from "@/components/admin/admin-nuke-button";
 
@@ -176,38 +179,32 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Students</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{stats.students}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Institutional profiles currently active in your registry.
-          </p>
-        </div>
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Subjects</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{stats.courses}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Curriculum experiences published for scholars.
-          </p>
-        </div>
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Attendance</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{stats.attendance}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Recorded daily logs across all current classes.
-          </p>
-        </div>
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Materials</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{stats.materials}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Learning assets currently available in the archive.
-          </p>
-        </div>
+        {[
+          { label: "Students", value: stats.students, icon: Users, accent: "bg-[#d0e9d4]/55 text-[#374c3d]", gradient: "from-[#d0e9d4]/20", desc: "Active institutional profiles" },
+          { label: "Subjects", value: stats.courses, icon: BookOpen, accent: "bg-[#eef2ff] text-[#3651a5]", gradient: "from-[#eef2ff]/30", desc: "Published curriculum entries" },
+          { label: "Attendance", value: stats.attendance, icon: CalendarCheck, accent: "bg-[#fff2dc] text-[#9a6500]", gradient: "from-[#fff2dc]/30", desc: "Recorded daily logs" },
+          { label: "Materials", value: stats.materials, icon: PackageOpen, accent: "bg-[#f1edff] text-[#6a4bc4]", gradient: "from-[#f1edff]/30", desc: "Published learning assets" },
+        ].map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.label} className={summaryCardClass}>
+              <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${stat.gradient} to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <p className="stitch-kicker">{stat.label}</p>
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.accent} transition-transform duration-300 group-hover:scale-110`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                </div>
+                <p className="mt-4 font-heading text-5xl text-foreground">{stat.value}</p>
+                <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
+                  {stat.desc}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">

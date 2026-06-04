@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, GraduationCap, QrCode } from "lucide-react";
+import { BookOpen, GraduationCap, GitBranch, Layers, QrCode, Shield } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
@@ -207,30 +207,70 @@ export default function StudentClassPage() {
       />
 
       <div className={cn("mt-10 grid grid-cols-2 gap-4 md:gap-6", classRecord.branch ? "md:grid-cols-4" : "md:grid-cols-3")}>
-        <div className={stitchPanelClass}>
-          <p className="stitch-kicker">Board</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">
-            {classRecord.class.board}
-          </p>
-        </div>
-        <div className={stitchPanelClass}>
-          <p className="stitch-kicker">Level</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">
-            {classRecord.class.level}
-          </p>
-        </div>
-        {classRecord.branch ? (
-          <div className={stitchPanelClass}>
-            <p className="stitch-kicker">Branch</p>
-            <p className="mt-5 font-heading text-3xl text-foreground">
-              {classRecord.branch.name}
-            </p>
-          </div>
-        ) : null}
-        <div className={cn(stitchPanelClass, classRecord.branch ? "" : "col-span-2 md:col-span-1")}>
-          <p className="stitch-kicker">{classRecord.student_type === "online" ? "Purchased Courses" : "Active Subjects"}</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{courses.length}</p>
-        </div>
+        {(() => {
+          const summaryCardClass = cn(
+            stitchPanelSoftClass,
+            "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+          );
+          const gradientOverlay = (gradient: string) => (
+            <>
+              <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${gradient} to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+            </>
+          );
+          return (
+            <>
+              <div className={summaryCardClass}>
+                {gradientOverlay("from-[#eef2ff]/40")}
+                <div className="relative">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5] transition-transform duration-300 group-hover:scale-110">
+                    <Shield className="h-5 w-5" />
+                  </span>
+                  <p className="stitch-kicker mt-3">Board</p>
+                  <p className="mt-3 font-heading text-5xl text-foreground">
+                    {classRecord.class.board}
+                  </p>
+                </div>
+              </div>
+              <div className={summaryCardClass}>
+                {gradientOverlay("from-[#fff2dc]/40")}
+                <div className="relative">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500] transition-transform duration-300 group-hover:scale-110">
+                    <Layers className="h-5 w-5" />
+                  </span>
+                  <p className="stitch-kicker mt-3">Level</p>
+                  <p className="mt-3 font-heading text-5xl text-foreground">
+                    {classRecord.class.level}
+                  </p>
+                </div>
+              </div>
+              {classRecord.branch ? (
+                <div className={summaryCardClass}>
+                  {gradientOverlay("from-[#f1edff]/40")}
+                  <div className="relative">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4] transition-transform duration-300 group-hover:scale-110">
+                      <GitBranch className="h-5 w-5" />
+                    </span>
+                    <p className="stitch-kicker mt-3">Branch</p>
+                    <p className="mt-3 font-heading text-3xl text-foreground">
+                      {classRecord.branch.name}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              <div className={cn(summaryCardClass, classRecord.branch ? "" : "col-span-2 md:col-span-1")}>
+                {gradientOverlay("from-[#d0e9d4]/30")}
+                <div className="relative">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d0e9d4]/55 text-[#374c3d] transition-transform duration-300 group-hover:scale-110">
+                    <BookOpen className="h-5 w-5" />
+                  </span>
+                  <p className="stitch-kicker mt-3">{classRecord.student_type === "online" ? "Purchased Courses" : "Active Subjects"}</p>
+                  <p className="mt-3 font-heading text-5xl text-foreground">{courses.length}</p>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       <div className="mt-10 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
@@ -253,9 +293,14 @@ export default function StudentClassPage() {
           ) : (
             <div className="mt-6 grid grid-cols-2 gap-3 md:gap-4">
               {courses.map((course) => (
-                <div key={course.id} className={stitchPanelSoftClass}>
-                  <p className="text-xl text-foreground">{course.title}</p>
-                  <p className="mt-3 text-sm text-muted-foreground">{course.subject}</p>
+                <div key={course.id} className={cn(stitchPanelSoftClass, "stitch-hover-lift flex items-start gap-3")}>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+                    <BookOpen className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-xl text-foreground">{course.title}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{course.subject}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -263,16 +308,35 @@ export default function StudentClassPage() {
         </div>
 
         <div className={stitchPanelClass}>
-          <BookOpen className="h-6 w-6 text-primary" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+            <BookOpen className="h-5 w-5" />
+          </span>
           <h3 className="mt-6 text-3xl text-foreground">Next Steps</h3>
-          <div className="mt-5 space-y-3 text-sm text-muted-foreground">
-            <p>Review the latest syllabus for your class.</p>
-            <p>Open materials published for your subjects.</p>
-            <p>
-              {classRecord.student_type === "online"
-                ? "Track newly unlocked course content from your dashboard."
-                : "Track attendance regularly to stay updated."}
-            </p>
+          <div className="mt-5 space-y-4 text-sm text-muted-foreground">
+            <div className="flex items-start gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#fff2dc] text-[#9a6500]">
+                <Layers className="h-3.5 w-3.5" />
+              </span>
+              <p>Review the latest syllabus for your class.</p>
+            </div>
+            <div className="h-px bg-gradient-to-r from-secondary/20 via-secondary/5 to-transparent" />
+            <div className="flex items-start gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#f1edff] text-[#6a4bc4]">
+                <BookOpen className="h-3.5 w-3.5" />
+              </span>
+              <p>Open materials published for your subjects.</p>
+            </div>
+            <div className="h-px bg-gradient-to-r from-secondary/20 via-secondary/5 to-transparent" />
+            <div className="flex items-start gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#d0e9d4]/55 text-[#374c3d]">
+                <GraduationCap className="h-3.5 w-3.5" />
+              </span>
+              <p>
+                {classRecord.student_type === "online"
+                  ? "Track newly unlocked course content from your dashboard."
+                  : "Track attendance regularly to stay updated."}
+              </p>
+            </div>
           </div>
         </div>
       </div>

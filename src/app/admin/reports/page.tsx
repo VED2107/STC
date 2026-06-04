@@ -315,40 +315,58 @@ export default function AttendanceReportsPage() {
       ) : (
         <>
           <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
-            <div className={stitchPanelClass}>
-              <p className="font-heading text-5xl text-primary">{avgRate}%</p>
-              <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                Average Attendance
-              </p>
+            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+              <div className="flex items-center justify-between">
+                <p className="stitch-kicker">Average Attendance</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-primary/15">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-4 font-heading text-5xl text-primary">{avgRate}%</p>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary/60 transition-all duration-700" style={{ width: `${avgRate}%` }} />
+              </div>
             </div>
-            <div className={stitchPanelClass}>
-              <p className="font-heading text-5xl text-foreground">
+            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+              <div className="flex items-center justify-between">
+                <p className="stitch-kicker">Total Records</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/8 text-blue-600 transition-colors group-hover:bg-blue-500/15">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-4 font-heading text-5xl text-foreground">
                 {totalRecords}
               </p>
-              <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                Total Records
+              <p className="mt-2 text-xs text-muted-foreground">
+                {totalPresent} present &middot; {totalRecords - totalPresent} absent
               </p>
             </div>
-            <div className={stitchPanelClass}>
-              <div className="flex items-center gap-2">
-                <TrendingDown className="h-5 w-5 text-destructive" />
-                <p className="font-heading text-5xl text-destructive">
-                  {lowStudents.length}
-                </p>
+            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+              <div className="flex items-center justify-between">
+                <p className="stitch-kicker">Below {threshold}%</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/8 text-rose-600 transition-colors group-hover:bg-rose-500/15">
+                  <TrendingDown className="h-5 w-5" />
+                </div>
               </div>
-              <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                Below {threshold}%
+              <p className="mt-4 font-heading text-5xl text-destructive">
+                {lowStudents.length}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Students need attention
               </p>
             </div>
-            <div className={stitchPanelClass}>
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-foreground" />
-                <p className="font-heading text-5xl text-foreground">
-                  {totalStudents}
-                </p>
+            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+              <div className="flex items-center justify-between">
+                <p className="stitch-kicker">Active Students</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/8 text-emerald-600 transition-colors group-hover:bg-emerald-500/15">
+                  <Users className="h-5 w-5" />
+                </div>
               </div>
-              <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                Active Students
+              <p className="mt-4 font-heading text-5xl text-foreground">
+                {totalStudents}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Across all classes
               </p>
             </div>
           </div>

@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ExternalLink, GripVertical, Link2, Loader2, Upload } from "lucide-react";
+import { ExternalLink, File, FileText, GripVertical, Link2, Loader2, Upload, Video } from "lucide-react";
 import type { BoardType, Class, Course, Material, MaterialType } from "@/lib/types/database";
 import {
   StitchSectionHeader,
@@ -718,7 +718,7 @@ function AdminMaterialsPageInner() {
                     key={material.id}
                     className={cn(
                       stitchPanelSoftClass,
-                      "flex items-center justify-between gap-3 p-4",
+                      "flex items-center justify-between gap-3 p-4 transition-all hover:border-black/10 hover:shadow-[0_8px_24px_-16px_rgba(26,28,29,0.12)]",
                       reordering ? "opacity-70" : "",
                       draggingMaterialId === material.id ? "ring-2 ring-primary/40" : "",
                     )}
@@ -726,9 +726,18 @@ function AdminMaterialsPageInner() {
                     onDrop={() => void handleDrop(material.id)}
                   >
                     <div className="flex items-center gap-3">
-                      {material.type === "link" ? (
-                        <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
-                      ) : null}
+                      <div className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                        material.type === "pdf" && "bg-rose-50 text-rose-600",
+                        material.type === "notes" && "bg-blue-50 text-blue-600",
+                        material.type === "video" && "bg-purple-50 text-purple-600",
+                        material.type === "link" && "bg-emerald-50 text-emerald-600",
+                      )}>
+                        {material.type === "pdf" ? <File className="h-4 w-4" /> :
+                         material.type === "notes" ? <FileText className="h-4 w-4" /> :
+                         material.type === "video" ? <Video className="h-4 w-4" /> :
+                         <ExternalLink className="h-4 w-4" />}
+                      </div>
                       <div>
                         <p className="text-base text-foreground">{material.title}</p>
                         <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">

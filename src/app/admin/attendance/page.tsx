@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  CalendarCheck,
   Check,
   ClipboardCheck,
+  Clock,
   Download,
   History,
   Loader2,
   Search,
   User,
+  UserCheck,
+  UserX,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -1242,31 +1246,57 @@ export default function AdminAttendancePage() {
                     key={student.id}
                     className={cn(
                       stitchPanelSoftClass,
-                      "text-left transition",
-                      isPresent ? "border-primary/12" : "border-destructive/14"
+                      "relative text-left transition-all hover:shadow-[0_8px_24px_-16px_rgba(26,28,29,0.12)]",
+                      isPresent
+                        ? "border-l-[3px] border-l-emerald-500 border-t-black/5 border-r-black/5 border-b-black/5"
+                        : "border-l-[3px] border-l-rose-400 border-t-black/5 border-r-black/5 border-b-black/5"
                     )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-2xl text-foreground">
-                          {student.profile?.full_name ?? "Unknown"}
-                        </h3>
-                        <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                          Studio Scholar
-                          {record?.scan_method === "qr" && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-blue-500">
-                              QR
-                            </span>
-                          )}
-                        </p>
+                      <div className="flex items-start gap-3">
+                        {(() => {
+                          const studentName = student.profile?.full_name ?? "Unknown";
+                          const initials = studentName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                          const hue = studentName.charCodeAt(0) * 7 % 360;
+                          return (
+                            <div
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                              style={{ background: `hsl(${hue}, 45%, 90%)`, color: `hsl(${hue}, 40%, 40%)` }}
+                            >
+                              {initials}
+                            </div>
+                          );
+                        })()}
+                        <div>
+                          <h3 className="text-xl text-foreground sm:text-2xl">
+                            {student.profile?.full_name ?? "Unknown"}
+                          </h3>
+                          <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                            {isPresent ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-600">
+                                <UserCheck className="h-3.5 w-3.5" /> Present
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-rose-500">
+                                <UserX className="h-3.5 w-3.5" /> Absent
+                              </span>
+                            )}
+                            {record?.scan_method === "qr" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-blue-500">
+                                QR
+                              </span>
+                            )}
+                          </p>
                         {record?.check_in_at && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            In: {new Date(record.check_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
+                          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {new Date(record.check_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
                             {record.check_out_at && (
-                              <> → Out: {new Date(record.check_out_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}</>
+                              <> → {new Date(record.check_out_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}</>
                             )}
                           </p>
                         )}
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
@@ -1371,11 +1401,27 @@ export default function AdminAttendancePage() {
 
         <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={stitchPanelClass}>
-            <h3 className="text-4xl text-foreground">Session Summary</h3>
-            <div className="mt-6 space-y-5 text-sm leading-7 text-muted-foreground">
-              <p>Date: {new Date(date).toLocaleDateString("en-IN")}</p>
-              <p>Batch: {classes.find((item) => item.id === selectedClassId)?.name ?? "Not selected"}</p>
-              <p>Subject: {selectedCourse?.title ?? "General"}</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/8 text-primary">
+                <CalendarCheck className="h-4 w-4" />
+              </div>
+              <h3 className="text-2xl text-foreground">Session Summary</h3>
+            </div>
+            <div className="mt-5 space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Date</span>
+                <span className="font-medium text-foreground">{new Date(date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+              </div>
+              <div className="h-px bg-border/50" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Batch</span>
+                <span className="font-medium text-foreground">{classes.find((item) => item.id === selectedClassId)?.name ?? "Not selected"}</span>
+              </div>
+              <div className="h-px bg-border/50" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Subject</span>
+                <span className="font-medium text-foreground">{selectedCourse?.title ?? "General"}</span>
+              </div>
             </div>
             <div className="mt-6 flex gap-2">
               <button
@@ -1534,15 +1580,29 @@ export default function AdminAttendancePage() {
           </div>
 
           <div className={stitchPanelClass}>
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-2 text-primary">
-                <Check className="h-4 w-4" /> {presentCount} present
-              </span>
-              <span className="inline-flex items-center gap-2 text-destructive">
-                <X className="h-4 w-4" /> {absentCount} absent
-              </span>
+            <p className="stitch-kicker">Today&apos;s Stats</p>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-xl bg-emerald-50 p-3 text-center">
+                <p className="font-heading text-2xl text-emerald-600">{presentCount}</p>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-emerald-600/70">Present</p>
+              </div>
+              <div className="rounded-xl bg-rose-50 p-3 text-center">
+                <p className="font-heading text-2xl text-rose-600">{absentCount}</p>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-rose-600/70">Absent</p>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-3 text-center">
+                <p className="font-heading text-2xl text-amber-600">{lateCount}</p>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-amber-600/70">Late</p>
+              </div>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">{lateCount} marked late today</p>
+            {records.length > 0 && (
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="flex h-full">
+                  <div className="h-full bg-emerald-500/60 transition-all duration-500" style={{ width: `${Math.round((presentCount / records.length) * 100)}%` }} />
+                  <div className="h-full bg-rose-400/60 transition-all duration-500" style={{ width: `${Math.round((absentCount / records.length) * 100)}%` }} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

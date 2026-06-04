@@ -843,14 +843,39 @@ export default function QrScanPage() {
 
         <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={stitchPanelClass}>
-            <h3 className="text-3xl text-foreground">Today’s Session</h3>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Only today’s active session accepts scans. Teachers are limited to their assigned class and subject.
-            </p>
-            <div className="mt-5 space-y-3 text-sm text-muted-foreground">
-              <p>Class: <span className="text-foreground">{activeSession?.className ?? "Not prepared"}</span></p>
-              <p>Subject: <span className="text-foreground">{activeSession?.subject ?? "Not prepared"}</span></p>
-              <p>Date: <span className="text-foreground">{activeSession ? new Date(activeSession.sessionDate).toLocaleDateString("en-IN") : "Not prepared"}</span></p>
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl",
+                activeSession ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground"
+              )}>
+                <ScanLine className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-2xl text-foreground">Today&apos;s Session</h3>
+                {activeSession ? (
+                  <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-emerald-600">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                  </span>
+                ) : (
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Not active</span>
+                )}
+              </div>
+            </div>
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Class</span>
+                <span className="font-medium text-foreground">{activeSession?.className ?? "—"}</span>
+              </div>
+              <div className="h-px bg-border/50" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Subject</span>
+                <span className="font-medium text-foreground">{activeSession?.subject ?? "—"}</span>
+              </div>
+              <div className="h-px bg-border/50" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Date</span>
+                <span className="font-medium text-foreground">{activeSession ? new Date(activeSession.sessionDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</span>
+              </div>
             </div>
           </div>
 

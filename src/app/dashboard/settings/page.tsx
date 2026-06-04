@@ -4,7 +4,8 @@
 import Image from "next/image";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, UserCircle2 } from "lucide-react";
+import { Bell, Mail, Phone, User, Users, UserCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
@@ -41,6 +42,11 @@ function StudentSettingsPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const isStudentPhoneLocked = data?.role === "student" && Boolean(data?.phone.trim());
+
+  const sidebarCardClass = cn(
+    stitchPanelClass,
+    "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+  );
 
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (authLoading) {
@@ -169,24 +175,39 @@ function StudentSettingsPageInner() {
         <div className={stitchPanelClass}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className={stitchPanelSoftClass}>
-              <p className="stitch-kicker">Full Name</p>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+                  <User className="h-4 w-4" />
+                </span>
+                <p className="stitch-kicker">Full Name</p>
+              </div>
               <input
                 value={form.fullName}
                 onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))}
-                className={`mt-4 ${stitchInputClass}`}
+                className={`mt-2 ${stitchInputClass}`}
                 placeholder="Your name"
               />
             </div>
             <div className={stitchPanelSoftClass}>
-              <p className="stitch-kicker">Email</p>
-              <p className="mt-4 wrap-break-word text-xl text-foreground">{data?.email || "Not set"}</p>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+                  <Mail className="h-4 w-4" />
+                </span>
+                <p className="stitch-kicker">Email</p>
+              </div>
+              <p className="mt-2 wrap-break-word text-xl text-foreground">{data?.email || "Not set"}</p>
             </div>
             <div className={stitchPanelSoftClass}>
-              <p className="stitch-kicker">Phone</p>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#d0e9d4]/55 text-[#374c3d]">
+                  <Phone className="h-4 w-4" />
+                </span>
+                <p className="stitch-kicker">Phone</p>
+              </div>
               <input
                 value={form.phone}
                 onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                className={`mt-4 ${stitchInputClass}`}
+                className={`mt-2 ${stitchInputClass}`}
                 placeholder="Your phone"
                 readOnly={isStudentPhoneLocked}
                 disabled={isStudentPhoneLocked}
@@ -198,11 +219,16 @@ function StudentSettingsPageInner() {
               ) : null}
             </div>
             <div className={stitchPanelSoftClass}>
-              <p className="stitch-kicker">Parent Phone</p>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500]">
+                  <Users className="h-4 w-4" />
+                </span>
+                <p className="stitch-kicker">Parent Phone</p>
+              </div>
               <input
                 value={form.parentPhone}
                 onChange={(event) => setForm((prev) => ({ ...prev, parentPhone: event.target.value }))}
-                className={`mt-4 ${stitchInputClass}`}
+                className={`mt-2 ${stitchInputClass}`}
                 placeholder="Optional"
               />
             </div>
@@ -225,11 +251,11 @@ function StudentSettingsPageInner() {
         </div>
 
         <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
-          <div className={stitchPanelClass}>
+          <div className={sidebarCardClass}>
             <p className="stitch-kicker">Student Photo</p>
             <div className="mt-6 flex items-center gap-4">
               {data?.avatarUrl ? (
-                <div className="relative h-20 w-20 overflow-hidden rounded-full border border-border">
+                <div className="relative h-20 w-20 overflow-hidden rounded-full border-2 border-primary/20 ring-4 ring-primary/5">
                   <Image
                     src={data.avatarUrl}
                     alt={data.fullName || "Student photo"}
@@ -239,7 +265,7 @@ function StudentSettingsPageInner() {
                   />
                 </div>
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-full border border-dashed border-border bg-muted/30">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary/20 ring-4 ring-primary/5 bg-muted/30">
                   <UserCircle2 className="h-10 w-10 text-muted-foreground" />
                 </div>
               )}
@@ -251,16 +277,39 @@ function StudentSettingsPageInner() {
               </div>
             </div>
           </div>
-          <div className={stitchPanelClass}>
-            <UserCircle2 className="h-6 w-6 text-primary" />
-            <h3 className="mt-6 text-3xl text-foreground">Role</h3>
-            <p className="mt-4 text-sm uppercase tracking-[0.22em] text-muted-foreground">
-              {data?.role ?? "student"}
-            </p>
+
+          <div className="mx-4 h-px bg-gradient-to-r from-transparent via-border to-transparent xl:block hidden" />
+
+          <div className={sidebarCardClass}>
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+                <UserCircle2 className="h-4 w-4" />
+              </span>
+              <h3 className="text-3xl text-foreground">Role</h3>
+            </div>
+            <div className="mt-4">
+              <span className={cn(
+                "inline-flex rounded-full px-4 py-1.5 text-xs font-medium uppercase tracking-[0.22em]",
+                data?.role === "admin" || data?.role === "super_admin"
+                  ? "bg-[#fce4ec] text-[#c62828]"
+                  : data?.role === "teacher"
+                    ? "bg-[#eef2ff] text-[#3651a5]"
+                    : "bg-[#d0e9d4]/55 text-[#374c3d]"
+              )}>
+                {data?.role ?? "student"}
+              </span>
+            </div>
           </div>
-          <div className={stitchPanelClass}>
-            <Bell className="h-6 w-6 text-primary" />
-            <h3 className="mt-6 text-3xl text-foreground">Notifications</h3>
+
+          <div className="mx-4 h-px bg-gradient-to-r from-transparent via-border to-transparent xl:block hidden" />
+
+          <div className={sidebarCardClass}>
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500]">
+                <Bell className="h-4 w-4" />
+              </span>
+              <h3 className="text-3xl text-foreground">Notifications</h3>
+            </div>
             <p className="mt-4 font-heading text-5xl text-foreground">
               {data?.notifications ?? 0}
             </p>

@@ -3,7 +3,7 @@
 
 import { Suspense, useCallback, useEffect, useState, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Download, FileSpreadsheet, FileText, Search, Users } from "lucide-react";
+import { BadgeCheck, CircleDollarSign, Clock, Download, FileSpreadsheet, FileText, Search, UserCheck, Users } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -574,33 +574,53 @@ function AdminStudentsPageInner() {
       <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Total Students</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{students.length}</p>
+          <div className="flex items-center justify-between">
+            <p className="stitch-kicker">Total Students</p>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-primary/15">
+              <Users className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="mt-4 font-heading text-5xl text-foreground">{students.length}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Active: {activeCount}
-            {pendingCount > 0 ? ` | Pending: ${pendingCount}` : ""}
+            <span className="font-medium text-primary">{activeCount}</span> active
+            {pendingCount > 0 ? <> &middot; <span className="font-medium text-amber-600">{pendingCount}</span> pending</> : ""}
           </p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Fees Fully Paid</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{feesPaidCount}</p>
+          <div className="flex items-center justify-between">
+            <p className="stitch-kicker">Fees Fully Paid</p>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/8 text-emerald-600 transition-colors group-hover:bg-emerald-500/15">
+              <BadgeCheck className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="mt-4 font-heading text-5xl text-emerald-600">{feesPaidCount}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
             Full payment or both installments
           </p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Fees Partial</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{feesPartialCount}</p>
+          <div className="flex items-center justify-between">
+            <p className="stitch-kicker">Fees Partial</p>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/8 text-amber-600 transition-colors group-hover:bg-amber-500/15">
+              <Clock className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="mt-4 font-heading text-5xl text-amber-600">{feesPartialCount}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
             Installments in progress
           </p>
         </div>
         <div className={summaryCardClass}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <p className="stitch-kicker">Fees Not Paid</p>
-          <p className="mt-5 font-heading text-5xl text-foreground">{feesNotPaidCount}</p>
+          <div className="flex items-center justify-between">
+            <p className="stitch-kicker">Fees Not Paid</p>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/8 text-rose-600 transition-colors group-hover:bg-rose-500/15">
+              <CircleDollarSign className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="mt-4 font-heading text-5xl text-rose-600">{feesNotPaidCount}</p>
           <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
             No payment received
           </p>
@@ -697,7 +717,7 @@ function AdminStudentsPageInner() {
             </div>
             <table className="w-full min-w-[1040px] text-left">
               <thead className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                <tr>
+                <tr className="border-b-2 border-border/60">
                   <th className="pb-4 font-medium">Name & Profile</th>
                   <th className="pb-4 font-medium">Student ID</th>
                   <th className="pb-4 font-medium">Class Level</th>
@@ -710,16 +730,35 @@ function AdminStudentsPageInner() {
                   <th className="pb-4 font-medium">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.map((student, index) => (
-                  <tr key={`${student.rowKind}-${student.id}`}>
+              <tbody className="divide-y divide-border/50">
+                {filtered.map((student, index) => {
+                  const studentName = student.profile?.full_name || "Unnamed Scholar";
+                  const initials = studentName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                  const hue = studentName.charCodeAt(0) * 7 % 360;
+
+                  return (
+                  <tr key={`${student.rowKind}-${student.id}`} className="transition-colors hover:bg-surface-container-low/60">
                     <td className="py-4">
-                      <p className="text-base text-foreground">
-                        {student.profile?.full_name || "Unnamed Scholar"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {student.profile?.phone || student.profile?.email || "No contact info"}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        {student.profile?.avatar_url ? (
+                          <img src={student.profile.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                        ) : (
+                          <div
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                            style={{ background: `hsl(${hue}, 45%, 90%)`, color: `hsl(${hue}, 40%, 40%)` }}
+                          >
+                            {initials}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {studentName}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {student.profile?.phone || student.profile?.email || "No contact info"}
+                          </p>
+                        </div>
+                      </div>
                     </td>
                     <td className="py-4 text-sm text-primary">
                       {student.enrollment_date
@@ -839,7 +878,8 @@ function AdminStudentsPageInner() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

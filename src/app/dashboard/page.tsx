@@ -11,7 +11,9 @@ import {
   ExternalLink,
   FileText,
   GraduationCap,
+  PlayCircle,
   QrCode,
+  StickyNote,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -306,6 +308,18 @@ function StudentDashboardInner() {
 
   const isOnlineStudent = studentRecord?.student_type === "online";
 
+  const summaryCardClass = cn(
+    stitchPanelSoftClass,
+    "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+  );
+
+  const materialIconMap: Record<string, { icon: typeof FileText; accent: string }> = {
+    pdf: { icon: FileText, accent: "bg-[#fce4ec] text-[#c62828]" },
+    video: { icon: PlayCircle, accent: "bg-[#e8f5e9] text-[#2e7d32]" },
+    notes: { icon: StickyNote, accent: "bg-[#eef2ff] text-[#3651a5]" },
+    link: { icon: ExternalLink, accent: "bg-[#fff2dc] text-[#9a6500]" },
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -386,43 +400,77 @@ function StudentDashboardInner() {
 
       {/* ── Bento stat grid — 2-col even on mobile ── */}
       <div className={`mt-8 grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 ${isOnlineStudent ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
-        <Link href="/dashboard/class" className={cn(stitchPanelClass, "col-span-2 sm:col-span-1 transition hover:border-primary/12")}>
-          <p className="stitch-kicker">Class Details</p>
-          <h2 className="mt-4 text-2xl sm:text-3xl text-foreground">
-            {studentRecord?.class?.name ?? "Not Assigned"}
-          </h2>
-          <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
-            {studentRecord?.class?.board ?? "Board pending"} · Level{" "}
-            {studentRecord?.class?.level ?? "-"}
-            {studentRecord?.branch ? ` · ${studentRecord.branch.name}` : ""}
-          </p>
+        <Link href="/dashboard/class" className={cn(summaryCardClass, "col-span-2 sm:col-span-1")}>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#eef2ff]/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="relative">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5] transition-transform duration-300 group-hover:scale-110">
+              <GraduationCap className="h-5 w-5" />
+            </span>
+            <p className="stitch-kicker mt-4">Class Details</p>
+            <h2 className="mt-2 text-2xl sm:text-3xl text-foreground">
+              {studentRecord?.class?.name ?? "Not Assigned"}
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
+              {studentRecord?.class?.board ?? "Board pending"} · Level{" "}
+              {studentRecord?.class?.level ?? "-"}
+              {studentRecord?.branch ? ` · ${studentRecord.branch.name}` : ""}
+            </p>
+          </div>
         </Link>
         {isOnlineStudent ? null : (
-          <Link href="/dashboard/attendance" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
-            <p className="stitch-kicker">Attendance</p>
-            <p className="mt-4 font-heading text-4xl sm:text-5xl text-primary">
-              {stats.attendanceRate}%
-            </p>
-            <p className="mt-2 text-xs sm:text-sm text-muted-foreground">View archive</p>
+          <Link href="/dashboard/attendance" className={cn(summaryCardClass)}>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#fff2dc]/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+            <div className="relative">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500] transition-transform duration-300 group-hover:scale-110">
+                <CalendarCheck className="h-5 w-5" />
+              </span>
+              <p className="stitch-kicker mt-4">Attendance</p>
+              <p className="mt-2 font-heading text-4xl sm:text-5xl text-primary">
+                {stats.attendanceRate}%
+              </p>
+              <div className="mt-3 h-1.5 w-full rounded-full bg-black/5">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${stats.attendanceRate}%` }} />
+              </div>
+              <p className="mt-2 text-xs sm:text-sm text-muted-foreground">View archive</p>
+            </div>
           </Link>
         )}
-        <Link href="/dashboard/materials" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
-          <p className="stitch-kicker">Materials</p>
-          <p className="mt-4 font-heading text-4xl sm:text-5xl text-foreground">{stats.materials}</p>
-          <p className="mt-2 text-xs sm:text-sm text-muted-foreground">Published resources</p>
+        <Link href="/dashboard/materials" className={cn(summaryCardClass)}>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#f1edff]/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="relative">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4] transition-transform duration-300 group-hover:scale-110">
+              <FileText className="h-5 w-5" />
+            </span>
+            <p className="stitch-kicker mt-4">Materials</p>
+            <p className="mt-2 font-heading text-4xl sm:text-5xl text-foreground">{stats.materials}</p>
+            <p className="mt-2 text-xs sm:text-sm text-muted-foreground">Published resources</p>
+          </div>
         </Link>
-        <Link href="/dashboard/settings" className={cn(stitchPanelClass, "transition hover:border-primary/12")}>
-          <p className="stitch-kicker">Notifications</p>
-          <p className="mt-4 font-heading text-4xl sm:text-5xl text-foreground">{stats.notifications}</p>
-          <p className="mt-2 text-xs sm:text-sm text-muted-foreground">Profile & account</p>
+        <Link href="/dashboard/settings" className={cn(summaryCardClass)}>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#fce4ec]/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="relative">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fce4ec] text-[#c62828] transition-transform duration-300 group-hover:scale-110">
+              <Bell className="h-5 w-5" />
+            </span>
+            <p className="stitch-kicker mt-4">Notifications</p>
+            <p className="mt-2 font-heading text-4xl sm:text-5xl text-foreground">{stats.notifications}</p>
+            <p className="mt-2 text-xs sm:text-sm text-muted-foreground">Profile & account</p>
+          </div>
         </Link>
       </div>
 
       {/* ── Current Studies + Quick Access — side by side on mobile too ── */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
         <div className={cn(stitchPanelClass, "col-span-2 xl:col-span-1")}>
-          <p className="stitch-kicker">Current Studies</p>
-          <h2 className="mt-4 text-2xl sm:text-4xl text-foreground">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+            <BookOpen className="h-5 w-5" />
+          </span>
+          <p className="stitch-kicker mt-4">Current Studies</p>
+          <h2 className="mt-2 text-2xl sm:text-4xl text-foreground">
             {leadCourse?.title ?? (isOnlineStudent ? "No active course assigned" : "No active subject assigned")}
           </h2>
           <p className="mt-3 text-xs sm:text-sm text-muted-foreground">
@@ -451,7 +499,9 @@ function StudentDashboardInner() {
                 className={cn(stitchPanelSoftClass, "flex flex-col items-center gap-2 py-4 text-center xl:flex-row xl:justify-between xl:text-left xl:py-3 transition hover:border-primary/12")}
               >
                 <span className="flex flex-col items-center gap-1.5 xl:flex-row xl:gap-3 text-foreground text-xs sm:text-sm">
-                  <CalendarCheck className="h-5 w-5 xl:h-4 xl:w-4 text-primary" />
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500]">
+                    <CalendarCheck className="h-4 w-4" />
+                  </span>
                   Attendance
                 </span>
                 <ChevronRight className="hidden xl:block h-4 w-4 text-primary" />
@@ -462,7 +512,9 @@ function StudentDashboardInner() {
               className={cn(stitchPanelSoftClass, "flex flex-col items-center gap-2 py-4 text-center xl:flex-row xl:justify-between xl:text-left xl:py-3 transition hover:border-primary/12")}
             >
               <span className="flex flex-col items-center gap-1.5 xl:flex-row xl:gap-3 text-foreground text-xs sm:text-sm">
-                <FileText className="h-5 w-5 xl:h-4 xl:w-4 text-primary" />
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+                  <FileText className="h-4 w-4" />
+                </span>
                 Materials
               </span>
               <ChevronRight className="hidden xl:block h-4 w-4 text-primary" />
@@ -472,7 +524,9 @@ function StudentDashboardInner() {
               className={cn(stitchPanelSoftClass, "flex flex-col items-center gap-2 py-4 text-center xl:flex-row xl:justify-between xl:text-left xl:py-3 transition hover:border-primary/12")}
             >
               <span className="flex flex-col items-center gap-1.5 xl:flex-row xl:gap-3 text-foreground text-xs sm:text-sm">
-                <BookOpen className="h-5 w-5 xl:h-4 xl:w-4 text-primary" />
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+                  <BookOpen className="h-4 w-4" />
+                </span>
                 Curriculum
               </span>
               <ChevronRight className="hidden xl:block h-4 w-4 text-primary" />
@@ -482,7 +536,9 @@ function StudentDashboardInner() {
               className={cn(stitchPanelSoftClass, "flex flex-col items-center gap-2 py-4 text-center xl:flex-row xl:justify-between xl:text-left xl:py-3 transition hover:border-primary/12")}
             >
               <span className="flex flex-col items-center gap-1.5 xl:flex-row xl:gap-3 text-foreground text-xs sm:text-sm">
-                <Bell className="h-5 w-5 xl:h-4 xl:w-4 text-primary" />
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fce4ec] text-[#c62828]">
+                  <Bell className="h-4 w-4" />
+                </span>
                 Settings
               </span>
               <ChevronRight className="hidden xl:block h-4 w-4 text-primary" />
@@ -514,33 +570,33 @@ function StudentDashboardInner() {
                 </p>
               </div>
             ) : (
-              recentMaterials.map((material) => (
-                <Link
-                  key={material.id}
-                  href="/dashboard/materials"
-                  className={cn(
-                    stitchPanelSoftClass,
-                    "flex items-center justify-between gap-4 transition hover:border-primary/12"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/4 text-primary">
-                      {material.type === "link" ? (
-                        <ExternalLink className="h-5 w-5" />
-                      ) : (
-                        <FileText className="h-5 w-5" />
-                      )}
+              recentMaterials.map((material) => {
+                const matMeta = materialIconMap[material.type] ?? materialIconMap.notes;
+                const MatIcon = matMeta.icon;
+                return (
+                  <Link
+                    key={material.id}
+                    href="/dashboard/materials"
+                    className={cn(
+                      stitchPanelSoftClass,
+                      "flex items-center justify-between gap-4 transition hover:border-primary/12"
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", matMeta.accent)}>
+                        <MatIcon className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <p className="text-base text-foreground">{material.title}</p>
+                        <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                          {material.type}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-base text-foreground">{material.title}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                        {material.type}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-primary" />
-                </Link>
-              ))
+                    <ChevronRight className="h-4 w-4 text-primary" />
+                  </Link>
+                );
+              }))
             )}
           </div>
         </div>
@@ -564,39 +620,53 @@ function StudentDashboardInner() {
                   </p>
                 </div>
               ) : (
-                recentAttendance.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className={cn(stitchPanelSoftClass, "flex items-center justify-between")}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/3 text-primary">
-                        <GraduationCap className="h-5 w-5" />
+                recentAttendance.map((entry) => {
+                  const entryName = entry.class?.name ?? "Class Session";
+                  const hue = entryName.charCodeAt(0) * 7 % 360;
+                  return (
+                    <div
+                      key={entry.id}
+                      className={cn(stitchPanelSoftClass, "flex items-center justify-between")}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold"
+                          style={{ background: `hsl(${hue}, 45%, 92%)`, color: `hsl(${hue}, 40%, 45%)` }}
+                        >
+                          {entryName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm text-foreground">
+                            {entryName}
+                          </p>
+                          <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                            {new Date(entry.date).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-foreground">
-                          {entry.class?.name ?? "Class Session"}
-                        </p>
-                        <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                          {new Date(entry.date).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            entry.status === "present" ? "bg-primary" : "bg-destructive"
+                          }`}
+                        />
+                        <span
+                          className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
+                            entry.status === "present"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-destructive/10 text-destructive"
+                          }`}
+                        >
+                          {entry.status}
+                        </span>
                       </div>
                     </div>
-                    <span
-                      className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
-                        entry.status === "present"
-                          ? "bg-primary/10 text-primary"
-                          : "bg-destructive/10 text-destructive"
-                      }`}
-                    >
-                      {entry.status}
-                    </span>
-                  </div>
-                ))
+                  );
+                }))
               )}
             </div>
           </div>

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { ImageOff, Search, Users } from "lucide-react";
+import { BookOpen, GraduationCap, ImageOff, Mail, Search, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
@@ -171,9 +171,13 @@ function AdminTeachersPageInner() {
           </div>
         </div>
       ) : (
-        <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-3">
-          {filtered.map((teacher) => (
-            <article key={teacher.id} className={cn(stitchPanelClass, "overflow-hidden p-0")}>
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
+          {filtered.map((teacher) => {
+            const initials = teacher.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+            const hue = teacher.name.charCodeAt(0) * 7 % 360;
+
+            return (
+            <article key={teacher.id} className={cn(stitchPanelClass, "stitch-hover-lift group overflow-hidden p-0")}>
               <div className="relative">
                 {teacher.photo_url ? (
                   <Image
@@ -181,36 +185,44 @@ function AdminTeachersPageInner() {
                     alt={teacher.name}
                     width={400}
                     height={440}
-                    className="aspect-[1.1] w-full object-cover"
+                    className="aspect-[1.1] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                   />
                 ) : (
-                  <div className="flex aspect-[1.1] w-full items-center justify-center bg-muted text-muted-foreground">
-                    <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em]">
-                      <ImageOff className="h-4 w-4" />
-                      No Photo Uploaded
+                  <div
+                    className="flex aspect-[1.1] w-full items-center justify-center"
+                    style={{ background: `linear-gradient(135deg, hsl(${hue}, 45%, 92%), hsl(${hue}, 35%, 85%))` }}
+                  >
+                    <span
+                      className="font-heading text-6xl font-bold"
+                      style={{ color: `hsl(${hue}, 40%, 45%)` }}
+                    >
+                      {initials}
                     </span>
                   </div>
                 )}
-                <span className="absolute right-4 top-4 rounded-full bg-primary/10 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-primary">
+                <span className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-primary shadow-sm backdrop-blur-sm">
                   Active
                 </span>
               </div>
               <div className="p-6">
-                <h2 className="text-4xl leading-tight text-primary">{teacher.name}</h2>
-                <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                  {teacher.subject}
-                </p>
-                <p className="mt-6 text-sm leading-7 text-muted-foreground">
-                  {teacher.qualification}
-                </p>
+                <h2 className="text-3xl leading-tight text-primary sm:text-4xl">{teacher.name}</h2>
+                <div className="mt-3 flex items-center gap-2">
+                  <BookOpen className="h-3.5 w-3.5 text-secondary" />
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-secondary">
+                    {teacher.subject}
+                  </p>
+                </div>
+                <div className="mt-5 flex items-start gap-2">
+                  <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60" />
+                  <p className="text-sm leading-7 text-muted-foreground">
+                    {teacher.qualification}
+                  </p>
+                </div>
                 {teacher.bio ? (
                   <p className="mt-4 text-sm leading-7 text-muted-foreground">{teacher.bio}</p>
                 ) : null}
-                <div className="mt-8 flex flex-wrap gap-2">
-                  <span className="stitch-pill px-3 py-1 text-[10px]">Pedagogy</span>
-                  <span className="stitch-pill px-3 py-1 text-[10px]">Atelier</span>
-                </div>
-                <div className="mt-8 flex gap-3">
+                <div className="mt-6 h-px bg-gradient-to-r from-secondary/20 via-secondary/5 to-transparent" />
+                <div className="mt-6 flex gap-3">
                   <button
                     type="button"
                     className={stitchButtonClass}
@@ -231,7 +243,8 @@ function AdminTeachersPageInner() {
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
 
           <button
             type="button"

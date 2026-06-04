@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  BarChart3,
   CalendarCheck,
   CheckCircle2,
   Download,
@@ -25,6 +26,11 @@ import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { cn } from "@/lib/utils";
 
 const REQUIRED_ATTENDANCE = 75;
+
+const summaryCardClass = cn(
+  stitchPanelSoftClass,
+  "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+);
 
 interface AttendanceRow {
   id: string;
@@ -253,29 +259,68 @@ export default function StudentAttendancePage() {
       ) : null}
 
       <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 md:grid-cols-4">
-        <div className={stitchPanelClass}>
-          <p className="font-heading text-5xl text-primary">{rate}%</p>
-          <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-            Overall Attendance
-          </p>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#eef2ff]/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="relative flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5] transition-transform duration-300 group-hover:scale-110">
+              <BarChart3 className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-heading text-5xl text-primary">{rate}%</p>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                Overall Attendance
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 h-1.5 w-full rounded-full bg-black/5">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${rate}%` }} />
+          </div>
         </div>
-        <div className={stitchPanelClass}>
-          <p className="font-heading text-5xl text-foreground">{monthlyRate}%</p>
-          <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-            Current Month
-          </p>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#fff2dc]/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="relative flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500] transition-transform duration-300 group-hover:scale-110">
+              <CalendarCheck className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-heading text-5xl text-foreground">{monthlyRate}%</p>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                Current Month
+              </p>
+            </div>
+          </div>
         </div>
-        <div className={stitchPanelClass}>
-          <p className="font-heading text-5xl text-foreground">{stats.present}</p>
-          <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-            Days Present
-          </p>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#d0e9d4]/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="relative flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d0e9d4]/55 text-[#374c3d] transition-transform duration-300 group-hover:scale-110">
+              <CheckCircle2 className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-heading text-5xl text-foreground">{stats.present}</p>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                Days Present
+              </p>
+            </div>
+          </div>
         </div>
-        <div className={stitchPanelClass}>
-          <p className="font-heading text-5xl text-foreground">{stats.absent}</p>
-          <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-            Days Absent
-          </p>
+        <div className={summaryCardClass}>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#fce4ec]/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
+          <div className="relative flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fce4ec] text-[#c62828] transition-transform duration-300 group-hover:scale-110">
+              <XCircle className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-heading text-5xl text-foreground">{stats.absent}</p>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                Days Absent
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -300,11 +345,18 @@ export default function StudentAttendancePage() {
                   )}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/3">
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 items-center justify-center rounded-xl",
+                        record.status === "present"
+                          ? "bg-[#d0e9d4]/55 text-[#374c3d]"
+                          : "bg-[#fce4ec] text-[#c62828]"
+                      )}
+                    >
                       {record.status === "present" ? (
-                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                        <CheckCircle2 className="h-5 w-5" />
                       ) : (
-                        <XCircle className="h-5 w-5 text-destructive" />
+                        <XCircle className="h-5 w-5" />
                       )}
                     </div>
                     <div>
@@ -362,25 +414,36 @@ export default function StudentAttendancePage() {
                       key={subject.subject}
                       className={cn(
                         stitchPanelSoftClass,
-                        "flex items-center justify-between"
+                        "flex flex-col"
                       )}
                     >
-                      <div>
-                        <p className="text-sm text-foreground">{subject.subject}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {subject.present}/{subject.total} present
-                        </p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-foreground">{subject.subject}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {subject.present}/{subject.total} present
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            "rounded-full px-3 py-1 text-xs",
+                            subject.percent < REQUIRED_ATTENDANCE
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-primary/10 text-primary"
+                          )}
+                        >
+                          {subject.percent}%
+                        </span>
                       </div>
-                      <span
-                        className={cn(
-                          "rounded-full px-3 py-1 text-xs",
-                          subject.percent < REQUIRED_ATTENDANCE
-                            ? "bg-destructive/10 text-destructive"
-                            : "bg-primary/10 text-primary"
-                        )}
-                      >
-                        {subject.percent}%
-                      </span>
+                      <div className="mt-2 h-1.5 w-full rounded-full bg-black/5">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${subject.percent}%`,
+                            backgroundColor: subject.percent < REQUIRED_ATTENDANCE ? '#c62828' : '#374c3d',
+                          }}
+                        />
+                      </div>
                     </div>
                   ))
                 )}

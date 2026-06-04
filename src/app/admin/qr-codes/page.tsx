@@ -535,7 +535,7 @@ export default function AdminQrCodesPage() {
                   key={student.student_id}
                   className={cn(
                     stitchPanelSoftClass,
-                    "flex flex-col items-center text-center",
+                    "stitch-hover-lift flex flex-col items-center text-center",
                   )}
                 >
                   {student.token ? (
@@ -631,28 +631,40 @@ export default function AdminQrCodesPage() {
         {/* Sidebar */}
         <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={stitchPanelClass}>
-            <h3 className="text-3xl text-foreground">Summary</h3>
-            <div className="mt-5 space-y-4 text-sm text-muted-foreground">
-              <p>
-                Batch:{" "}
-                <span className="text-foreground">
-                  {selectedClass?.name ?? "None"}
-                </span>
-              </p>
-              <p>
-                Total Students:{" "}
-                <span className="text-foreground">{students.length}</span>
-              </p>
-              <p>
-                QR Generated:{" "}
-                <span className="text-foreground">{withTokenCount}</span>
-              </p>
-              <p>
-                Pending:{" "}
-                <span className="text-foreground">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/8 text-primary">
+                <QrCode className="h-4 w-4" />
+              </div>
+              <h3 className="text-2xl text-foreground">Summary</h3>
+            </div>
+            <div className="mt-5 space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Batch</span>
+                <span className="font-medium text-foreground">{selectedClass?.name ?? "None"}</span>
+              </div>
+              <div className="h-px bg-border/50" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Total Students</span>
+                <span className="font-heading text-lg text-foreground">{students.length}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">QR Generated</span>
+                <span className="font-heading text-lg text-emerald-600">{withTokenCount}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Pending</span>
+                <span className={cn("font-heading text-lg", students.length - withTokenCount > 0 ? "text-amber-600" : "text-muted-foreground")}>
                   {students.length - withTokenCount}
                 </span>
-              </p>
+              </div>
+              {students.length > 0 && (
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-emerald-500/60 transition-all duration-500"
+                    style={{ width: `${Math.round((withTokenCount / students.length) * 100)}%` }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

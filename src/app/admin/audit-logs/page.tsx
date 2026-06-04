@@ -6,8 +6,11 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  Pencil,
+  Plus,
   Search,
   Shield,
+  Trash2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,9 +56,15 @@ const ENTITY_TYPES = [
 const ACTIONS = ["create", "update", "delete"] as const;
 
 const ACTION_COLORS: Record<string, string> = {
-  create: "bg-green-100 text-green-700",
-  update: "bg-blue-100 text-blue-700",
-  delete: "bg-rose-100 text-rose-700",
+  create: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50",
+  update: "bg-blue-50 text-blue-700 ring-1 ring-blue-200/50",
+  delete: "bg-rose-50 text-rose-700 ring-1 ring-rose-200/50",
+};
+
+const ACTION_ICONS: Record<string, typeof Plus> = {
+  create: Plus,
+  update: Pencil,
+  delete: Trash2,
 };
 
 const PAGE_SIZE = 50;
@@ -362,14 +371,15 @@ export default function AuditLogsPage() {
             const isExpanded = expandedIds.has(log.id);
             const changes = formatChanges(log);
             const entityLabel = extractEntityLabel(log);
+            const ActionIcon = ACTION_ICONS[log.action] ?? Shield;
 
             return (
               <div
                 key={log.id}
                 className={cn(
                   stitchPanelSoftClass,
-                  "transition-all",
-                  isExpanded && "border-primary/15",
+                  "cursor-pointer transition-all hover:border-black/10 hover:shadow-[0_8px_24px_-16px_rgba(26,28,29,0.15)]",
+                  isExpanded && "border-primary/15 shadow-[0_12px_30px_-16px_rgba(26,28,29,0.18)]",
                 )}
               >
                 <button
@@ -378,11 +388,14 @@ export default function AuditLogsPage() {
                   onClick={() => toggleExpand(log.id)}
                 >
                   <div className="flex items-start gap-3">
-                    {isExpanded ? (
-                      <ChevronDown className="mt-0.5 h-4 w-4 text-primary" />
-                    ) : (
-                      <ChevronRight className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                    )}
+                    <div className={cn(
+                      "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                      log.action === "create" && "bg-emerald-50 text-emerald-600",
+                      log.action === "update" && "bg-blue-50 text-blue-600",
+                      log.action === "delete" && "bg-rose-50 text-rose-600",
+                    )}>
+                      <ActionIcon className="h-4 w-4" />
+                    </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span
@@ -401,9 +414,9 @@ export default function AuditLogsPage() {
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        by {log.actor?.full_name ?? "System"}{" "}
+                        by <span className="font-medium text-foreground/70">{log.actor?.full_name ?? "System"}</span>
                         {log.actor?.role
-                          ? `(${log.actor.role})`
+                          ? ` (${log.actor.role})`
                           : ""}
                         {" · "}
                         {new Date(log.created_at).toLocaleString("en-IN", {
@@ -417,6 +430,13 @@ export default function AuditLogsPage() {
                         })}
                       </p>
                     </div>
+                  </div>
+                  <div className="mt-1 shrink-0">
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-primary" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
                   </div>
                 </button>
 
