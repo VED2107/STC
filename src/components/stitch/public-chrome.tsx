@@ -16,6 +16,7 @@ const publicNavLinks = [
   { href: "/online-courses", label: "Online Courses" },
   { href: "/faculty", label: "Faculty" },
   { href: "/admissions", label: "Admissions" },
+  { href: "/credits", label: "Credits" },
   { href: "/", label: "Academy" },
 ];
 
@@ -24,6 +25,7 @@ const studentNavLinks = [
   { href: "/dashboard/syllabus", label: "Syllabus" },
   { href: "/dashboard/materials", label: "Materials" },
   { href: "/dashboard/attendance", label: "Attendance" },
+  { href: "/credits", label: "Credits" },
 ];
 
 const onlineStudentNavLinks = [
@@ -31,6 +33,7 @@ const onlineStudentNavLinks = [
   { href: "/dashboard/syllabus", label: "Syllabus" },
   { href: "/dashboard/materials", label: "Materials" },
   { href: "/dashboard/settings", label: "Settings" },
+  { href: "/credits", label: "Credits" },
 ];
 
 const adminNavLinks = [
@@ -40,6 +43,7 @@ const adminNavLinks = [
   { href: "/admin/classes", label: "Classes" },
   { href: "/admin/materials", label: "Materials" },
   { href: "/admin/attendance", label: "Attendance" },
+  { href: "/credits", label: "Credits" },
 ];
 
 const teacherNavLinks = [
@@ -47,6 +51,7 @@ const teacherNavLinks = [
   { href: "/admin/attendance", label: "Attendance" },
   { href: "/admin/syllabus", label: "Syllabus" },
   { href: "/admin/materials", label: "Materials" },
+  { href: "/credits", label: "Credits" },
 ];
 
 const footerLinks = [

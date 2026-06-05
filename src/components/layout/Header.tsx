@@ -17,6 +17,7 @@ import {
   LogIn,
   LayoutDashboard,
   LogOut,
+  Heart,
 } from "lucide-react";
 
 const navLinks = [
@@ -25,6 +26,7 @@ const navLinks = [
   { href: "/syllabus", label: "Syllabus", icon: FileText },
   { href: "/materials", label: "Materials", icon: FolderOpen },
   { href: "/about", label: "About", icon: Info },
+  { href: "/credits", label: "Credits", icon: Heart },
 ];
 
 export function Header() {
