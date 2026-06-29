@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  AlertTriangle,
   CalendarCheck,
   Check,
   ClipboardCheck,
@@ -20,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   Select,
@@ -176,6 +178,7 @@ export default function AdminAttendancePage() {
   const [actionError, setActionError] = useState("");
   const [editingSaved, setEditingSaved] = useState(true);
   const [resetting, setResetting] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const studentCacheRef = useRef<Record<string, StudentForAttendance[]>>({});
   const requestSequenceRef = useRef(0);
 
@@ -642,18 +645,7 @@ export default function AdminAttendancePage() {
   async function handleResetAttendance() {
     if (!selectedClassId) return;
 
-    const batchName = classes.find((c) => c.id === selectedClassId)?.name ?? "this batch";
-    const confirmed = window.confirm(
-      `⚠️ Reset ALL attendance for "${batchName}"?\n\nThis will permanently delete every attendance record across ALL dates for this class. This action cannot be undone.`,
-    );
-    if (!confirmed) return;
-
-    // Double-confirm since this is destructive
-    const doubleConfirmed = window.confirm(
-      `Are you absolutely sure?\n\nAll attendance history for "${batchName}" will be permanently erased.`,
-    );
-    if (!doubleConfirmed) return;
-
+    setResetDialogOpen(false);
     setResetting(true);
     setSaveError("");
     setActionError("");
@@ -1194,7 +1186,7 @@ export default function AdminAttendancePage() {
               </button>
               {selectedClassId && records.length > 0 && (role === "admin" || role === "super_admin") ? (
                 <Button
-                  onClick={() => void handleResetAttendance()}
+                  onClick={() => setResetDialogOpen(true)}
                   disabled={resetting}
                   variant="outline"
                   size="sm"
@@ -1710,7 +1702,7 @@ export default function AdminAttendancePage() {
             <div className="flex items-center gap-3">
               {selectedClassId && records.length > 0 && (role === "admin" || role === "super_admin") ? (
                 <Button
-                  onClick={() => void handleResetAttendance()}
+                  onClick={() => setResetDialogOpen(true)}
                   disabled={resetting}
                   variant="outline"
                   size="sm"
@@ -1747,6 +1739,46 @@ export default function AdminAttendancePage() {
           </div>
         </div>
       )}
+
+      {/* ── Reset Attendance Confirmation Dialog ──────────────── */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </span>
+              Reset All Attendance
+            </DialogTitle>
+            <DialogDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              This will <span className="font-semibold text-destructive">permanently delete</span> every
+              attendance record across <span className="font-semibold text-foreground">all dates</span> for{" "}
+              <span className="font-semibold text-foreground">
+                {classes.find((c) => c.id === selectedClassId)?.name ?? "this class"}
+              </span>
+              . This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setResetDialogOpen(false)}
+              disabled={resetting}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleResetAttendance()}
+              disabled={resetting}
+              className="cursor-pointer gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {resetting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <AlertTriangle className="h-4 w-4" />}
+              {resetting ? "Resetting…" : "Yes, Reset Everything"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
