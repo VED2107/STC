@@ -179,6 +179,7 @@ export default function AdminAttendancePage() {
   const [editingSaved, setEditingSaved] = useState(true);
   const [resetting, setResetting] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetResult, setResetResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const studentCacheRef = useRef<Record<string, StudentForAttendance[]>>({});
   const requestSequenceRef = useRef(0);
 
@@ -645,8 +646,8 @@ export default function AdminAttendancePage() {
   async function handleResetAttendance() {
     if (!selectedClassId) return;
 
-    setResetDialogOpen(false);
     setResetting(true);
+    setResetResult(null);
     setSaveError("");
     setActionError("");
 
@@ -658,6 +659,8 @@ export default function AdminAttendancePage() {
         .eq("class_id", selectedClassId);
 
       if (fetchError) throw fetchError;
+
+      const deletedCount = sessions?.length ?? 0;
 
       if (sessions && sessions.length > 0) {
         const sessionIds = sessions.map((s) => s.id);
@@ -695,9 +698,19 @@ export default function AdminAttendancePage() {
       setEditingSaved(true);
       setSaved(false);
       invalidateAfterAttendanceSave();
+
+      const className = classes.find((c) => c.id === selectedClassId)?.name ?? "this class";
+      setResetResult({
+        type: "success",
+        message: deletedCount > 0
+          ? `Successfully deleted ${deletedCount} attendance session${deletedCount !== 1 ? "s" : ""} for ${className}. All records have been cleared.`
+          : `No attendance records found for ${className}. Nothing to delete.`,
+      });
     } catch (err) {
       console.error("Failed to reset attendance:", err);
-      setSaveError(err instanceof Error ? err.message : "Failed to reset attendance");
+      const errorMsg = err instanceof Error ? err.message : "Failed to reset attendance";
+      setSaveError(errorMsg);
+      setResetResult({ type: "error", message: errorMsg });
     } finally {
       setResetting(false);
     }
@@ -1741,42 +1754,76 @@ export default function AdminAttendancePage() {
       )}
 
       {/* ── Reset Attendance Confirmation Dialog ──────────────── */}
-      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+      <Dialog open={resetDialogOpen} onOpenChange={(open) => { setResetDialogOpen(open); if (!open) setResetResult(null); }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              </span>
-              Reset All Attendance
-            </DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              This will <span className="font-semibold text-destructive">permanently delete</span> every
-              attendance record across <span className="font-semibold text-foreground">all dates</span> for{" "}
-              <span className="font-semibold text-foreground">
-                {classes.find((c) => c.id === selectedClassId)?.name ?? "this class"}
-              </span>
-              . This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setResetDialogOpen(false)}
-              disabled={resetting}
-              className="cursor-pointer"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => void handleResetAttendance()}
-              disabled={resetting}
-              className="cursor-pointer gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {resetting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <AlertTriangle className="h-4 w-4" />}
-              {resetting ? "Resetting…" : "Yes, Reset Everything"}
-            </Button>
-          </DialogFooter>
+          {resetResult ? (
+            /* ── Success / Error State ── */
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${
+                    resetResult.type === "success" ? "bg-emerald-100" : "bg-destructive/10"
+                  }`}>
+                    {resetResult.type === "success" ? (
+                      <Check className="h-5 w-5 text-emerald-600" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                    )}
+                  </span>
+                  {resetResult.type === "success" ? "Attendance Reset Complete" : "Reset Failed"}
+                </DialogTitle>
+                <DialogDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {resetResult.message}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  onClick={() => { setResetDialogOpen(false); setResetResult(null); }}
+                  className="cursor-pointer"
+                >
+                  Done
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            /* ── Confirm State ── */
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  </span>
+                  Reset All Attendance
+                </DialogTitle>
+                <DialogDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  This will <span className="font-semibold text-destructive">permanently delete</span> every
+                  attendance record across <span className="font-semibold text-foreground">all dates</span> for{" "}
+                  <span className="font-semibold text-foreground">
+                    {classes.find((c) => c.id === selectedClassId)?.name ?? "this class"}
+                  </span>
+                  . This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setResetDialogOpen(false)}
+                  disabled={resetting}
+                  className="cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => void handleResetAttendance()}
+                  disabled={resetting}
+                  className="cursor-pointer gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {resetting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <AlertTriangle className="h-4 w-4" />}
+                  {resetting ? "Resetting…" : "Yes, Reset Everything"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
