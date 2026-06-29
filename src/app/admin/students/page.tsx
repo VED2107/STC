@@ -3,7 +3,7 @@
 
 import { Suspense, useCallback, useEffect, useState, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BadgeCheck, CircleDollarSign, Clock, Download, FileSpreadsheet, FileText, Search, UserCheck, Users } from "lucide-react";
+import { BadgeCheck, ArrowRightLeft, CircleDollarSign, Clock, Download, FileSpreadsheet, FileText, Loader2, Search, UserCheck, Users } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -49,6 +51,7 @@ import {
   type StudentAttendanceSummary,
 } from "@/lib/student-export";
 import { generateStudentFormPDF } from "@/lib/student-form-pdf";
+import { invalidateAfterStudentMigration } from "@/lib/cache-invalidation";
 
 interface StudentRow {
   rowKind: "enrolled" | "pending";
@@ -102,6 +105,16 @@ function AdminStudentsPageInner() {
   const [initialProfileId, setInitialProfileId] = useState<string | null>(null);
   const [selectedClassFilterId, setSelectedClassFilterId] = useState("");
   const [selectedBranchFilterId, setSelectedBranchFilterId] = useState("");
+
+  // ─── Student Migration state ─────────────────────────────────────
+  const [migrateDialogOpen, setMigrateDialogOpen] = useState(false);
+  const [migrateSourceClassId, setMigrateSourceClassId] = useState("");
+  const [migrateTargetClassId, setMigrateTargetClassId] = useState("");
+  const [migrateResetFees, setMigrateResetFees] = useState(true);
+  const [migrating, setMigrating] = useState(false);
+  const [migrateError, setMigrateError] = useState("");
+  const [migrateSuccess, setMigrateSuccess] = useState("");
+  const [allClasses, setAllClasses] = useState<Array<{ id: string; name: string; board: string; level: string }>>([]);
 
   function handleDialogOpenChange(nextOpen: boolean) {
     setDialogOpen(nextOpen);
@@ -460,6 +473,91 @@ function AdminStudentsPageInner() {
     );
   }, [filtered, exportFilename]);
 
+  // ─── Migration helpers ───────────────────────────────────────────
+
+  async function loadAllClasses() {
+    const { data } = await supabase
+      .from("classes")
+      .select("id, name, board, level")
+      .order("sort_order");
+    setAllClasses((data as Array<{ id: string; name: string; board: string; level: string }> | null) ?? []);
+  }
+
+  function openMigrateDialog() {
+    setMigrateSourceClassId("");
+    setMigrateTargetClassId("");
+    setMigrateResetFees(true);
+    setMigrateError("");
+    setMigrateSuccess("");
+    setMigrateDialogOpen(true);
+    void loadAllClasses();
+  }
+
+  const migrateSourceStudentCount = useMemo(() => {
+    if (!migrateSourceClassId) return 0;
+    return students.filter(
+      (s) => s.rowKind === "enrolled" && s.is_active && s.class_id === migrateSourceClassId,
+    ).length;
+  }, [students, migrateSourceClassId]);
+
+  async function handleMigrateStudents() {
+    if (!migrateSourceClassId || !migrateTargetClassId) {
+      setMigrateError("Select both source and target classes.");
+      return;
+    }
+    if (migrateSourceClassId === migrateTargetClassId) {
+      setMigrateError("Source and target class must be different.");
+      return;
+    }
+    if (migrateSourceStudentCount === 0) {
+      setMigrateError("No active students found in the source class.");
+      return;
+    }
+
+    const sourceName = allClasses.find((c) => c.id === migrateSourceClassId)?.name ?? "source";
+    const targetName = allClasses.find((c) => c.id === migrateTargetClassId)?.name ?? "target";
+    const confirmed = window.confirm(
+      `Migrate ${migrateSourceStudentCount} active student(s) from ${sourceName} to ${targetName}?${migrateResetFees ? "\n\nFee status will be reset for the new year." : ""}`,
+    );
+    if (!confirmed) return;
+
+    setMigrating(true);
+    setMigrateError("");
+    setMigrateSuccess("");
+
+    try {
+      const updatePayload: Record<string, unknown> = {
+        class_id: migrateTargetClassId,
+        branch_id: null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (migrateResetFees) {
+        updatePayload.fees_amount = 0;
+        updatePayload.fees_full_payment_paid = false;
+        updatePayload.fees_installment1_paid = false;
+        updatePayload.fees_installment2_paid = false;
+      }
+
+      const { error } = await supabase
+        .from("students")
+        .update(updatePayload)
+        .eq("class_id", migrateSourceClassId)
+        .eq("is_active", true);
+
+      if (error) throw error;
+
+      setMigrateSuccess(`Successfully migrated ${migrateSourceStudentCount} student(s) from ${sourceName} to ${targetName}.`);
+      invalidateAfterStudentMigration();
+      void fetchStudents();
+    } catch (err) {
+      console.error("Failed to migrate students:", err);
+      setMigrateError(err instanceof Error ? err.message : "Migration failed.");
+    } finally {
+      setMigrating(false);
+    }
+  }
+
   const summaryCardClass = cn(
     stitchPanelSoftClass,
     "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]",
@@ -494,6 +592,14 @@ function AdminStudentsPageInner() {
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 Bulk Upload
+              </button>
+              <button
+                type="button"
+                className={cn(stitchSecondaryButtonClass, "gap-2")}
+                onClick={openMigrateDialog}
+              >
+                <ArrowRightLeft className="h-4 w-4" />
+                Migrate Class
               </button>
               <button
                 type="button"
@@ -941,6 +1047,83 @@ function AdminStudentsPageInner() {
             onOpenChange={setCsvDialogOpen}
             onSuccess={fetchStudents}
           />
+
+          {/* ── Student Migration Dialog ──────────────────────────── */}
+          <Dialog open={migrateDialogOpen} onOpenChange={setMigrateDialogOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <ArrowRightLeft className="h-5 w-5 text-primary" />
+                  Migrate Students to New Class
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Move all active students from one class to another. Useful at the start of a new academic year to promote an entire batch.
+              </p>
+
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label htmlFor="migrate-source-class" className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Source Class</label>
+                  <Select value={migrateSourceClassId} onValueChange={(v) => { setMigrateSourceClassId(v ?? ""); setMigrateError(""); setMigrateSuccess(""); }}>
+                    <SelectTrigger id="migrate-source-class"><SelectValue placeholder="Select source class" /></SelectTrigger>
+                    <SelectContent>
+                      {allClasses.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name} ({c.board})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {migrateSourceClassId && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{migrateSourceStudentCount}</span> active student{migrateSourceStudentCount !== 1 ? "s" : ""} in this class
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="migrate-target-class" className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Target Class</label>
+                  <Select value={migrateTargetClassId} onValueChange={(v) => { setMigrateTargetClassId(v ?? ""); setMigrateError(""); setMigrateSuccess(""); }}>
+                    <SelectTrigger id="migrate-target-class"><SelectValue placeholder="Select target class" /></SelectTrigger>
+                    <SelectContent>
+                      {allClasses.filter((c) => c.id !== migrateSourceClassId).map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name} ({c.board})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-border px-4 py-3 transition-colors duration-200 hover:bg-muted/40 focus-within:ring-2 focus-within:ring-primary/50">
+                  <input
+                    type="checkbox"
+                    checked={migrateResetFees}
+                    onChange={(e) => setMigrateResetFees(e.target.checked)}
+                    className="h-4 w-4 rounded border-border accent-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Reset fee status for new year</p>
+                    <p className="text-xs text-muted-foreground">Clears all payment flags and sets fee amount to 0</p>
+                  </div>
+                </label>
+
+                {migrateError && <p className="text-sm text-destructive" role="alert">{migrateError}</p>}
+                {migrateSuccess && <p className="text-sm text-emerald-600" role="status">{migrateSuccess}</p>}
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button variant="outline" onClick={() => setMigrateDialogOpen(false)} disabled={migrating} className="cursor-pointer">
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => void handleMigrateStudents()}
+                    disabled={migrating || !migrateSourceClassId || !migrateTargetClassId || migrateSourceStudentCount === 0 || !!migrateSuccess}
+                    aria-label={`Migrate ${migrateSourceStudentCount} students to new class`}
+                    className="cursor-pointer gap-2"
+                  >
+                    {migrating ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <ArrowRightLeft className="h-4 w-4" />}
+                    {migrateSuccess ? "Done" : `Migrate ${migrateSourceStudentCount} Student${migrateSourceStudentCount !== 1 ? "s" : ""}`}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

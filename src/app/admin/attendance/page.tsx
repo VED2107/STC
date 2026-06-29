@@ -12,6 +12,7 @@ import {
   Download,
   History,
   Loader2,
+  RotateCcw,
   Search,
   User,
   UserCheck,
@@ -174,6 +175,7 @@ export default function AdminAttendancePage() {
   const [saveError, setSaveError] = useState("");
   const [actionError, setActionError] = useState("");
   const [editingSaved, setEditingSaved] = useState(true);
+  const [resetting, setResetting] = useState(false);
   const studentCacheRef = useRef<Record<string, StudentForAttendance[]>>({});
   const requestSequenceRef = useRef(0);
 
@@ -635,6 +637,62 @@ export default function AdminAttendancePage() {
 
     setActionError("");
     setSelectedCourseId("");
+  }
+
+  async function handleResetAttendance() {
+    const sessionId = records[0]?.session_id;
+    if (!sessionId || !selectedClassId) return;
+
+    const batchName = classes.find((c) => c.id === selectedClassId)?.name ?? "this batch";
+    const formattedDate = new Date(date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const confirmed = window.confirm(
+      `Reset attendance for ${batchName} on ${formattedDate}?\n\nThis will permanently delete all saved attendance records for this session. You can then mark attendance from scratch.`,
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+    setSaveError("");
+    setActionError("");
+
+    try {
+      // Delete attendance rows tied to this session
+      const { error: deleteAttError } = await supabase
+        .from("attendance")
+        .delete()
+        .eq("session_id", sessionId);
+
+      if (deleteAttError) throw deleteAttError;
+
+      // Delete the session itself
+      const { error: deleteSessionError } = await supabase
+        .from("attendance_sessions")
+        .delete()
+        .eq("id", sessionId);
+
+      if (deleteSessionError) throw deleteSessionError;
+
+      // Reset local state to fresh
+      setRecords((prev) =>
+        prev.map((r) => ({
+          ...r,
+          session_id: null,
+          status: "present" as AttendanceStatus,
+          late_minutes: null,
+          remarks: null,
+          check_in_at: null,
+          check_out_at: null,
+          scan_method: "manual" as const,
+        })),
+      );
+      setEditingSaved(true);
+      setSaved(false);
+      invalidateAfterAttendanceSave();
+    } catch (err) {
+      console.error("Failed to reset attendance:", err);
+      setSaveError(err instanceof Error ? err.message : "Failed to reset attendance");
+    } finally {
+      setResetting(false);
+    }
   }
 
   async function handleSave() {
@@ -1618,9 +1676,22 @@ export default function AdminAttendancePage() {
                 <X className="h-3.5 w-3.5" /> {absentCount}
               </span>
               {lateCount > 0 && <span>{lateCount} late</span>}
-              {saveError ? <span className="text-destructive">{saveError}</span> : null}
+              {saveError ? <span className="text-destructive" role="alert">{saveError}</span> : null}
             </div>
             <div className="flex items-center gap-3">
+              {!editingSaved && (role === "admin" || role === "super_admin") ? (
+                <Button
+                  onClick={() => void handleResetAttendance()}
+                  disabled={resetting || !records[0]?.session_id}
+                  variant="outline"
+                  size="sm"
+                  aria-label="Reset attendance for this session"
+                  className="cursor-pointer gap-2 border-destructive/30 text-destructive transition-colors duration-200 hover:bg-destructive/10"
+                >
+                  {resetting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <RotateCcw className="h-4 w-4" />}
+                  Reset
+                </Button>
+              ) : null}
               {!editingSaved ? (
                 <Button
                   onClick={() => {

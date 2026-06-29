@@ -69,3 +69,11 @@ export function invalidateAfterCourseMutation() {
   invalidateCache("admin:materials:data:");
   invalidateCache("student:dashboard:");
 }
+
+export function invalidateAfterStudentMigration() {
+  invalidateCache("admin:students:");
+  invalidateCache("admin:attendance:");
+  invalidateCache("admin:classes");
+  invalidateCache("admin:qr:");
+  invalidateStudentDashboardCaches();
+}
