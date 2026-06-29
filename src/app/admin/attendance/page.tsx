@@ -1679,17 +1679,17 @@ export default function AdminAttendancePage() {
               {saveError ? <span className="text-destructive" role="alert">{saveError}</span> : null}
             </div>
             <div className="flex items-center gap-3">
-              {!editingSaved && (role === "admin" || role === "super_admin") ? (
+              {records[0]?.session_id && (role === "admin" || role === "super_admin") ? (
                 <Button
                   onClick={() => void handleResetAttendance()}
-                  disabled={resetting || !records[0]?.session_id}
+                  disabled={resetting}
                   variant="outline"
                   size="sm"
                   aria-label="Reset attendance for this session"
                   className="cursor-pointer gap-2 border-destructive/30 text-destructive transition-colors duration-200 hover:bg-destructive/10"
                 >
                   {resetting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <RotateCcw className="h-4 w-4" />}
-                  Reset
+                  Reset Attendance
                 </Button>
               ) : null}
               {!editingSaved ? (
