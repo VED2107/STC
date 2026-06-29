@@ -1176,6 +1176,19 @@ export default function AdminAttendancePage() {
               >
                 Mark All Absent
               </button>
+              {records[0]?.session_id && (role === "admin" || role === "super_admin") ? (
+                <Button
+                  onClick={() => void handleResetAttendance()}
+                  disabled={resetting}
+                  variant="outline"
+                  size="sm"
+                  aria-label="Reset attendance for this session"
+                  className="cursor-pointer gap-2 border-destructive/30 text-destructive transition-colors duration-200 hover:bg-destructive/10"
+                >
+                  {resetting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <RotateCcw className="h-4 w-4" />}
+                  Reset Attendance
+                </Button>
+              ) : null}
               <div className="relative min-w-[240px] flex-1">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input

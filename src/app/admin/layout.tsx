@@ -20,24 +20,18 @@ export default async function AdminLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, full_name")
     .eq("id", user.id)
     .maybeSingle()
-    .overrideTypes<{ role: UserRole } | null, { merge: false }>();
+    .overrideTypes<{ role: UserRole; full_name: string | null } | null, { merge: false }>();
 
   if (profile?.role !== "admin" && profile?.role !== "super_admin" && profile?.role !== "teacher") {
     redirect("/dashboard");
   }
 
-  const { data: fullProfile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
   return (
     <AtelierShell area="admin">
-      <AdminGreeting name={fullProfile?.full_name || user.email || "Admin"} />
+      <AdminGreeting name={profile?.full_name || user.email || "Admin"} />
       {children}
     </AtelierShell>
   );

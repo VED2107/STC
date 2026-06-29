@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { downloadCSV, downloadXLSX } from "@/lib/export-utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
@@ -50,7 +49,6 @@ import {
   studentExportHeaders,
   type StudentAttendanceSummary,
 } from "@/lib/student-export";
-import { generateStudentFormPDF } from "@/lib/student-form-pdf";
 import { invalidateAfterStudentMigration } from "@/lib/cache-invalidation";
 
 interface StudentRow {
@@ -433,6 +431,7 @@ function AdminStudentsPageInner() {
   }, [filtered]);
 
   const handleDownloadCSV = useCallback(async () => {
+    const { downloadCSV } = await import("@/lib/export-utils");
     const enrolledIds = filtered
       .filter((student) => student.rowKind === "enrolled")
       .map((student) => student.id);
@@ -445,6 +444,7 @@ function AdminStudentsPageInner() {
   }, [filtered, exportFilename]);
 
   const handleDownloadXLSX = useCallback(async () => {
+    const { downloadXLSX } = await import("@/lib/export-utils");
     const enrolledIds = filtered
       .filter((student) => student.rowKind === "enrolled")
       .map((student) => student.id);
@@ -457,6 +457,7 @@ function AdminStudentsPageInner() {
   }, [filtered, exportFilename]);
 
   const handleDownloadForm = useCallback(async () => {
+    const { generateStudentFormPDF } = await import("@/lib/student-form-pdf");
     const classIds = Array.from(
       new Set(
         filtered
