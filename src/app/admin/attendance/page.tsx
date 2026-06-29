@@ -640,38 +640,54 @@ export default function AdminAttendancePage() {
   }
 
   async function handleResetAttendance() {
-    const sessionId = records[0]?.session_id;
-    if (!sessionId || !selectedClassId) return;
+    if (!selectedClassId) return;
 
     const batchName = classes.find((c) => c.id === selectedClassId)?.name ?? "this batch";
-    const formattedDate = new Date(date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
     const confirmed = window.confirm(
-      `Reset attendance for ${batchName} on ${formattedDate}?\n\nThis will permanently delete all saved attendance records for this session. You can then mark attendance from scratch.`,
+      `⚠️ Reset ALL attendance for "${batchName}"?\n\nThis will permanently delete every attendance record across ALL dates for this class. This action cannot be undone.`,
     );
     if (!confirmed) return;
+
+    // Double-confirm since this is destructive
+    const doubleConfirmed = window.confirm(
+      `Are you absolutely sure?\n\nAll attendance history for "${batchName}" will be permanently erased.`,
+    );
+    if (!doubleConfirmed) return;
 
     setResetting(true);
     setSaveError("");
     setActionError("");
 
     try {
-      // Delete attendance rows tied to this session
-      const { error: deleteAttError } = await supabase
-        .from("attendance")
-        .delete()
-        .eq("session_id", sessionId);
-
-      if (deleteAttError) throw deleteAttError;
-
-      // Delete the session itself
-      const { error: deleteSessionError } = await supabase
+      // 1. Find all sessions for this class
+      const { data: sessions, error: fetchError } = await supabase
         .from("attendance_sessions")
-        .delete()
-        .eq("id", sessionId);
+        .select("id")
+        .eq("class_id", selectedClassId);
 
-      if (deleteSessionError) throw deleteSessionError;
+      if (fetchError) throw fetchError;
 
-      // Reset local state to fresh
+      if (sessions && sessions.length > 0) {
+        const sessionIds = sessions.map((s) => s.id);
+
+        // 2. Delete all attendance rows tied to these sessions
+        const { error: deleteAttError } = await supabase
+          .from("attendance")
+          .delete()
+          .in("session_id", sessionIds);
+
+        if (deleteAttError) throw deleteAttError;
+
+        // 3. Delete all sessions for this class
+        const { error: deleteSessionError } = await supabase
+          .from("attendance_sessions")
+          .delete()
+          .eq("class_id", selectedClassId);
+
+        if (deleteSessionError) throw deleteSessionError;
+      }
+
+      // 4. Reset local state to fresh
       setRecords((prev) =>
         prev.map((r) => ({
           ...r,
@@ -1176,13 +1192,13 @@ export default function AdminAttendancePage() {
               >
                 Mark All Absent
               </button>
-              {records[0]?.session_id && (role === "admin" || role === "super_admin") ? (
+              {selectedClassId && records.length > 0 && (role === "admin" || role === "super_admin") ? (
                 <Button
                   onClick={() => void handleResetAttendance()}
                   disabled={resetting}
                   variant="outline"
                   size="sm"
-                  aria-label="Reset attendance for this session"
+                  aria-label="Reset all attendance for this class"
                   className="cursor-pointer gap-2 border-destructive/30 text-destructive transition-colors duration-200 hover:bg-destructive/10"
                 >
                   {resetting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <RotateCcw className="h-4 w-4" />}
@@ -1692,13 +1708,13 @@ export default function AdminAttendancePage() {
               {saveError ? <span className="text-destructive" role="alert">{saveError}</span> : null}
             </div>
             <div className="flex items-center gap-3">
-              {records[0]?.session_id && (role === "admin" || role === "super_admin") ? (
+              {selectedClassId && records.length > 0 && (role === "admin" || role === "super_admin") ? (
                 <Button
                   onClick={() => void handleResetAttendance()}
                   disabled={resetting}
                   variant="outline"
                   size="sm"
-                  aria-label="Reset attendance for this session"
+                  aria-label="Reset all attendance for this class"
                   className="cursor-pointer gap-2 border-destructive/30 text-destructive transition-colors duration-200 hover:bg-destructive/10"
                 >
                   {resetting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <RotateCcw className="h-4 w-4" />}
