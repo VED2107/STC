@@ -12,7 +12,11 @@ export const metadata: Metadata = {
   title: "Courses - STC Academy | Online Learning Programs",
   description: "Explore our comprehensive online course catalog with programs for Primary, Middle, SSC, HSC, JEE, and NEET. Faculty-guided learning across GSEB and CBSE pathways.",
   keywords: ["STC courses", "online learning", "GSEB courses", "CBSE courses", "SSC", "HSC", "JEE", "NEET", "Gujarat education"],
+  // /courses is a duplicate of /online-courses (same query, no unique inbound links) — canonicalize to the URL actually used in nav/CTAs.
+  alternates: { canonical: "/online-courses" },
 };
+
+export const revalidate = 300;
 
 type CoursesPageProps = {
   searchParams: Promise<{

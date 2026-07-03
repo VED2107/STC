@@ -112,7 +112,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
           .single(),
         supabase
           .from("materials")
-          .select("*")
+          .select("id, title, type, file_url, sort_order, course_id")
           .eq("course_id", courseId)
           .order("sort_order", { ascending: true }),
       ]);

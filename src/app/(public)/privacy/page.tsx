@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy - STC Academy | Data Protection & Student Information",
   description: "STC Academy's privacy policy for student and guardian information usage in admissions, academic operations, attendance communication, and course delivery.",
   keywords: ["privacy policy", "data protection", "student information", "STC Academy privacy"],
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   title: "Learning Materials - STC Academy | Download Study Resources",
   description: "Resource library for active learners. Download and review class materials published by faculty and admin across all subjects and classes.",
   keywords: ["study materials", "learning resources", "STC materials", "download", "educational resources", "Gujarat study materials"],
+  alternates: { canonical: "/materials" },
 };
+
+export const revalidate = 300;
 
 type MaterialRow = {
   id: string;

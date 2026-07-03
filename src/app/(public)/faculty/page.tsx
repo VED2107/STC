@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   title: "Faculty Directory - STC Academy | Expert Teachers & Mentors",
   description: "Meet the academic team shaping the live curriculum across board preparation, foundational study, and higher-secondary pathways at STC Academy.",
   keywords: ["STC faculty", "teachers", "mentors", "expert faculty", "Gujarat teachers", "academic team"],
+  alternates: { canonical: "/faculty" },
 };
+
+export const revalidate = 300;
 
 type TeacherRow = {
   id: string;
@@ -21,7 +24,10 @@ type TeacherRow = {
 
 export default async function FacultyPage() {
   const supabase = await createClient();
-  const { data } = await supabase.from("teachers").select("*").order("name");
+  const { data } = await supabase
+    .from("teachers")
+    .select("id, name, subject, qualification, bio, photo_url")
+    .order("name");
   const teachers = (data as TeacherRow[] | null) ?? [];
 
   return (

@@ -21,6 +21,12 @@ import {
   Heart,
   Globe,
   Instagram,
+  Building2,
+  Database,
+  ShieldCheck,
+  Cloud,
+  Wrench,
+  Rocket,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -65,6 +71,39 @@ const SKILLS = [
   { label: "Backend Engineering", icon: Server },
   { label: "UI/UX Design", icon: Palette },
   { label: "System Architecture", icon: Code2 },
+];
+
+const SNOWBROS = {
+  name: "SNOWBROS",
+  tagline:
+    "STC was designed and developed by SNOWBROS, an independent software engineering studio focused on building modern, scalable, and high-performance digital products.",
+  about:
+    "SNOWBROS builds custom software, business platforms, SaaS applications, educational systems, and high-performance web experiences for startups, businesses, and organizations. Every product is engineered with a focus on scalability, maintainability, and exceptional user experience.",
+  website: "https://snowbros.me",
+  email: "snowbros2107@gmail.com",
+  github: "https://github.com/VED2107",
+  linkedin: "https://www.linkedin.com/in/ved-chauhan2107/",
+};
+
+const RESPONSIBILITIES = [
+  { label: "Product Architecture", icon: Layers },
+  { label: "Full-Stack Development", icon: Code2 },
+  { label: "UI/UX Engineering", icon: Palette },
+  { label: "Database Design & Optimization", icon: Database },
+  { label: "Authentication & Security", icon: ShieldCheck },
+  { label: "Performance & SEO Optimization", icon: Rocket },
+  { label: "Cloud Deployment & Infrastructure", icon: Cloud },
+  { label: "Maintenance & Continuous Improvements", icon: Wrench },
+];
+
+const TECH_STACK = [
+  "Next.js",
+  "React",
+  "TypeScript",
+  "Tailwind CSS",
+  "Supabase",
+  "PostgreSQL",
+  "Vercel",
 ];
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -145,13 +184,17 @@ export function CreditsPage() {
   const heroRef = useRef<HTMLElement>(null);
   const founderRef = useRef<HTMLElement>(null);
   const developerRef = useRef<HTMLElement>(null);
+  const snowbrosRef = useRef<HTMLElement>(null);
   const closingRef = useRef<HTMLElement>(null);
   const titleWordsRef = useRef<(HTMLSpanElement | null)[]>([]);
   const founderCardRef = useRef<HTMLDivElement>(null);
   const developerCardRef = useRef<HTMLDivElement>(null);
+  const snowbrosCardRef = useRef<HTMLDivElement>(null);
+  const responsibilitiesRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
   const skillsRef = useRef<HTMLDivElement>(null);
   const socialsRef = useRef<HTMLDivElement>(null);
+  const snowbrosSocialsRef = useRef<HTMLDivElement>(null);
   const portfolioRef = useRef<HTMLAnchorElement>(null);
   const closingContentRef = useRef<HTMLDivElement>(null);
 
@@ -277,6 +320,45 @@ export function CreditsPage() {
           yoyo: true,
           ease: "sine.inOut",
         });
+      }
+
+      // SNOWBROS section
+      gsap.fromTo(".snowbros-header > *",
+        { y: 40, opacity: 0 },
+        {
+          y: 0, opacity: 1, stagger: 0.1, duration: 0.9, ease: "power3.out", ...onComplete,
+          scrollTrigger: { trigger: ".snowbros-header", start: "top 85%" },
+        },
+      );
+
+      if (snowbrosCardRef.current) {
+        gsap.fromTo(snowbrosCardRef.current,
+          { y: 80, opacity: 0 },
+          {
+            y: 0, opacity: 1, duration: 1.1, ease: "power3.out", ...onComplete,
+            scrollTrigger: { trigger: snowbrosCardRef.current, start: "top 80%" },
+          },
+        );
+      }
+
+      if (responsibilitiesRef.current) {
+        gsap.fromTo(responsibilitiesRef.current.querySelectorAll(".responsibility-item"),
+          { y: 20, opacity: 0 },
+          {
+            y: 0, opacity: 1, stagger: 0.06, duration: 0.6, ease: "power2.out", ...onComplete,
+            scrollTrigger: { trigger: responsibilitiesRef.current, start: "top 85%" },
+          },
+        );
+      }
+
+      if (snowbrosSocialsRef.current) {
+        gsap.fromTo(snowbrosSocialsRef.current.querySelectorAll(".social-item"),
+          { scale: 0, opacity: 0 },
+          {
+            scale: 1, opacity: 1, stagger: 0.06, duration: 0.5, ease: "back.out(1.7)", ...onComplete,
+            scrollTrigger: { trigger: snowbrosSocialsRef.current, start: "top 85%" },
+          },
+        );
       }
 
       // Closing section
@@ -580,6 +662,135 @@ export function CreditsPage() {
                       <div className="portfolio-glow pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-r from-accent/30 to-secondary/30 opacity-0 blur-xl" />
                       <Globe className="relative h-5 w-5" />
                       <span className="relative">Visit Portfolio</span>
+                      <ExternalLink className="relative h-4 w-4 transition-transform group-hover/portfolio:translate-x-0.5 group-hover/portfolio:-translate-y-0.5" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Divider ─── */}
+      <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+        <div className="h-px bg-gradient-to-r from-transparent via-black/8 to-transparent" />
+      </div>
+
+      {/* ─── Engineering & Development (SNOWBROS) ─── */}
+      <section ref={snowbrosRef} className="relative py-24 md:py-32 lg:py-40">
+        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+          <div className="snowbros-header max-w-3xl">
+            <p className="stitch-kicker">Engineering & Development</p>
+            <h2 className="mt-4 text-4xl font-light italic text-primary sm:text-5xl md:text-6xl lg:text-7xl">
+              Built by <span className="text-secondary">{SNOWBROS.name}</span>
+            </h2>
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
+              {SNOWBROS.tagline} From initial planning and UI engineering to backend
+              architecture, database design, authentication, deployment, and ongoing
+              optimization, the platform has been built with reliability, security,
+              accessibility, and performance as core priorities.
+            </p>
+          </div>
+
+          <div ref={snowbrosCardRef} className="mt-16">
+            <div className="relative overflow-hidden rounded-[28px] border border-black/[0.04] bg-white p-1 shadow-[0_32px_80px_-32px_rgba(26,28,29,0.12)]">
+              <div className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-secondary/5 via-transparent to-accent/8" />
+              <div className="relative rounded-[24px] bg-white">
+                <div className="p-6 sm:p-8 md:p-10 lg:p-12">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-secondary/8 text-secondary">
+                      <Building2 className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <h3 className="font-heading text-2xl font-bold text-primary sm:text-3xl">
+                        {SNOWBROS.name}
+                      </h3>
+                      <p className="mt-0.5 text-sm font-medium text-secondary sm:text-base">
+                        Independent Software Engineering Studio
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Responsibilities */}
+                  <div className="mt-10">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      Responsibilities
+                    </p>
+                    <div ref={responsibilitiesRef} className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {RESPONSIBILITIES.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <span
+                            key={item.label}
+                            className="responsibility-item inline-flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-secondary/10 hover:text-secondary"
+                          >
+                            <Icon className="h-3.5 w-3.5 shrink-0" />
+                            {item.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tech Stack */}
+                  <div className="mt-8">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      Technology Stack
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {TECH_STACK.map((tech) => (
+                        <span
+                          key={tech}
+                          className="rounded-full border border-black/[0.06] bg-white px-3.5 py-1.5 text-xs font-medium text-foreground/70"
+                        >
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* About */}
+                  <p className="mt-8 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+                    {SNOWBROS.about}
+                  </p>
+                </div>
+
+                {/* Social + Website */}
+                <div className="border-t border-black/[0.04] px-6 py-6 sm:px-8 md:px-10 lg:px-12">
+                  <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div ref={snowbrosSocialsRef} className="flex items-center gap-3">
+                      <a
+                        href={SNOWBROS.github}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-foreground hover:text-white hover:shadow-lg"
+                        aria-label="SNOWBROS GitHub"
+                      >
+                        <Github className="h-5 w-5" />
+                      </a>
+                      <a
+                        href={SNOWBROS.linkedin}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-[#0a66c2] hover:text-white hover:shadow-lg"
+                        aria-label="SNOWBROS LinkedIn"
+                      >
+                        <Linkedin className="h-5 w-5" />
+                      </a>
+                      <div className="social-item">
+                        <CopyButton text={SNOWBROS.email} label="SNOWBROS email" />
+                      </div>
+                    </div>
+
+                    <a
+                      href={SNOWBROS.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group/portfolio relative inline-flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-secondary to-secondary/80 px-7 py-4 text-base font-semibold text-white shadow-[0_8px_30px_-8px_rgba(115,92,0,0.4)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-8px_rgba(115,92,0,0.5)]"
+                    >
+                      <Globe className="relative h-5 w-5" />
+                      <span className="relative">snowbros.me</span>
                       <ExternalLink className="relative h-4 w-4 transition-transform group-hover/portfolio:translate-x-0.5 group-hover/portfolio:-translate-y-0.5" />
                     </a>
                   </div>

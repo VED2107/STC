@@ -236,7 +236,7 @@ export default function QrScanPage() {
         }
 
         const [classesRes, coursesRes, syllabusRes] = await Promise.all([
-          supabase.from("classes").select("*").in("id", classIds).order("sort_order"),
+          supabase.from("classes").select("id, name, board, level, capacity, sort_order, created_at").in("id", classIds).order("sort_order"),
           supabase
             .from("courses")
             .select("id, title, subject, class_id")
@@ -274,7 +274,7 @@ export default function QrScanPage() {
       }
 
       const [classesRes, coursesRes, syllabusRes] = await Promise.all([
-        supabase.from("classes").select("*").order("sort_order"),
+        supabase.from("classes").select("id, name, board, level, capacity, sort_order, created_at").order("sort_order"),
         supabase
           .from("courses")
           .select("id, title, subject, class_id")

@@ -6,7 +6,7 @@ import { LogIn, LogOut, Mail, MapPin, Menu, Phone } from "lucide-react";
 import { getCachedStudentType, setCachedStudentType } from "@/lib/auth/client-cache";
 import { useAuth } from "@/hooks/use-auth";
 import { Reveal } from "@/components/stitch/reveal";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import type { StudentType } from "@/lib/types/database";
@@ -267,12 +267,16 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
             ) : null}
             <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
               <SheetTrigger
+                aria-expanded={menuOpen}
+                aria-controls="public-mobile-nav-menu"
                 className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-10 w-10 rounded-xl")}
               >
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Open menu</span>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[86vw] max-w-sm bg-background p-6">
+              <SheetContent id="public-mobile-nav-menu" side="right" className="w-[86vw] max-w-sm bg-background p-6">
+                <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+                <SheetDescription className="sr-only">Site navigation links</SheetDescription>
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">

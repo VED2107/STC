@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/use-auth";
 import {
   GraduationCap,
@@ -141,11 +141,17 @@ export function Header() {
 
         {/* Mobile Menu */}
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "md:hidden text-[#9994c0] hover:text-white")}>
+          <SheetTrigger
+            aria-expanded={open}
+            aria-controls="mobile-nav-menu"
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "md:hidden text-[#9994c0] hover:text-white")}
+          >
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle menu</span>
           </SheetTrigger>
-          <SheetContent side="right" className="w-72 bg-[#0f0d28] border-l border-[rgba(108,92,231,0.15)]">
+          <SheetContent id="mobile-nav-menu" side="right" className="w-72 bg-[#0f0d28] border-l border-[rgba(108,92,231,0.15)]">
+            <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+            <SheetDescription className="sr-only">Site navigation links</SheetDescription>
             <div className="flex items-center justify-between mb-8">
               <Link
                 href="/"

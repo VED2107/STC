@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "About STC Academy | Building Scholars with Calm Rigor",
   description: "STC Academy supports learners from Primary to HSC with board-aligned, faculty-guided learning systems across GSEB and CBSE pathways. Academic rigor, mentor-led learning, inquiry first.",
   keywords: ["STC Academy", "about", "academic rigor", "mentor-led learning", "GSEB", "CBSE", "Gujarat education"],
+  alternates: { canonical: "/about" },
 };
 
 const pillars = [

@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "About Us - STC Tuition Centre | Excellence in Education Since 2010",
   description: "Learn about STC Tuition Centre's mission to provide excellent teaching, strong study materials, and practical guidance to help school students learn with confidence across Gujarat.",
   keywords: ["STC Tuition Centre", "about us", "Vishal Darji", "Gujarat education", "tuition centre history"],
+  alternates: { canonical: "/about-us" },
 };
 
 const values = [

@@ -88,7 +88,7 @@ export default function AdminQrCodesPage() {
     async function loadClasses() {
       const { data } = await supabase
         .from("classes")
-        .select("*")
+        .select("id, name, board, level, capacity, sort_order, created_at")
         .order("sort_order")
         .overrideTypes<Class[], { merge: false }>();
 

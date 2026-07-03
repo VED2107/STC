@@ -2,9 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Nunito } from "next/font/google";
 import { cookies } from "next/headers";
 import type { Session, User } from "@supabase/supabase-js";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from "./providers";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/database";
+import { SiteJsonLd } from "@/components/seo/json-ld";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -62,6 +65,9 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     type: "website",
     siteName: "STC Academy",
@@ -76,6 +82,13 @@ export const metadata: Metadata = {
         alt: "STC Academy",
       },
     ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "STC Academy | The Modern Scholar",
+    description:
+      "STC Tuition Centre provides high-quality study materials and excellent education across every course and level.",
+    images: ["/android-chrome-512x512.png"],
   },
 };
 
@@ -117,7 +130,7 @@ export default async function RootLayout({
     if (user) {
       const { data } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, full_name, email, phone, role, avatar_url, parent_phone, profile_reviewed_at, created_at")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -156,7 +169,10 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground" suppressHydrationWarning>
+        <SiteJsonLd />
         <Providers initialAuth={initialAuth}>{children}</Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

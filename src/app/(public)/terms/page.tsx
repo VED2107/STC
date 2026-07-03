@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Terms of Service - STC Academy | Service Agreement & Policies",
   description: "STC Academy terms of service covering class policies, attendance requirements, academic integrity rules, fee policies, and resource access rules.",
   keywords: ["terms of service", "service agreement", "class policies", "STC Academy terms"],
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {
