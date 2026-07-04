@@ -1,4 +1,4 @@
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+import { SITE_URL } from "@/lib/site-config";
 
 /** Renders a single JSON-LD <script> tag for the given schema.org object. */
 function JsonLdScript({ data }: { data: Record<string, unknown> }) {

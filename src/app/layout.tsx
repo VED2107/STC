@@ -8,6 +8,7 @@ import { Providers } from "./providers";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/database";
 import { SiteJsonLd } from "@/components/seo/json-ld";
+import { SITE_URL } from "@/lib/site-config";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -35,7 +36,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "STC Academy | The Modern Scholar",
     template: "%s | STC Academy",
