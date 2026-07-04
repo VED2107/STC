@@ -3,11 +3,16 @@ import { ArrowRight, BookOpen, GraduationCap, Mail, MapPin, Phone, Sparkles, Tar
 import { Reveal } from "@/components/stitch/reveal";
 import type { Metadata } from "next";
 
+const title = "About Us - STC Tuition Centre | Excellence in Education Since 2010";
+const description = "Learn about STC Tuition Centre's mission to provide excellent teaching, strong study materials, and practical guidance to help school students learn with confidence across Gujarat.";
+
 export const metadata: Metadata = {
-  title: "About Us - STC Tuition Centre | Excellence in Education Since 2010",
-  description: "Learn about STC Tuition Centre's mission to provide excellent teaching, strong study materials, and practical guidance to help school students learn with confidence across Gujarat.",
+  title,
+  description,
   keywords: ["STC Tuition Centre", "about us", "Vishal Darji", "Gujarat education", "tuition centre history"],
   alternates: { canonical: "/about-us" },
+  openGraph: { type: "website", title, description, url: "/about-us" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 const values = [

@@ -10,7 +10,7 @@ type CourseDetailPageProps = {
   params: Promise<{ id: string }>;
 };
 
-type CourseMetadataResult = Pick<Course, "title" | "description" | "subject"> & {
+type CourseMetadataResult = Pick<Course, "title" | "description" | "subject" | "thumbnail_url"> & {
   class: Pick<Class, "name" | "board"> | Pick<Class, "name" | "board">[] | null;
 };
 
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
 
   const { data: course } = await supabase
     .from("courses")
-    .select("title, description, subject, class:classes(name, board)")
+    .select("title, description, subject, thumbnail_url, class:classes(name, board)")
     .eq("is_online_only", true)
     .eq("is_active", true)
     .eq("id", id)
@@ -35,18 +35,35 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
     return {
       title: "Course Not Found - STC Academy",
       description: "The requested course could not be found.",
+      robots: { index: false, follow: false },
     };
   }
 
   const classData = course.class;
   const cls = Array.isArray(classData) ? classData[0] : classData;
+  const title = `${course.title} - ${course.subject} | STC Academy`;
+  const description = course.description || `Learn ${course.subject} with expert faculty at STC Academy. ${cls?.board || "STC"} curriculum for ${cls?.name || "students"}.`;
+  const canonical = `/online-courses/${id}`;
 
   return {
-    title: `${course.title} - ${course.subject} | STC Academy`,
-    description: course.description || `Learn ${course.subject} with expert faculty at STC Academy. ${cls?.board || "STC"} curriculum for ${cls?.name || "students"}.`,
+    title,
+    description,
     keywords: [course.subject, course.title, cls?.board || "STC", cls?.name || "", "online course", "STC Academy"],
     // Shared by /courses/[id] and /online-courses/[id] (identical query) — canonicalize to the nav-linked URL.
-    alternates: { canonical: `/online-courses/${id}` },
+    alternates: { canonical },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url: canonical,
+      images: course.thumbnail_url ? [{ url: course.thumbnail_url }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: course.thumbnail_url ? [course.thumbnail_url] : undefined,
+    },
   };
 }
 

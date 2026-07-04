@@ -2,13 +2,19 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { ImageOff } from "lucide-react";
 import { Reveal } from "@/components/stitch/reveal";
+import { PersonJsonLd } from "@/components/seo/json-ld";
 import type { Metadata } from "next";
 
+const title = "Faculty Directory - STC Academy | Expert Teachers & Mentors";
+const description = "Meet the academic team shaping the live curriculum across board preparation, foundational study, and higher-secondary pathways at STC Academy.";
+
 export const metadata: Metadata = {
-  title: "Faculty Directory - STC Academy | Expert Teachers & Mentors",
-  description: "Meet the academic team shaping the live curriculum across board preparation, foundational study, and higher-secondary pathways at STC Academy.",
+  title,
+  description,
   keywords: ["STC faculty", "teachers", "mentors", "expert faculty", "Gujarat teachers", "academic team"],
   alternates: { canonical: "/faculty" },
+  openGraph: { type: "website", title, description, url: "/faculty" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 export const revalidate = 300;
@@ -67,6 +73,12 @@ export default async function FacultyPage() {
           <div className="grid gap-6 md:grid-cols-2 md:gap-8 xl:grid-cols-3">
             {teachers.map((teacher, index) => (
               <Reveal key={teacher.id} delay={index * 80} variant="fade-up">
+                <PersonJsonLd
+                  name={teacher.name}
+                  jobTitle={`${teacher.subject} Teacher`}
+                  description={[teacher.qualification, teacher.bio].filter(Boolean).join(" — ") || null}
+                  image={teacher.photo_url}
+                />
                 <article className="stitch-panel stitch-hover-lift group overflow-hidden p-6 sm:p-8">
                   <div className="overflow-hidden rounded-[20px] stitch-ghost-border">
                     {teacher.photo_url ? (

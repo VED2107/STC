@@ -2,11 +2,16 @@ import { ShieldCheck } from "lucide-react";
 import { Reveal } from "@/components/stitch/reveal";
 import type { Metadata } from "next";
 
+const title = "Privacy Policy - STC Academy | Data Protection & Student Information";
+const description = "STC Academy's privacy policy for student and guardian information usage in admissions, academic operations, attendance communication, and course delivery.";
+
 export const metadata: Metadata = {
-  title: "Privacy Policy - STC Academy | Data Protection & Student Information",
-  description: "STC Academy's privacy policy for student and guardian information usage in admissions, academic operations, attendance communication, and course delivery.",
+  title,
+  description,
   keywords: ["privacy policy", "data protection", "student information", "STC Academy privacy"],
   alternates: { canonical: "/privacy" },
+  openGraph: { type: "website", title, description, url: "/privacy" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 export default function PrivacyPage() {

@@ -4,11 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 import { Reveal } from "@/components/stitch/reveal";
 import type { Metadata } from "next";
 
+const title = "Learning Materials - STC Academy | Download Study Resources";
+const description = "Resource library for active learners. Download and review class materials published by faculty and admin across all subjects and classes.";
+
 export const metadata: Metadata = {
-  title: "Learning Materials - STC Academy | Download Study Resources",
-  description: "Resource library for active learners. Download and review class materials published by faculty and admin across all subjects and classes.",
+  title,
+  description,
   keywords: ["study materials", "learning resources", "STC materials", "download", "educational resources", "Gujarat study materials"],
   alternates: { canonical: "/materials" },
+  openGraph: { type: "website", title, description, url: "/materials" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 export const revalidate = 300;

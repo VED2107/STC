@@ -2,11 +2,16 @@ import { FileCheck } from "lucide-react";
 import { Reveal } from "@/components/stitch/reveal";
 import type { Metadata } from "next";
 
+const title = "Terms of Service - STC Academy | Service Agreement & Policies";
+const description = "STC Academy terms of service covering class policies, attendance requirements, academic integrity rules, fee policies, and resource access rules.";
+
 export const metadata: Metadata = {
-  title: "Terms of Service - STC Academy | Service Agreement & Policies",
-  description: "STC Academy terms of service covering class policies, attendance requirements, academic integrity rules, fee policies, and resource access rules.",
+  title,
+  description,
   keywords: ["terms of service", "service agreement", "class policies", "STC Academy terms"],
   alternates: { canonical: "/terms" },
+  openGraph: { type: "website", title, description, url: "/terms" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 export default function TermsPage() {

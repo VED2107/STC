@@ -6,19 +6,59 @@ import { AnnouncementBadge } from "@/components/stitch/announcement-badge";
 import { FacultyMarquee } from "@/components/stitch/faculty-marquee";
 import { Typewriter } from "@/components/stitch/typewriter";
 import { createClient } from "@/lib/supabase/server";
+import { FaqJsonLd, type FaqItem } from "@/components/seo/json-ld";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "STC Academy | The Modern Scholar - Excellence in Education",
-  description: "Cultivating the Intellect of Tomorrow. High-quality teaching, trusted study materials, and strong conceptual learning for students across Gujarat's most important academic milestones.",
-  keywords: ["STC Academy", "tuition centre", "Gujarat education", "CBSE", "GSEB", "SSC", "HSC", "JEE", "NEET", "online courses"],
+  title: "STC Academy | CBSE & GSEB Tuition Classes in Patan, Gujarat",
+  description: "STC Academy (Saraswati Tuition Classes) provides expert coaching for Primary to HSC students in CBSE and GSEB boards, in Patan, Gujarat. Trusted study materials and strong conceptual learning.",
+  keywords: ["STC Academy", "tuition centre", "Patan Gujarat tuition", "Gujarat education", "CBSE", "GSEB", "SSC", "HSC", "JEE", "NEET", "online courses"],
   alternates: { canonical: "/" },
   openGraph: {
-    title: "STC Academy | Cultivating the Intellect of Tomorrow",
-    description: "High-quality teaching, trusted study materials, and strong conceptual learning for students across Gujarat's most important academic milestones.",
+    title: "STC Academy | CBSE & GSEB Tuition Classes in Patan, Gujarat",
+    description: "Expert coaching for Primary to HSC students in CBSE and GSEB boards. Trusted study materials and strong conceptual learning.",
     type: "website",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "STC Academy | CBSE & GSEB Tuition Classes in Patan, Gujarat",
+    description: "Expert coaching for Primary to HSC students in CBSE and GSEB boards. Trusted study materials and strong conceptual learning.",
   },
 };
+
+const faqs: FaqItem[] = [
+  {
+    question: "Which boards do you teach?",
+    answer:
+      "STC Academy provides coaching for both CBSE and GSEB students. We offer tuition from Primary to HSC, covering Science and Commerce streams with subject-focused guidance.",
+  },
+  {
+    question: "Do you offer a demo lecture?",
+    answer:
+      "Yes. We offer a demo lecture so students and parents can experience our teaching methodology before enrolling. Contact us to schedule your demo class.",
+  },
+  {
+    question: "What are your fees?",
+    answer:
+      "Our fee structure varies depending on the student's class, board, subjects, and course duration. Contact STC Academy for the latest fee details and available batches.",
+  },
+  {
+    question: "Are study materials included?",
+    answer:
+      "Yes. Students receive well-structured study materials, practice worksheets, assignments, and regular tests designed to strengthen concepts and improve exam performance.",
+  },
+  {
+    question: "What are your class timings?",
+    answer:
+      "Classes are conducted Monday to Saturday, with multiple batches available between 6:00 AM and 8:00 PM. Batch timings are scheduled according to the student's class and course.",
+  },
+  {
+    question: "Why should I choose STC Academy?",
+    answer:
+      "STC Academy focuses on conceptual learning, personalized attention, experienced faculty, regular assessments, and exam-oriented preparation. Our goal is to help every student build confidence, improve academic performance, and achieve long-term success.",
+  },
+];
 
 export const revalidate = 300;
 
@@ -343,6 +383,28 @@ export default async function HomePage() {
             <FacultyMarquee teachers={latestTeachers} />
           </div>
         </Reveal>
+      </section>
+
+      {/* FAQ */}
+      <section className="mx-auto max-w-4xl px-6 py-24 md:px-12 md:py-32">
+        <FaqJsonLd items={faqs} />
+        <Reveal variant="mask-up" className="text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">FAQs</p>
+          <h2 className="mt-4 text-4xl font-light text-primary sm:text-5xl md:text-6xl">
+            Common <span className="italic text-secondary">questions</span>
+          </h2>
+        </Reveal>
+
+        <div className="mt-14 divide-y divide-black/[0.06]">
+          {faqs.map((faq, index) => (
+            <Reveal key={faq.question} delay={index * 60} variant="fade-up">
+              <div className="py-6">
+                <h3 className="text-lg font-semibold text-primary sm:text-xl">{faq.question}</h3>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground sm:text-base">{faq.answer}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
       </section>
 
       {/* CTA */}

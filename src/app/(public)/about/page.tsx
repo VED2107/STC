@@ -3,11 +3,16 @@ import { ArrowRight, BookOpen, Brain, GraduationCap, Users } from "lucide-react"
 import { Reveal } from "@/components/stitch/reveal";
 import type { Metadata } from "next";
 
+const title = "About STC Academy | Building Scholars with Calm Rigor";
+const description = "STC Academy supports learners from Primary to HSC with board-aligned, faculty-guided learning systems across GSEB and CBSE pathways. Academic rigor, mentor-led learning, inquiry first.";
+
 export const metadata: Metadata = {
-  title: "About STC Academy | Building Scholars with Calm Rigor",
-  description: "STC Academy supports learners from Primary to HSC with board-aligned, faculty-guided learning systems across GSEB and CBSE pathways. Academic rigor, mentor-led learning, inquiry first.",
+  title,
+  description,
   keywords: ["STC Academy", "about", "academic rigor", "mentor-led learning", "GSEB", "CBSE", "Gujarat education"],
   alternates: { canonical: "/about" },
+  openGraph: { type: "website", title, description, url: "/about" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 const pillars = [

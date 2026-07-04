@@ -4,11 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 import { Reveal } from "@/components/stitch/reveal";
 import type { Metadata } from "next";
 
+const title = "Syllabus - STC Academy | Live Curriculum by Board & Subject";
+const description = "Live syllabus mapped by board, subject, and resources. Reflects the latest materials published by our teaching team for each syllabus track.";
+
 export const metadata: Metadata = {
-  title: "Syllabus - STC Academy | Live Curriculum by Board & Subject",
-  description: "Live syllabus mapped by board, subject, and resources. Reflects the latest materials published by our teaching team for each syllabus track.",
+  title,
+  description,
   keywords: ["syllabus", "curriculum", "GSEB syllabus", "CBSE syllabus", "study materials", "STC Academy syllabus"],
   alternates: { canonical: "/syllabus" },
+  openGraph: { type: "website", title, description, url: "/syllabus" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 export const revalidate = 300;

@@ -12,6 +12,7 @@ const staticRoutes: Array<{ path: string; priority: number; changeFrequency: Met
   { path: "/faculty", priority: 0.7, changeFrequency: "weekly" },
   { path: "/materials", priority: 0.6, changeFrequency: "weekly" },
   { path: "/syllabus", priority: 0.6, changeFrequency: "weekly" },
+  { path: "/credits", priority: 0.2, changeFrequency: "monthly" },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
   { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
   // /admissions, /enroll, /programs, /teachers are redirect-only aliases — excluded to avoid indexing a bounce.
