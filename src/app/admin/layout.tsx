@@ -1,37 +1,26 @@
 import { redirect } from "next/navigation";
 import { AtelierShell } from "@/components/stitch/atelier-shell";
 import { AdminGreeting } from "@/components/stitch/admin-greeting";
-import { createClient } from "@/lib/supabase/server";
-import type { UserRole } from "@/lib/types/database";
+import { getAdminAuth } from "@/lib/auth/admin-auth";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await getAdminAuth();
 
-  if (!user) {
+  if (!auth) {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user.id)
-    .maybeSingle()
-    .overrideTypes<{ role: UserRole; full_name: string | null } | null, { merge: false }>();
-
-  if (profile?.role !== "admin" && profile?.role !== "super_admin" && profile?.role !== "teacher") {
+  if (auth.role !== "admin" && auth.role !== "super_admin" && auth.role !== "teacher") {
     redirect("/dashboard");
   }
 
   return (
     <AtelierShell area="admin">
-      <AdminGreeting name={profile?.full_name || user.email || "Admin"} />
+      <AdminGreeting name={auth.fullName || auth.email || "Admin"} />
       {children}
     </AtelierShell>
   );

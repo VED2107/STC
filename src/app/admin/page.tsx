@@ -20,6 +20,7 @@ import {
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminAuth } from "@/lib/auth/admin-auth";
 import { cn } from "@/lib/utils";
 import { getFeesStatusLabel, hasFullPaymentMarked, isFullyPaid, isPartiallyPaid } from "@/lib/student-fees";
 
@@ -73,29 +74,23 @@ interface ClassRow {
 }
 
 export default async function AdminDashboard() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Deduped per-request — reuses the getUser()+profile fetch already done by
+  // the admin layout instead of issuing a second auth round-trip.
+  const auth = await getAdminAuth();
 
-  if (!user) {
+  if (!auth) {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.role === "teacher") {
+  if (auth.role === "teacher") {
     redirect("/admin/attendance");
   }
 
-  if (profile?.role !== "admin" && profile?.role !== "super_admin") {
+  if (auth.role !== "admin" && auth.role !== "super_admin") {
     redirect("/dashboard");
   }
 
+  const supabase = await createClient();
   const [
     statsRes,
     registryRes,
@@ -147,7 +142,7 @@ export default async function AdminDashboard() {
     feesNotPaid: Number(dbStats?.fees_not_paid ?? 0),
   };
 
-  const isSuperAdmin = profile?.role === "super_admin";
+  const isSuperAdmin = auth.role === "super_admin";
 
   const summaryCardClass = cn(
     stitchPanelSoftClass,

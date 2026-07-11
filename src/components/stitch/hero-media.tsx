@@ -23,10 +23,11 @@ export function HeroMedia() {
       >
         <div className="absolute inset-0">
           <Image
-            src="/hero.png"
+            src="/hero.jpg"
             alt="STC Academy"
             fill
             priority
+            quality={70}
             sizes="100vw"
             className="object-cover object-center opacity-30 md:opacity-35 xl:opacity-25"
           />
