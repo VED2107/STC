@@ -1,3 +1,4 @@
+import { StepHorizon } from "@/components/stitch/step-horizon";
 import Link from "next/link";
 import { ArrowRight, FileText, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -88,19 +89,20 @@ export default async function PublicSyllabusPage({
 
   return (
     <div className="overflow-x-hidden">
-      <section className="relative bg-muted py-24 md:py-32">
-        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+      <section className="relative overflow-hidden bg-gold-50 pt-14 pb-24 md:pt-20 md:pb-36">
+        <StepHorizon />
+        <div className="mx-auto max-w-[1280px] px-4 md:px-8">
           <div className="max-w-3xl">
             <Reveal variant="fade">
               <p className="stitch-kicker">Public Syllabus</p>
             </Reveal>
             <Reveal delay={80} variant="mask-up">
-              <h1 className="mt-4 text-5xl font-light italic leading-tight text-primary md:text-7xl xl:text-8xl">
-                Live syllabus mapped by <span className="text-secondary">board & subject</span>.
+              <h1 className="text-4xl font-extrabold leading-[1.05] text-primary md:text-6xl">
+                Live syllabus mapped by board & subject.
               </h1>
             </Reveal>
             <Reveal delay={160}>
-              <p className="mt-8 max-w-2xl text-base font-light leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
+              <p className="mt-8 max-w-2xl text-lg leading-8 text-muted-foreground">
                 Reflects the latest materials published by our teaching team for each syllabus track.
               </p>
             </Reveal>
@@ -108,7 +110,7 @@ export default async function PublicSyllabusPage({
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
+      <section className="mx-auto max-w-[1280px] px-4 py-24 md:px-8 md:py-32">
         {classOptions.length > 0 ? (
           <Reveal variant="fade">
             <div className="flex flex-wrap gap-3">
@@ -142,7 +144,7 @@ export default async function PublicSyllabusPage({
         {filteredRows.length === 0 ? (
           <Reveal variant="soft-zoom">
             <div className="stitch-panel mt-12 p-10 text-center">
-              <h2 className="text-4xl italic text-primary">No Syllabus Published Yet</h2>
+              <h2 className="text-4xl text-primary">No Syllabus Published Yet</h2>
               <p className="mt-4 text-base leading-8 text-muted-foreground">Updated syllabus topics will appear here soon.</p>
             </div>
           </Reveal>
@@ -154,10 +156,10 @@ export default async function PublicSyllabusPage({
                 <Reveal key={item.id} delay={index * 60} variant="fade-up">
                   <article className="stitch-panel relative overflow-hidden p-6 sm:p-7">
                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-secondary/15 to-transparent" />
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-secondary">
+                    <p className="text-xs font-semibold text-secondary">
                       {item.class?.board ?? "STC"} · Level {item.class?.level ?? "-"}
                     </p>
-                    <h2 className="mt-3 text-2xl italic text-primary sm:text-3xl">{item.subject}</h2>
+                    <h2 className="mt-3 text-2xl text-primary sm:text-3xl">{item.subject}</h2>
                     <p className="mt-3 text-sm text-muted-foreground">
                       {item.class?.name ?? "Independent Class"}
                     </p>
@@ -168,7 +170,7 @@ export default async function PublicSyllabusPage({
                           href={material.file_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-muted/40 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-[0_8px_20px_-12px_rgba(26,28,29,0.12)]"
+                          className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-muted/40 px-4 py-3 transition-all hover:border-primary/20"
                         >
                           <div className="flex items-center gap-3">
                             {material.type === "video" ? (
@@ -178,7 +180,7 @@ export default async function PublicSyllabusPage({
                             )}
                             <span className="text-sm text-foreground">{material.title}</span>
                           </div>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             {material.type}
                           </span>
                         </a>
@@ -197,7 +199,7 @@ export default async function PublicSyllabusPage({
 
         <Reveal delay={200} variant="fade">
           <div className="mt-14">
-            <Link href="/online-courses" className="stitch-press inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(26,28,29,0.35)]">
+            <Link href="/online-courses" className="stitch-press inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-sm font-semibold text-primary-foreground transition">
               Browse Online Courses
               <ArrowRight className="h-4 w-4" />
             </Link>

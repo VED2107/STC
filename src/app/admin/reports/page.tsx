@@ -266,17 +266,17 @@ export default function AttendanceReportsPage() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="Analytics"
-        title="Attendance Reports"
-        description="Class-wise summaries, low attendance alerts, teacher session stats, and monthly trends across your institution."
+        title="Reports"
+        description="Attendance by class, students below your threshold, teacher sessions, and monthly trends."
       />
 
       <div className={cn(stitchPanelClass, "mt-8")}>
         <div className="grid gap-4 md:grid-cols-4">
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               From
             </label>
             <input
@@ -287,7 +287,7 @@ export default function AttendanceReportsPage() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               To
             </label>
             <input
@@ -298,7 +298,7 @@ export default function AttendanceReportsPage() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               Class
             </label>
             <Select
@@ -319,7 +319,7 @@ export default function AttendanceReportsPage() {
             </Select>
           </div>
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               Low Threshold %
             </label>
             <input
@@ -341,54 +341,54 @@ export default function AttendanceReportsPage() {
       ) : (
         <>
           <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
-            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 ")}>
               <div className="flex items-center justify-between">
                 <p className="stitch-kicker">Average Attendance</p>
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-primary/15">
                   <BarChart3 className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-4 font-heading text-5xl text-primary">{avgRate}%</p>
+              <p className="mt-4 tnum text-3xl font-bold text-primary">{avgRate}%</p>
               <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary/60 transition-all duration-700" style={{ width: `${avgRate}%` }} />
               </div>
             </div>
-            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 ")}>
               <div className="flex items-center justify-between">
                 <p className="stitch-kicker">Total Records</p>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/8 text-blue-600 transition-colors group-hover:bg-blue-500/15">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-info-soft text-info transition-colors group-hover:bg-info-soft">
                   <BarChart3 className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-4 font-heading text-5xl text-foreground">
+              <p className="mt-4 tnum text-3xl font-bold text-foreground">
                 {totalRecords}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
                 {totalPresent} present &middot; {totalRecords - totalPresent} absent
               </p>
             </div>
-            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 ")}>
               <div className="flex items-center justify-between">
                 <p className="stitch-kicker">Below {threshold}%</p>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/8 text-rose-600 transition-colors group-hover:bg-rose-500/15">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger-soft text-destructive transition-colors group-hover:bg-danger-soft">
                   <TrendingDown className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-4 font-heading text-5xl text-destructive">
+              <p className="mt-4 tnum text-3xl font-bold text-destructive">
                 {lowStudents.length}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
                 Students need attention
               </p>
             </div>
-            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+            <div className={cn(stitchPanelSoftClass, "group relative overflow-hidden transition duration-300 ")}>
               <div className="flex items-center justify-between">
                 <p className="stitch-kicker">Active Students</p>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/8 text-emerald-600 transition-colors group-hover:bg-emerald-500/15">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-success-soft text-success transition-colors group-hover:bg-success-soft">
                   <Users className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-4 font-heading text-5xl text-foreground">
+              <p className="mt-4 tnum text-3xl font-bold text-foreground">
                 {totalStudents}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
@@ -401,7 +401,7 @@ export default function AttendanceReportsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <BarChart3 className="h-5 w-5 text-primary" />
-                <h3 className="text-3xl text-foreground">
+                <h3 className="text-xl text-foreground">
                   Class-wise Summary
                 </h3>
               </div>
@@ -441,7 +441,7 @@ export default function AttendanceReportsPage() {
             <div className="mt-6 overflow-x-auto">
               <table className="min-w-full border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                  <tr className="text-left text-xs text-muted-foreground">
                     <th className="pb-2 pr-4 font-medium">Class</th>
                     <th className="pb-2 pr-4 font-medium">Board</th>
                     <th className="pb-2 pr-4 font-medium text-right">
@@ -464,7 +464,7 @@ export default function AttendanceReportsPage() {
                     <tr>
                       <td
                         colSpan={7}
-                        className="rounded-2xl border border-dashed border-black/8 px-4 py-10 text-center text-sm text-muted-foreground"
+                        className="rounded-2xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground"
                       >
                         No attendance data in selected range.
                       </td>
@@ -473,7 +473,7 @@ export default function AttendanceReportsPage() {
                     classSummary.map((row) => (
                       <tr
                         key={row.class_id}
-                        className="rounded-[20px] bg-white/85 shadow-[0_12px_24px_-20px_rgba(26,28,29,0.2)]"
+                        className="rounded-xl bg-card"
                       >
                         <td className="rounded-l-[20px] px-4 py-3 text-sm font-medium text-foreground">
                           {row.class_name}
@@ -518,7 +518,7 @@ export default function AttendanceReportsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="h-5 w-5 text-destructive" />
-                  <h3 className="text-3xl text-foreground">
+                  <h3 className="text-xl text-foreground">
                     Low Attendance Students
                   </h3>
                   <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive">
@@ -559,7 +559,7 @@ export default function AttendanceReportsPage() {
               <div className="mt-6 overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-y-2">
                   <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <tr className="text-left text-xs text-muted-foreground">
                       <th className="pb-2 pr-4 font-medium">Student</th>
                       <th className="pb-2 pr-4 font-medium">Class</th>
                       <th className="pb-2 pr-4 font-medium text-right">
@@ -575,7 +575,7 @@ export default function AttendanceReportsPage() {
                     {lowStudents.map((row) => (
                       <tr
                         key={row.student_id}
-                        className="rounded-[20px] bg-white/85 shadow-[0_12px_24px_-20px_rgba(26,28,29,0.2)]"
+                        className="rounded-xl bg-card"
                       >
                         <td className="rounded-l-[20px] px-4 py-3 text-sm font-medium text-foreground">
                           {row.student_name}
@@ -605,7 +605,7 @@ export default function AttendanceReportsPage() {
           <div className="mt-8 grid gap-6 xl:grid-cols-2">
             <div className={stitchPanelClass}>
               <div className="flex items-center justify-between">
-                <h3 className="text-3xl text-foreground">Teacher Sessions</h3>
+                <h3 className="text-xl text-foreground">Teacher Sessions</h3>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -627,7 +627,7 @@ export default function AttendanceReportsPage() {
               <div className="mt-6 overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-y-2">
                   <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <tr className="text-left text-xs text-muted-foreground">
                       <th className="pb-2 pr-4 font-medium">Teacher</th>
                       <th className="pb-2 pr-4 font-medium text-right">
                         Sessions
@@ -643,7 +643,7 @@ export default function AttendanceReportsPage() {
                       <tr>
                         <td
                           colSpan={4}
-                          className="rounded-2xl border border-dashed border-black/8 px-4 py-8 text-center text-sm text-muted-foreground"
+                          className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
                         >
                           No teacher session data.
                         </td>
@@ -652,7 +652,7 @@ export default function AttendanceReportsPage() {
                       teacherStats.map((row) => (
                         <tr
                           key={row.teacher_id}
-                          className="rounded-[20px] bg-white/85 shadow-[0_12px_24px_-20px_rgba(26,28,29,0.2)]"
+                          className="rounded-xl bg-card"
                         >
                           <td className="rounded-l-[20px] px-4 py-3 text-sm font-medium text-foreground">
                             {row.teacher_name}
@@ -676,7 +676,7 @@ export default function AttendanceReportsPage() {
 
             <div className={stitchPanelClass}>
               <div className="flex items-center justify-between">
-                <h3 className="text-3xl text-foreground">Monthly Trend</h3>
+                <h3 className="text-xl text-foreground">Monthly Trend</h3>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -698,7 +698,7 @@ export default function AttendanceReportsPage() {
               <div className="mt-6 overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-y-2">
                   <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <tr className="text-left text-xs text-muted-foreground">
                       <th className="pb-2 pr-4 font-medium">Month</th>
                       <th className="pb-2 pr-4 font-medium text-right">
                         Records
@@ -717,7 +717,7 @@ export default function AttendanceReportsPage() {
                       <tr>
                         <td
                           colSpan={5}
-                          className="rounded-2xl border border-dashed border-black/8 px-4 py-8 text-center text-sm text-muted-foreground"
+                          className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
                         >
                           No monthly data available.
                         </td>
@@ -726,7 +726,7 @@ export default function AttendanceReportsPage() {
                       monthlyTrend.map((row) => (
                         <tr
                           key={row.month_start}
-                          className="rounded-[20px] bg-white/85 shadow-[0_12px_24px_-20px_rgba(26,28,29,0.2)]"
+                          className="rounded-xl bg-card"
                         >
                           <td className="rounded-l-[20px] px-4 py-3 text-sm font-medium text-foreground">
                             {row.month_label}
@@ -793,7 +793,7 @@ export default function AttendanceReportsPage() {
                               )}
                               style={{ height: `${h}%` }}
                             />
-                            <p className="mt-1 text-center text-[9px] text-muted-foreground">
+                            <p className="mt-1 text-center text-xs text-muted-foreground">
                               {row.month_label.split(" ")[0]}
                             </p>
                           </div>

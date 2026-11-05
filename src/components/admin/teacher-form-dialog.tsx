@@ -42,12 +42,12 @@ interface TeacherFormDialogProps {
 }
 
 const sectionClass =
-  "rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
+  "rounded-2xl border border-border bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
 const labelClass =
-  "flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+  "flex items-center gap-2.5 text-xs font-semibold text-muted-foreground";
 const inputClass = "stitch-input w-full";
 const checkboxClass =
-  "h-[18px] w-[18px] rounded-md border-2 border-black/12 bg-white text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
+  "h-[18px] w-[18px] rounded-md border-2 border-border bg-card text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
 
 export function TeacherFormDialog({
   open,
@@ -432,14 +432,14 @@ export function TeacherFormDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-secondary">
               <UserCog className="h-5 w-5" />
             </span>
             <div>
               <DialogTitle className="text-xl">
                 {editTeacher ? "Edit Teacher" : "New Teacher"}
               </DialogTitle>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {editTeacher ? "Update details and access scope" : "Add new teacher to platform"}
               </p>
             </div>
@@ -501,7 +501,7 @@ export function TeacherFormDialog({
               value={profileId || "__none"}
               onValueChange={(value) => setProfileId(!value || value === "__none" ? "" : value)}
             >
-              <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+              <SelectTrigger className="h-11 rounded-xl border-border bg-card">
                 <SelectValue placeholder="Not linked to a login profile" />
               </SelectTrigger>
               <SelectContent>
@@ -521,7 +521,7 @@ export function TeacherFormDialog({
               <GraduationCap className="h-3.5 w-3.5" />
               Class Access Scope
             </div>
-            <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-3">
+            <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-border bg-card p-3">
               {classes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No classes found.</p>
               ) : (
@@ -553,7 +553,7 @@ export function TeacherFormDialog({
                 <BookOpen className="h-3.5 w-3.5" />
                 Branches
               </div>
-              <div className="max-h-40 space-y-3 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-3">
+              <div className="max-h-40 space-y-3 overflow-y-auto rounded-xl border border-border bg-card p-3">
                 {selectedClassIds.map((classId) => {
                   const classBranches = branchesByClass[classId];
                   if (!classBranches || classBranches.length === 0) return null;
@@ -589,7 +589,7 @@ export function TeacherFormDialog({
               <BookOpen className="h-3.5 w-3.5" />
               Subject Access
             </div>
-            <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-3">
+            <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-border bg-card p-3">
               {selectedClassIds.length === 0 ? (
                 <p className="py-2 text-center text-sm text-muted-foreground">
                   Select classes first to load subjects.
@@ -627,18 +627,18 @@ export function TeacherFormDialog({
           ) : null}
 
           {/* ── Footer ── */}
-          <div className="flex items-center justify-end gap-2.5 border-t border-black/[0.04] pt-5">
+          <div className="flex items-center justify-end gap-2.5 border-t border-border pt-5">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+              className="rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {editTeacher ? "Update" : "Create"}

@@ -156,7 +156,7 @@ export default function StudentClassPage() {
   /* ── Admin / Teacher guard — same pattern as main dashboard ── */
   if (role === "admin" || role === "super_admin" || role === "teacher") {
     return (
-      <div className="px-6 py-10 md:px-10">
+      <div className="px-4 py-6 md:px-8">
         <div className={stitchPanelClass}>
           <h1 className="text-5xl text-foreground">
             {role === "teacher" ? "Teacher Access Active" : "Admin Access Active"}
@@ -166,8 +166,8 @@ export default function StudentClassPage() {
             center to manage classes, students, and academic structures.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href={role === "teacher" ? "/admin/attendance" : "/admin"} className={cn(stitchButtonClass)}>
-              {role === "teacher" ? "Go to Teacher Workspace" : "Go to Command Center"}
+            <Link href="/admin" className={cn(stitchButtonClass)}>
+              {role === "teacher" ? "Go to Teacher Workspace" : "Go to Dashboard"}
             </Link>
             <Link
               href="/admin/qr-scan"
@@ -184,7 +184,7 @@ export default function StudentClassPage() {
 
   if (!classRecord?.class) {
     return (
-      <div className="px-6 py-8 md:px-10">
+      <div className="px-4 py-6 md:px-8">
         <StitchEmptyState
           icon={GraduationCap}
           title="No Class Assigned"
@@ -195,7 +195,7 @@ export default function StudentClassPage() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow={classRecord.student_type === "online" ? "Online Learner" : "Student Record"}
         title={classRecord.class.name}
@@ -210,7 +210,7 @@ export default function StudentClassPage() {
         {(() => {
           const summaryCardClass = cn(
             stitchPanelSoftClass,
-            "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+            "group relative overflow-hidden border-border bg-card transition duration-300 hover:border-border hover:bg-card "
           );
           const gradientOverlay = (gradient: string) => (
             <>
@@ -221,34 +221,34 @@ export default function StudentClassPage() {
           return (
             <>
               <div className={summaryCardClass}>
-                {gradientOverlay("from-[#eef2ff]/40")}
+                {gradientOverlay("from-muted")}
                 <div className="relative">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5] transition-transform duration-300 group-hover:scale-110">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-info-soft text-info transition-transform duration-300 group-hover:scale-110">
                     <Shield className="h-5 w-5" />
                   </span>
                   <p className="stitch-kicker mt-3">Board</p>
-                  <p className="mt-3 font-heading text-5xl text-foreground">
+                  <p className="mt-3 tnum text-3xl font-bold text-foreground">
                     {classRecord.class.board}
                   </p>
                 </div>
               </div>
               <div className={summaryCardClass}>
-                {gradientOverlay("from-[#fff2dc]/40")}
+                {gradientOverlay("from-muted")}
                 <div className="relative">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500] transition-transform duration-300 group-hover:scale-110">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning-soft text-warning transition-transform duration-300 group-hover:scale-110">
                     <Layers className="h-5 w-5" />
                   </span>
                   <p className="stitch-kicker mt-3">Level</p>
-                  <p className="mt-3 font-heading text-5xl text-foreground">
+                  <p className="mt-3 tnum text-3xl font-bold text-foreground">
                     {classRecord.class.level}
                   </p>
                 </div>
               </div>
               {classRecord.branch ? (
                 <div className={summaryCardClass}>
-                  {gradientOverlay("from-[#f1edff]/40")}
+                  {gradientOverlay("from-muted")}
                   <div className="relative">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4] transition-transform duration-300 group-hover:scale-110">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-secondary transition-transform duration-300 group-hover:scale-110">
                       <GitBranch className="h-5 w-5" />
                     </span>
                     <p className="stitch-kicker mt-3">Branch</p>
@@ -259,13 +259,13 @@ export default function StudentClassPage() {
                 </div>
               ) : null}
               <div className={cn(summaryCardClass, classRecord.branch ? "" : "col-span-2 md:col-span-1")}>
-                {gradientOverlay("from-[#d0e9d4]/30")}
+                {gradientOverlay("from-muted")}
                 <div className="relative">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d0e9d4]/55 text-[#374c3d] transition-transform duration-300 group-hover:scale-110">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success-soft text-success transition-transform duration-300 group-hover:scale-110">
                     <BookOpen className="h-5 w-5" />
                   </span>
                   <p className="stitch-kicker mt-3">{classRecord.student_type === "online" ? "Purchased Courses" : "Active Subjects"}</p>
-                  <p className="mt-3 font-heading text-5xl text-foreground">{courses.length}</p>
+                  <p className="mt-3 tnum text-3xl font-bold text-foreground">{courses.length}</p>
                 </div>
               </div>
             </>
@@ -276,7 +276,7 @@ export default function StudentClassPage() {
       <div className="mt-10 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
         <div className={stitchPanelClass}>
           <div className="flex items-center justify-between">
-            <h2 className="text-3xl text-foreground">{classRecord.student_type === "online" ? "Course Structure" : "Subject Structure"}</h2>
+            <h2 className="text-xl text-foreground">{classRecord.student_type === "online" ? "Course Structure" : "Subject Structure"}</h2>
             <Link href="/dashboard/syllabus" className={stitchSecondaryButtonClass}>
               View Syllabus
             </Link>
@@ -294,7 +294,7 @@ export default function StudentClassPage() {
             <div className="mt-6 grid grid-cols-2 gap-3 md:gap-4">
               {courses.map((course) => (
                 <div key={course.id} className={cn(stitchPanelSoftClass, "stitch-hover-lift flex items-start gap-3")}>
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-info-soft text-info">
                     <BookOpen className="h-4 w-4" />
                   </span>
                   <div>
@@ -308,27 +308,27 @@ export default function StudentClassPage() {
         </div>
 
         <div className={stitchPanelClass}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-info-soft text-info">
             <BookOpen className="h-5 w-5" />
           </span>
-          <h3 className="mt-6 text-3xl text-foreground">Next Steps</h3>
+          <h3 className="text-xl mt-6 text-foreground">Next Steps</h3>
           <div className="mt-5 space-y-4 text-sm text-muted-foreground">
             <div className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#fff2dc] text-[#9a6500]">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning">
                 <Layers className="h-3.5 w-3.5" />
               </span>
               <p>Review the latest syllabus for your class.</p>
             </div>
             <div className="h-px bg-gradient-to-r from-secondary/20 via-secondary/5 to-transparent" />
             <div className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#f1edff] text-[#6a4bc4]">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-secondary">
                 <BookOpen className="h-3.5 w-3.5" />
               </span>
               <p>Open materials published for your subjects.</p>
             </div>
             <div className="h-px bg-gradient-to-r from-secondary/20 via-secondary/5 to-transparent" />
             <div className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#d0e9d4]/55 text-[#374c3d]">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success">
                 <GraduationCap className="h-3.5 w-3.5" />
               </span>
               <p>

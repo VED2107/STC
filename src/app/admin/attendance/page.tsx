@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/select";
 import type { Class } from "@/lib/types/database";
 import {
-  StitchSectionHeader,
   stitchButtonClass,
   stitchInputClass,
   stitchPanelClass,
@@ -167,7 +166,7 @@ export default function AdminAttendancePage() {
   const [selectedClassId, setSelectedClassId] = useState("");
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedBranchId, setSelectedBranchId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }));
   const [students, setStudents] = useState<StudentForAttendance[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [search, setSearch] = useState("");
@@ -424,7 +423,7 @@ export default function AdminAttendancePage() {
       setStudents([]);
       setRecords([]);
       setLoading(false);
-      setActionError("Select your assigned subject before loading attendance.");
+      setActionError("");
       return;
     }
 
@@ -1047,13 +1046,13 @@ export default function AdminAttendancePage() {
 
   function handleHistoryCSV() {
     const slug = selectedHistoryStudentName.replace(/\s+/g, "_") || "student";
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     downloadCSV(buildHistoryExportRows(), historyExportHeaders, `${slug}_attendance_${today}`);
   }
 
   async function handleHistoryXLSX() {
     const slug = selectedHistoryStudentName.replace(/\s+/g, "_") || "student";
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     await downloadXLSX(buildHistoryExportRows(), historyExportHeaders, `${slug}_attendance_${today}`);
   }
 
@@ -1070,19 +1069,17 @@ export default function AdminAttendancePage() {
 
 
   return (
-    <div className="px-6 py-8 md:px-10">
-      <StitchSectionHeader
-        eyebrow="Session Manager"
-        title={
-          selectedClassId
-            ? classes.find((item) => item.id === selectedClassId)?.name ??
-              "Attendance"
-            : "Attendance Manager"
-        }
-        description="Select subject, batch, and date. Mark present/absent, capture late minutes and remarks, and edit historical attendance safely."
-      />
+    <div className="px-4 py-6 md:px-8">
+      <h1 className="text-3xl text-primary md:text-4xl">Attendance</h1>
+      <p className="mt-1 text-muted-foreground">
+        {selectedClass
+          ? `${selectedClass.name}, ${selectedClass.board}`
+          : role === "teacher"
+            ? "Choose your subject and batch to start the roll call."
+            : "Choose a batch and date to start the roll call."}
+      </p>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-6">
           <div className={stitchPanelClass}>
             <div className={cn("grid gap-4", branches.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3")}>
@@ -1187,7 +1184,7 @@ export default function AdminAttendancePage() {
                 onClick={handleMarkAllPresent}
                 disabled={!editingSaved || !selectedClassId || records.length === 0}
               >
-                Mark All Present
+                Mark all present
               </button>
               <button
                 type="button"
@@ -1195,7 +1192,7 @@ export default function AdminAttendancePage() {
                 onClick={handleMarkAllAbsent}
                 disabled={!editingSaved || !selectedClassId || records.length === 0}
               >
-                Mark All Absent
+                Mark all absent
               </button>
               {selectedClassId && records.length > 0 && (role === "admin" || role === "super_admin") ? (
                 <Button
@@ -1234,7 +1231,8 @@ export default function AdminAttendancePage() {
                     }
                   }}
                   className={cn(stitchInputClass, "pl-11")}
-                  placeholder="Search this batch or choose a student for full history..."
+                  aria-label="Find a student"
+                  placeholder="Find a student, or open their history"
                 />
                 {showHistorySuggestions ? (
                   <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-60 overflow-y-auto rounded-2xl border border-border bg-card shadow-lg">
@@ -1253,7 +1251,7 @@ export default function AdminAttendancePage() {
                             {student.class?.name ?? "No class"}
                           </p>
                         </div>
-                        <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-primary">
+                        <span className="shrink-0 text-xs text-primary">
                           History
                         </span>
                       </button>
@@ -1262,9 +1260,6 @@ export default function AdminAttendancePage() {
                 ) : null}
               </div>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Use this search to filter the current batch. Pick a student from the dropdown to open their full attendance history and download it.
-            </p>
 
             {selectedHistoryStudentId ? (
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3">
@@ -1304,13 +1299,7 @@ export default function AdminAttendancePage() {
                   </button>
                 )}
               </div>
-            ) : (
-              <p className="mt-4 text-sm text-muted-foreground">
-                {role === "teacher"
-                  ? "Choose one of your assigned subjects to load attendance for that class."
-                  : "Tip: choose a subject to track subject-wise attendance."}
-              </p>
-            )}
+            ) : null}
             {actionError ? <p className="mt-4 text-sm text-destructive">{actionError}</p> : null}
           </div>
 
@@ -1321,172 +1310,124 @@ export default function AdminAttendancePage() {
               </div>
             ) : filteredStudents.length === 0 ? (
               <div className={cn(stitchPanelSoftClass, "text-center")}>
-                <h3 className="text-2xl text-foreground">No students found</h3>
+                <h3 className="text-xl text-foreground">Nothing to mark yet</h3>
                 <p className="mt-3 text-sm text-muted-foreground">
                   {normalizedSearch
                     ? `No students in this batch match "${search.trim()}".`
-                    : "No students are available for the selected batch and date."}
+                    : "Choose a batch above to load its students."}
                 </p>
               </div>
             ) : (
-              filteredStudents.map((student) => {
+              <ul className="stitch-panel divide-y overflow-hidden">
+              {filteredStudents.map((student) => {
                 const record = records.find((item) => item.student_id === student.id);
                 const isPresent = record?.status === "present";
+                const studentName = student.profile?.full_name ?? "Unknown";
+                const initials = studentName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                const hasNote = Boolean(record?.late_minutes) || Boolean(record?.remarks);
 
                 return (
-                  <div
-                    key={student.id}
-                    className={cn(
-                      stitchPanelSoftClass,
-                      "relative text-left transition-all hover:shadow-[0_8px_24px_-16px_rgba(26,28,29,0.12)]",
-                      isPresent
-                        ? "border-l-[3px] border-l-emerald-500 border-t-black/5 border-r-black/5 border-b-black/5"
-                        : "border-l-[3px] border-l-rose-400 border-t-black/5 border-r-black/5 border-b-black/5"
-                    )}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        {(() => {
-                          const studentName = student.profile?.full_name ?? "Unknown";
-                          const initials = studentName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
-                          const hue = studentName.charCodeAt(0) * 7 % 360;
-                          return (
-                            <div
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                              style={{ background: `hsl(${hue}, 45%, 90%)`, color: `hsl(${hue}, 40%, 40%)` }}
-                            >
-                              {initials}
-                            </div>
-                          );
-                        })()}
-                        <div>
-                          <h3 className="text-xl text-foreground sm:text-2xl">
-                            {student.profile?.full_name ?? "Unknown"}
-                          </h3>
-                          <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                            {isPresent ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-600">
-                                <UserCheck className="h-3.5 w-3.5" /> Present
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-rose-500">
-                                <UserX className="h-3.5 w-3.5" /> Absent
-                              </span>
-                            )}
-                            {record?.scan_method === "qr" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-blue-500">
-                                QR
-                              </span>
-                            )}
-                          </p>
-                        {record?.check_in_at && (
-                          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {new Date(record.check_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
-                            {record.check_out_at && (
-                              <> → {new Date(record.check_out_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}</>
-                            )}
-                          </p>
-                        )}
-                        </div>
+                  <li key={student.id} className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gold-100 text-sm font-bold text-primary">
+                        {initials}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-foreground">{studentName}</p>
+                        <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+                          {record?.scan_method === "qr" ? <span className="font-medium text-info">Scanned</span> : null}
+                          {record?.check_in_at ? (
+                            <span className="tnum inline-flex items-center gap-1">
+                              <Clock aria-hidden="true" className="size-3" />
+                              {new Date(record.check_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
+                              {record.check_out_at
+                                ? ` to ${new Date(record.check_out_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}`
+                                : ""}
+                            </span>
+                          ) : null}
+                        </p>
+                      </div>
+
+                      <div role="group" aria-label={`Attendance for ${studentName}`} className="flex rounded-lg border p-0.5">
                         <button
                           type="button"
-                          onClick={() =>
-                            openStudentHistory(
-                              student.id,
-                              student.profile?.full_name ?? "Unknown",
-                              selectedClass?.name ?? "No class",
-                            )
-                          }
+                          aria-pressed={isPresent}
+                          disabled={!editingSaved}
+                          onClick={() => updateRecord(student.id, { status: "present" })}
                           className={cn(
-                            stitchSecondaryButtonClass,
-                            "h-8 px-3 py-1 text-[11px] uppercase tracking-[0.18em]",
+                            "stitch-press inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors duration-(--duration-fast)",
+                            isPresent ? "bg-success-soft text-success" : "text-muted-foreground hover:bg-muted",
                           )}
                         >
-                          <History className="h-3.5 w-3.5" />
-                          History
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateRecord(student.id, {
-                              status: "present",
-                            })
-                          }
-                          className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em] ${
-                            isPresent
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                          disabled={!editingSaved}
-                        >
+                          <UserCheck aria-hidden="true" className="size-4" />
                           Present
                         </button>
                         <button
                           type="button"
-                          onClick={() =>
-                            updateRecord(student.id, {
-                              status: "absent",
-                              late_minutes: null,
-                            })
-                          }
-                          className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em] ${
-                            !isPresent
-                              ? "bg-destructive text-destructive-foreground"
-                              : "bg-muted text-muted-foreground"
-                          }`}
+                          aria-pressed={!isPresent}
                           disabled={!editingSaved}
+                          onClick={() => updateRecord(student.id, { status: "absent", late_minutes: null })}
+                          className={cn(
+                            "stitch-press inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors duration-(--duration-fast)",
+                            !isPresent ? "bg-danger-soft text-destructive" : "text-muted-foreground hover:bg-muted",
+                          )}
                         >
+                          <UserX aria-hidden="true" className="size-4" />
                           Absent
                         </button>
                       </div>
+
+                      <button
+                        type="button"
+                        aria-label={`Open attendance history for ${studentName}`}
+                        title="Attendance history"
+                        onClick={() => openStudentHistory(student.id, studentName, selectedClass?.name ?? "No class")}
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-(--duration-fast) hover:bg-muted hover:text-foreground"
+                      >
+                        <History aria-hidden="true" className="size-4" />
+                      </button>
                     </div>
 
-                    <div className="mt-5 grid gap-3 md:grid-cols-[180px_1fr]">
-                      <div>
-                        <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                    <details className="group mt-1 sm:ml-[3.25rem]" open={hasNote ? true : undefined}>
+                      <summary className="inline-flex min-h-7 cursor-pointer list-none items-center text-sm font-medium text-secondary [&::-webkit-details-marker]:hidden">
+                        {hasNote ? "Late time and note" : "Add late time or note"}
+                      </summary>
+                      <div className="mt-2 grid gap-2 pb-1 sm:grid-cols-[9rem_minmax(0,1fr)]">
+                        <label className="grid gap-1 text-sm text-muted-foreground">
                           Late (minutes)
+                          <input
+                            type="number"
+                            min={0}
+                            value={record?.late_minutes ?? ""}
+                            onChange={(event) => {
+                              const raw = event.target.value;
+                              updateRecord(student.id, {
+                                late_minutes: raw.trim() === "" ? null : Number.parseInt(raw, 10) || 0,
+                                status: "present",
+                              });
+                            }}
+                            disabled={!isPresent || !editingSaved}
+                            readOnly={!editingSaved}
+                            className={stitchInputClass}
+                            placeholder="0"
+                          />
                         </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={record?.late_minutes ?? ""}
-                          onChange={(event) => {
-                            const raw = event.target.value;
-                            updateRecord(student.id, {
-                              late_minutes:
-                                raw.trim() === "" ? null : Number.parseInt(raw, 10) || 0,
-                              status: "present",
-                            });
-                          }}
-                          disabled={!isPresent || !editingSaved}
-                          readOnly={!editingSaved}
-                          className={stitchInputClass}
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                          Remarks
+                        <label className="grid gap-1 text-sm text-muted-foreground">
+                          Note
+                          <input
+                            value={record?.remarks ?? ""}
+                            onChange={(event) => updateRecord(student.id, { remarks: event.target.value })}
+                            className={stitchInputClass}
+                            placeholder="Optional"
+                            readOnly={!editingSaved}
+                          />
                         </label>
-                        <input
-                          value={record?.remarks ?? ""}
-                          onChange={(event) =>
-                            updateRecord(student.id, {
-                              remarks: event.target.value,
-                            })
-                          }
-                          className={stitchInputClass}
-                          placeholder="Optional note"
-                          readOnly={!editingSaved}
-                        />
                       </div>
-                    </div>
-                  </div>
+                    </details>
+                  </li>
                 );
-              })
+              })}
+              </ul>
             )}
           </div>
         </div>
@@ -1541,7 +1482,7 @@ export default function AdminAttendancePage() {
           <div className={stitchPanelClass}>
             <div className="flex items-center gap-3">
               <History className="h-5 w-5 text-primary" />
-              <h3 className="text-3xl text-foreground">Student History</h3>
+              <h3 className="text-xl text-foreground">Student History</h3>
             </div>
             <p className="mt-3 text-sm leading-7 text-muted-foreground">
               {selectedHistoryStudentId
@@ -1594,7 +1535,7 @@ export default function AdminAttendancePage() {
 
                     <div className="mt-4 max-h-64 overflow-y-auto rounded-lg border border-border">
                       <table className="w-full text-left text-xs">
-                        <thead className="sticky top-0 bg-card text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                        <thead className="sticky top-0 bg-card text-xs text-muted-foreground">
                           <tr>
                             <th className="px-3 py-2">Date</th>
                             <th className="px-3 py-2">Status</th>
@@ -1629,7 +1570,7 @@ export default function AdminAttendancePage() {
                                   <> → {new Date(row.check_out_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}</>
                                 )}
                                 {row.scan_method === "qr" && (
-                                  <span className="ml-1 text-[9px] uppercase text-blue-500">QR</span>
+                                  <span className="ml-1 text-xs text-info">QR</span>
                                 )}
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">
@@ -1665,7 +1606,7 @@ export default function AdminAttendancePage() {
           </div>
 
           <div className={stitchPanelClass}>
-            <h3 className="text-3xl text-foreground">Reporting Tip</h3>
+            <h3 className="text-xl text-foreground">Reporting Tip</h3>
             <p className="mt-4 text-sm leading-7 text-muted-foreground">
               Monthly summaries and low-attendance alerts become more accurate when attendance is tagged with the relevant subject.
             </p>
@@ -1674,24 +1615,24 @@ export default function AdminAttendancePage() {
           <div className={stitchPanelClass}>
             <p className="stitch-kicker">Today&apos;s Stats</p>
             <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="rounded-xl bg-emerald-50 p-3 text-center">
-                <p className="font-heading text-2xl text-emerald-600">{presentCount}</p>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-emerald-600/70">Present</p>
+              <div className="rounded-xl bg-success-soft p-3 text-center">
+                <p className="font-heading text-2xl text-success">{presentCount}</p>
+                <p className="mt-1 text-xs text-success/70">Present</p>
               </div>
-              <div className="rounded-xl bg-rose-50 p-3 text-center">
-                <p className="font-heading text-2xl text-rose-600">{absentCount}</p>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-rose-600/70">Absent</p>
+              <div className="rounded-xl bg-danger-soft p-3 text-center">
+                <p className="font-heading text-2xl text-destructive">{absentCount}</p>
+                <p className="mt-1 text-xs text-destructive/70">Absent</p>
               </div>
-              <div className="rounded-xl bg-amber-50 p-3 text-center">
-                <p className="font-heading text-2xl text-amber-600">{lateCount}</p>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-amber-600/70">Late</p>
+              <div className="rounded-xl bg-warning-soft p-3 text-center">
+                <p className="font-heading text-2xl text-warning">{lateCount}</p>
+                <p className="mt-1 text-xs text-warning/70">Late</p>
               </div>
             </div>
             {records.length > 0 && (
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                 <div className="flex h-full">
-                  <div className="h-full bg-emerald-500/60 transition-all duration-500" style={{ width: `${Math.round((presentCount / records.length) * 100)}%` }} />
-                  <div className="h-full bg-rose-400/60 transition-all duration-500" style={{ width: `${Math.round((absentCount / records.length) * 100)}%` }} />
+                  <div className="h-full bg-success/60 transition-all duration-500" style={{ width: `${Math.round((presentCount / records.length) * 100)}%` }} />
+                  <div className="h-full bg-destructive/60 transition-all duration-500" style={{ width: `${Math.round((absentCount / records.length) * 100)}%` }} />
                 </div>
               </div>
             )}
@@ -1700,7 +1641,7 @@ export default function AdminAttendancePage() {
       </div>
 
       {records.length > 0 && (
-        <div className="sticky bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-md shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)]">
+        <div className="sticky bottom-0 z-30 border-t border-border/60 bg-background/95">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-3 md:px-10">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5 text-primary">
@@ -1762,10 +1703,10 @@ export default function AdminAttendancePage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-xl">
                   <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${
-                    resetResult.type === "success" ? "bg-emerald-100" : "bg-destructive/10"
+                    resetResult.type === "success" ? "bg-success-soft" : "bg-destructive/10"
                   }`}>
                     {resetResult.type === "success" ? (
-                      <Check className="h-5 w-5 text-emerald-600" />
+                      <Check className="h-5 w-5 text-success" />
                     ) : (
                       <AlertTriangle className="h-5 w-5 text-destructive" />
                     )}

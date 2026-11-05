@@ -20,7 +20,6 @@ import {
   stitchButtonClass,
   stitchPanelClass,
   stitchPanelSoftClass,
-  stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 
@@ -72,12 +71,6 @@ function loadRazorpayScript() {
     document.body.appendChild(script);
   });
 }
-
-const detailStats = [
-  { value: "94%", label: "Completion Rate" },
-  { value: "1:12", label: "Mentor Ratio" },
-  { value: "Global", label: "Alumni Network Access" },
-];
 
 export function CourseDetailClient({ courseId }: { courseId: string }) {
   const router = useRouter();
@@ -275,12 +268,12 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
       <div className="mx-auto max-w-[900px] px-5 py-20 md:px-8">
         <div className={cn(stitchPanelClass, "text-center")}>
           <GraduationCap className="mx-auto h-12 w-12 text-primary" />
-          <h1 className="mt-6 text-5xl italic text-primary">Course Not Found</h1>
+          <h1 className="mt-6 text-5xl text-primary">Course Not Found</h1>
           <p className="mt-4 text-muted-foreground">
             The requested course could not be found.
           </p>
           <Link href="/online-courses" className={cn(stitchButtonClass, "mt-8")}>
-            Back to Catalog
+            All online courses
           </Link>
         </div>
       </div>
@@ -288,92 +281,55 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-5 py-12 md:px-8 md:py-16">
+    <div className="mx-auto max-w-[1280px] px-4 py-10 md:px-8 md:py-14">
       <Link
         href="/online-courses"
         className="mb-10 inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Curriculum
+        All online courses
       </Link>
 
       <div className="grid gap-8 lg:grid-cols-[1.25fr_360px]">
         <div>
           <div className="flex flex-wrap gap-2">
-            <span className="stitch-pill bg-accent px-3 py-1 text-[10px] text-accent-foreground">
+            <span className="stitch-pill bg-accent px-3 py-1 text-xs text-accent-foreground">
               {course.subject}
             </span>
-            <span className="stitch-pill px-3 py-1 text-[10px]">
+            <span className="stitch-pill px-3 py-1 text-xs">
               {course.class?.board ?? "STC"} {course.class?.level ?? "Series"}
             </span>
           </div>
 
-          <h1 className="mt-6 text-6xl leading-[0.94] italic text-primary md:text-8xl">
+          <h1 className="mt-4 text-4xl font-extrabold leading-[1.05] text-primary md:text-6xl">
             {course.title}
           </h1>
           <p className="mt-6 max-w-3xl text-base leading-8 text-muted-foreground">
             {course.description}
           </p>
 
-          <div className="mt-10 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="mt-10">
             <div className={stitchPanelClass}>
               <p className="stitch-kicker">The Instructor</p>
-              <h2 className="mt-5 text-4xl italic text-primary">
+              <h2 className="mt-2 text-2xl text-primary">
                 {course.teacher?.name ?? "STC Faculty"}
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground">
                 {course.teacher?.bio ||
-                  `${course.teacher?.qualification ?? "Master Faculty"} guiding students through disciplined teaching and conceptual clarity.`}
+                  `${course.teacher?.qualification ?? "STC faculty"}.`}
               </p>
-              <div className="mt-8 rounded-[22px] bg-muted p-5">
+              <div className="mt-8 rounded-xl bg-muted p-5">
                 <p className="text-sm font-medium text-foreground/80">
-                  {course.teacher?.qualification ?? "Master Faculty"}
-                </p>
-                <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                  Reputation Index: Stable
+                  {course.teacher?.qualification ?? "STC faculty"}
                 </p>
               </div>
             </div>
 
-            <div className={stitchPanelClass}>
-              <p className="stitch-kicker">Syllabus Highlights</p>
-              <div className="mt-6 space-y-5">
-                {[
-                  "Linear Algebra & Symmetry",
-                  "Non-Euclidean Topology",
-                  "Chaos & Dynamic Systems",
-                ].map((item, index) => (
-                  <div
-                    key={item}
-                    className="flex gap-4 border-b border-white/5 pb-5 last:border-b-0 last:pb-0"
-                  >
-                    <span className="font-heading text-2xl text-primary/75">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <div>
-                      <h3 className="text-2xl italic text-primary">{item}</h3>
-                      <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                        Exploratory workshops, problem transformations, and
-                        analytical exercises tuned for applied mastery.
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Link
-                href="/login"
-                className="mt-8 inline-flex items-center gap-2 text-sm text-primary"
-              >
-                Download Full Curriculum
-                <Download className="h-4 w-4" />
-              </Link>
-            </div>
           </div>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="mt-6">
             <div className={stitchPanelClass}>
-              <p className="stitch-kicker">Interactive Learning Resources</p>
-              <h3 className="mt-4 text-4xl italic text-primary">Study Materials</h3>
+                            <h3 className="mt-1 text-2xl text-primary">Study materials</h3>
               <div className="mt-6 space-y-3">
                 {materials.length === 0 ? (
                   <div className={cn(stitchPanelSoftClass, "text-muted-foreground")}>
@@ -392,7 +348,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                       )}
                     >
                       <div className="flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-primary stitch-ghost-border">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card text-primary stitch-ghost-border">
                           {material.type === "video" ? (
                             <PlayCircle className="h-5 w-5" />
                           ) : material.type === "link" ? (
@@ -405,7 +361,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                           <p className="text-base font-medium text-primary">
                             {material.title}
                           </p>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             {material.type}
                           </p>
                         </div>
@@ -417,30 +373,20 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
               </div>
             </div>
 
-            <div className="grid gap-6">
-              {detailStats.map((stat) => (
-                <div key={stat.label} className={stitchPanelSoftClass}>
-                  <p className="font-heading text-4xl text-primary">{stat.value}</p>
-                  <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
         <aside>
           <div className={cn(stitchPanelClass, "sticky top-28")}>
             <p className="stitch-kicker">Course Fee</p>
-            <p className="mt-4 font-heading text-5xl text-primary">{formatInr(Number(course.fee_inr ?? 0))}</p>
+            <p className="mt-4 tnum text-4xl font-bold text-primary">{formatInr(Number(course.fee_inr ?? 0))}</p>
             {!isAuthenticated ? (
               <Link href="/login" className={cn(stitchButtonClass, "mt-7 w-full")}>
-                Login to Buy
+                Sign in to buy
               </Link>
             ) : isEnrolled ? (
               <Link href="/dashboard/materials" className={cn(stitchButtonClass, "mt-7 w-full")}>
-                Open Materials
+                Open materials
               </Link>
             ) : isStudentUser && !isOnlineStudent ? (
               <p className="mt-7 text-sm text-muted-foreground">
@@ -456,15 +402,12 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                 {purchaseLoading
                   ? "Processing..."
                   : Number(course.fee_inr ?? 0) > 0
-                    ? "Buy With Razorpay"
+                    ? "Buy with Razorpay"
                     : "Enroll Free"}
               </button>
             )}
             {purchaseError ? <p className="mt-3 text-xs text-destructive">{purchaseError}</p> : null}
-            <p className="mt-4 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-              Next cohort starts Oct 12, 2023
-            </p>
-            <div className="mt-8 space-y-3 border-t border-black/5 pt-6 text-sm text-muted-foreground">
+            <div className="mt-8 space-y-3 border-t border-border pt-6 text-sm text-muted-foreground">
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />
@@ -483,20 +426,6 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
           </div>
         </aside>
       </div>
-
-      <section className="mx-auto mt-20 max-w-4xl text-center">
-        <h2 className="text-5xl italic text-primary md:text-6xl">
-          Join the next generation of mathematical minds.
-        </h2>
-        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link href="/login" className={stitchButtonClass}>
-            Secure My Seat
-          </Link>
-          <Link href="/login" className={stitchSecondaryButtonClass}>
-            Consult Admissions
-          </Link>
-        </div>
-      </section>
     </div>
   );
 }

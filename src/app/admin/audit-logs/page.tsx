@@ -57,9 +57,9 @@ const ENTITY_TYPES = [
 const ACTIONS = ["create", "update", "delete"] as const;
 
 const ACTION_COLORS: Record<string, string> = {
-  create: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50",
-  update: "bg-blue-50 text-blue-700 ring-1 ring-blue-200/50",
-  delete: "bg-rose-50 text-rose-700 ring-1 ring-rose-200/50",
+  create: "bg-success-soft text-success ring-1 ring-emerald-200/50",
+  update: "bg-info-soft text-info ring-1 ring-blue-200/50",
+  delete: "bg-danger-soft text-destructive ring-1 ring-rose-200/50",
 };
 
 const ACTION_ICONS: Record<string, typeof Plus> = {
@@ -133,7 +133,7 @@ function formatChanges(log: AuditLogRow, names: Record<string, string>): string[
     old?: Record<string, unknown>;
     new?: Record<string, unknown>;
   };
-  if (!details.old || !details.new) return [];
+  if (!details?.old || !details?.new) return [];
 
   const changes: string[] = [];
   const skip = new Set(["updated_at", "created_at", "id"]);
@@ -323,17 +323,17 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="Security"
-        title="Audit Logs"
-        description="Track every administrative action across students, teachers, courses, classes, materials, and syllabus."
+        title="Audit logs"
+        description="Every change to students, teachers, subjects, classes, materials, and syllabus."
       />
 
       <div className={cn(stitchPanelClass, "mt-8")}>
         <div className="grid gap-4 md:grid-cols-5">
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               From
             </label>
             <input
@@ -344,7 +344,7 @@ export default function AuditLogsPage() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               To
             </label>
             <input
@@ -355,7 +355,7 @@ export default function AuditLogsPage() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               Entity
             </label>
             <Select value={entityFilter} onValueChange={(v) => setEntityFilter(v ?? "all")}>
@@ -373,7 +373,7 @@ export default function AuditLogsPage() {
             </Select>
           </div>
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               Action
             </label>
             <Select value={actionFilter} onValueChange={(v) => setActionFilter(v ?? "all")}>
@@ -391,7 +391,7 @@ export default function AuditLogsPage() {
             </Select>
           </div>
           <div>
-            <label className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <label className="mb-2 block text-xs text-muted-foreground">
               Search
             </label>
             <div className="relative">
@@ -464,8 +464,8 @@ export default function AuditLogsPage() {
                 key={log.id}
                 className={cn(
                   stitchPanelSoftClass,
-                  "cursor-pointer transition-all hover:border-black/10 hover:shadow-[0_8px_24px_-16px_rgba(26,28,29,0.15)]",
-                  isExpanded && "border-primary/15 shadow-[0_12px_30px_-16px_rgba(26,28,29,0.18)]",
+                  "cursor-pointer transition-all hover:border-border ",
+                  isExpanded && "border-primary/15",
                 )}
               >
                 <button
@@ -476,9 +476,9 @@ export default function AuditLogsPage() {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
-                      log.action === "create" && "bg-emerald-50 text-emerald-600",
-                      log.action === "update" && "bg-blue-50 text-blue-600",
-                      log.action === "delete" && "bg-rose-50 text-rose-600",
+                      log.action === "create" && "bg-success-soft text-success",
+                      log.action === "update" && "bg-info-soft text-info",
+                      log.action === "delete" && "bg-danger-soft text-destructive",
                     )}>
                       <ActionIcon className="h-4 w-4" />
                     </div>
@@ -486,13 +486,13 @@ export default function AuditLogsPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={cn(
-                            "inline-flex rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-[0.18em] font-medium",
+                            "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
                             ACTION_COLORS[log.action] ?? "bg-muted text-muted-foreground",
                           )}
                         >
                           {log.action}
                         </span>
-                        <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {log.entity_type}
                         </span>
                         <span className="text-sm font-medium text-foreground">
@@ -530,7 +530,7 @@ export default function AuditLogsPage() {
                   <div className="mt-4 border-t border-border/50 pt-4">
                     {log.action === "update" && changes.length > 0 ? (
                       <div>
-                        <p className="mb-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                        <p className="mb-2 text-xs text-muted-foreground">
                           Changes
                         </p>
                         <div className="space-y-1">
@@ -557,7 +557,7 @@ export default function AuditLogsPage() {
                         No additional details.
                       </p>
                     )}
-                    <p className="mt-3 font-mono text-[10px] text-muted-foreground">
+                    <p className="mt-3 font-mono text-xs text-muted-foreground">
                       ID: {log.entity_id ?? "—"}
                     </p>
                   </div>

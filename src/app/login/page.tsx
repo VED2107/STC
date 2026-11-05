@@ -1,7 +1,8 @@
 "use client";
 
+import { StepHorizon } from "@/components/stitch/step-horizon";
+import { StcWordmark } from "@/components/stitch/primitives";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -130,7 +131,7 @@ function OtpDigitInput({
           onInput={(e) => handleInput(i, e)}
           onPaste={handlePaste}
           onFocus={(e) => e.target.select()}
-          className="h-13 w-11 rounded-xl border border-black/10 bg-surface-container-low text-center text-lg font-semibold text-foreground shadow-sm transition-all focus:border-secondary focus:shadow-[0_0_0_3px_rgba(115,92,0,0.12)] focus:ring-0 sm:h-14 sm:w-12"
+          className="h-13 w-11 rounded-xl border border-border bg-surface-container-low text-center text-lg font-semibold text-foreground shadow-sm transition-all focus:border-secondary focus:shadow-[0_0_0_3px_rgba(115,92,0,0.12)] focus:ring-0 sm:h-14 sm:w-12"
         />
       ))}
     </div>
@@ -162,11 +163,11 @@ function OtpDeliveryPanel({
   onResend,
 }: OtpDeliveryPanelProps) {
   return (
-    <div className="overflow-hidden rounded-[22px] border border-black/6 bg-linear-to-br from-[#fffaf0] via-white to-[#f5f7fb]">
-      <div className="border-b border-black/6 px-5 py-4">
+    <div className="overflow-hidden rounded-xl border border-border bg-linear-to-br from-muted via-white to-transparent">
+      <div className="border-b border-border px-5 py-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-secondary/75">
+            <p className="text-xs font-semibold text-secondary/75">
               {eyebrow}
             </p>
             <h3 className="mt-2 flex items-center gap-2 text-lg text-primary">
@@ -174,7 +175,7 @@ function OtpDeliveryPanel({
               {title}
             </h3>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700">
+          <span className="inline-flex items-center gap-2 rounded-full border border-success/30 bg-success-soft px-3 py-1 text-xs font-medium text-success">
             <ShieldCheck className="h-3.5 w-3.5" />
             Secure
           </span>
@@ -182,15 +183,15 @@ function OtpDeliveryPanel({
       </div>
 
       <div className="space-y-4 px-5 py-4">
-        <div className="rounded-[18px] border border-black/6 bg-white/90 p-4 shadow-[0_18px_34px_-28px_rgba(26,28,29,0.22)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground">
             Destination inbox
           </p>
           <p className="mt-2 break-all text-base font-medium text-foreground">{email}</p>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
 
-        <div className="grid gap-3 rounded-[18px] border border-dashed border-black/8 bg-white/55 p-4 text-sm text-muted-foreground sm:grid-cols-2">
+        <div className="grid gap-3 rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted-foreground sm:grid-cols-2">
           <div className="flex items-start gap-3">
             <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
             <p>Check spam or promotions if not in main inbox.</p>
@@ -205,7 +206,7 @@ function OtpDeliveryPanel({
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-black/8 bg-white px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
           >
             <PencilLine className="h-4 w-4" />
             {editLabel}
@@ -233,7 +234,7 @@ function OtpDeliveryPanel({
 
 function getRoleHome(role: UserRole): string {
   if (role === "admin" || role === "super_admin") return "/admin";
-  if (role === "teacher") return "/admin/attendance";
+  if (role === "teacher") return "/admin";
   return "/dashboard";
 }
 
@@ -786,70 +787,36 @@ function LoginPageInner() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      {/* Layered background */}
-      <div className="pointer-events-none absolute inset-0">
-        {/* Dot grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: "radial-gradient(circle, #1a1c1d 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
-        />
-        {/* Warm gold orb top-left */}
-        <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-accent/10 blur-[180px]" />
-        {/* Cool orb bottom-right */}
-        <div className="absolute -bottom-32 -right-32 h-[500px] w-[500px] rounded-full bg-[#d0e9d4]/12 blur-[160px]" />
-        {/* Small accent orb center-right */}
-        <div className="absolute right-[10%] top-[30%] h-[200px] w-[200px] rounded-full bg-secondary/6 blur-[100px]" />
-      </div>
+    <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <aside className="relative hidden overflow-hidden bg-gold-50 p-12 lg:flex lg:flex-col">
+        <Link href="/" aria-label="STC Academy home" className="w-fit">
+          <StcWordmark />
+        </Link>
+        <h1 className="mt-16 max-w-lg text-6xl leading-[1.04] font-extrabold text-primary">Every step of your classes, in one place.</h1>
+        <p className="mt-5 max-w-md text-lg leading-8 text-muted-foreground">Attendance, syllabus, and study materials for STC students and teachers.</p>
+        <StepHorizon className="h-auto w-full md:h-auto" />
+      </aside>
 
+      <div className="flex items-center justify-center px-4 py-10">
       <div
         className={cn(
-          "relative z-10 w-full max-w-md transition-all duration-700 ease-out",
-          mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+          "w-full max-w-md transition-[opacity,transform] duration-(--duration-slow) ease-(--ease-out)",
+          mounted ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
         )}
       >
-        {/* Logo + Branding */}
-        <div className="mb-10 flex flex-col items-center text-center">
-          <div className="relative mb-5">
-            <div className="absolute -inset-3 rounded-3xl bg-accent/20 blur-xl" />
-            <Image
-              src="/logo.png"
-              alt="STC Academy"
-              width={80}
-              height={80}
-              className="relative h-18 w-18 rounded-2xl object-contain"
-              priority
-            />
-          </div>
-          <Link href="/" className="font-heading text-4xl text-primary sm:text-5xl">
-            STC Academy
-          </Link>
-          <div className="mt-3 flex items-center gap-3">
-            <span className="h-px w-8 bg-secondary/40" />
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-secondary/70">
-              Academy Portal
-            </p>
-            <span className="h-px w-8 bg-secondary/40" />
-          </div>
-        </div>
+        <Link href="/" aria-label="STC Academy home" className="mb-8 inline-block lg:hidden">
+          <StcWordmark />
+        </Link>
 
-        {/* Card — gold accent top border */}
-        <div className="relative overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/85 p-7 shadow-[0_28px_90px_-20px_rgba(26,28,29,0.14)] backdrop-blur-xl">
-          {/* Gold shimmer top edge */}
-          <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-accent/60 to-transparent" />
-          {/* Subtle inner gradient */}
-          <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-linear-to-br from-accent/[0.03] via-transparent to-[#d0e9d4]/[0.03]" />
-          {/* Mode tabs */}
-          <div className="relative grid grid-cols-2 rounded-2xl border border-black/6 bg-muted/50 p-1">
+        <div className="relative">
+        {/* Mode tabs */}
+          <div className="relative grid grid-cols-2 rounded-2xl border border-border bg-muted/50 p-1">
             <button
               type="button"
               className={cn(
                 "rounded-xl py-3 text-sm font-medium transition-all",
                 mode === "login"
-                  ? "bg-white text-primary shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)]"
+                  ? "bg-card text-primary shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => switchMode("login")}
@@ -861,7 +828,7 @@ function LoginPageInner() {
               className={cn(
                 "rounded-xl py-3 text-sm font-medium transition-all",
                 mode === "signup"
-                  ? "bg-white text-primary shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)]"
+                  ? "bg-card text-primary shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => switchMode("signup")}
@@ -878,7 +845,7 @@ function LoginPageInner() {
           ) : null}
 
           {devOtpHint ? (
-            <div className="mt-6 rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="mt-6 rounded-2xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning">
               {devOtpHint}
             </div>
           ) : null}
@@ -890,9 +857,9 @@ function LoginPageInner() {
           ) : null}
 
           {authActionPrompt === "signup" ? (
-            <div className="mt-6 overflow-hidden rounded-[20px] border border-secondary/18 bg-linear-to-br from-[#fff9e6] via-white to-[#f7f8fb]">
+            <div className="mt-6 overflow-hidden rounded-xl border border-secondary/18 bg-linear-to-br from-muted via-white to-transparent">
               <div className="border-b border-secondary/12 px-5 py-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-secondary/75">
+                <p className="text-xs font-semibold text-secondary/75">
                   New To STC
                 </p>
                 <h3 className="mt-2 text-lg text-primary">Create your account to continue</h3>
@@ -917,7 +884,7 @@ function LoginPageInner() {
           {mode === "login" ? (
             <div className="mt-7 space-y-5">
               {/* Method toggle */}
-              <div className="grid grid-cols-2 rounded-full border border-black/8 bg-muted/60 p-1">
+              <div className="grid grid-cols-2 rounded-full border border-border bg-muted/60 p-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -930,7 +897,7 @@ function LoginPageInner() {
                   className={cn(
                     "rounded-full px-4 py-2.5 text-sm font-medium transition",
                     loginMethod === "password"
-                      ? "bg-white text-foreground shadow-sm"
+                      ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -946,7 +913,7 @@ function LoginPageInner() {
                   className={cn(
                     "rounded-full px-4 py-2.5 text-sm font-medium transition",
                     loginMethod === "otp"
-                      ? "bg-white text-foreground shadow-sm"
+                      ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -959,7 +926,7 @@ function LoginPageInner() {
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
-                    className="group flex h-13 w-full items-center justify-center gap-3 rounded-2xl border border-black/8 bg-white text-sm font-medium text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="group flex h-13 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-card text-sm font-medium text-foreground shadow-sm transition-all hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
                     disabled={loading || googleLoading}
                   >
                     {googleLoading ? (
@@ -972,7 +939,7 @@ function LoginPageInner() {
 
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-black/8" />
-                    <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       or
                     </span>
                     <div className="h-px flex-1 bg-black/8" />
@@ -1115,7 +1082,7 @@ function LoginPageInner() {
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                className="group flex h-13 w-full items-center justify-center gap-3 rounded-2xl border border-black/8 bg-white text-sm font-medium text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
+                className="group flex h-13 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-card text-sm font-medium text-foreground shadow-sm transition-all hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={loading || googleLoading}
               >
                 {googleLoading ? (
@@ -1128,7 +1095,7 @@ function LoginPageInner() {
 
               <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-black/8" />
-                <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   or
                 </span>
                 <div className="h-px flex-1 bg-black/8" />
@@ -1264,6 +1231,7 @@ function LoginPageInner() {
             Back to Home
           </Link>
         </div>
+      </div>
       </div>
     </div>
   );

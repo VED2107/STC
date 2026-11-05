@@ -8,8 +8,8 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-body);
-  --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-heading);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,68 +39,123 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-  --color-brand: #735c00;
-  --color-brand-muted: #c7c6ca;
-  --color-brand-ink: #1a1c1d;
-  --color-surface-container: #eeeef0;
-  --color-surface-container-low: #f3f3f5;
-  --color-surface-container-high: #e8e8ea;
-  --color-surface-variant: #e2e2e4;
-  --color-outline-variant: #c7c6ca;
+
+  /* Status colours: always a pair, ink on its own soft fill. */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-gold-50: var(--gold-50);
+  --color-gold-100: var(--gold-100);
+  --color-gold-200: var(--gold-200);
+  --color-gold-300: var(--gold-300);
+
+  /* Radius grows with the size of the thing it wraps. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+  --radius-3xl: 18px;
+  --radius-4xl: 22px;
+
+  --color-brand: var(--secondary);
+  --color-brand-muted: var(--input);
+  --color-brand-ink: var(--foreground);
+  --color-surface-container: var(--muted);
+  --color-surface-container-low: var(--surface-low);
+  --color-surface-container-high: var(--input);
+  --color-surface-variant: var(--input);
+  --color-outline-variant: var(--input);
 }
 
 :root {
-  --background: #f9f9fb;
+  /* Minimal white and yellow. Black is for text and the main button. */
+  --background: #ffffff;
   --foreground: #1a1c1d;
+  --surface-low: #f9f9fb;
   --card: #ffffff;
   --card-foreground: #1a1c1d;
   --popover: #ffffff;
   --popover-foreground: #1a1c1d;
+
   --primary: #030304;
   --primary-foreground: #ffffff;
+
+  --accent: #fed65b;
+  /* Darkened from #745c00 so text on gold passes AA. */
+  --accent-foreground: #3d3000;
   --secondary: #735c00;
   --secondary-foreground: #ffffff;
+
   --muted: #f3f3f5;
   --muted-foreground: #46464a;
-  --accent: #fed65b;
-  --accent-foreground: #745c00;
-  --destructive: #ba1a1a;
-  --destructive-foreground: #ffffff;
-  --border: #d9dadc;
+  --border: #e6e6e9;
   --input: #c7c6ca;
   --ring: #735c00;
-  --chart-1: #735c00;
+
+  --destructive: #ba1a1a;
+  --destructive-foreground: #ffffff;
+  --danger-soft: #fce4ec;
+  --success: #1f6b3a;
+  --success-soft: #e3f3e6;
+  --warning: #8a5a00;
+  --warning-soft: #fff2dc;
+  --info: #3651a5;
+  --info-soft: #eef2ff;
+
+  --gold-50: #fffbeb;
+  --gold-100: #fff5cf;
+  --gold-200: #ffeca6;
+  --gold-300: #ffe27f;
+
+  --chart-1: #030304;
   --chart-2: #fed65b;
-  --chart-3: #d0e9d4;
-  --chart-4: #e2e2e4;
-  --chart-5: #46464a;
-  --radius: 0.95rem;
-  --sidebar: #f3f3f5;
-  --sidebar-foreground: #1a1c1d;
-  --sidebar-primary: #030304;
-  --sidebar-primary-foreground: #ffffff;
+  --chart-3: #1f6b3a;
+  --chart-4: #3651a5;
+  --chart-5: #ba1a1a;
+
+  --radius: 8px;
+
+  --sidebar: #f9f9fb;
+  --sidebar-foreground: #46464a;
+  --sidebar-primary: #fed65b;
+  --sidebar-primary-foreground: #3d3000;
   --sidebar-accent: #ffffff;
-  --sidebar-accent-foreground: #1a1c1d;
-  --sidebar-border: #d9dadc;
+  --sidebar-accent-foreground: #030304;
+  --sidebar-border: #e6e6e9;
   --sidebar-ring: #735c00;
+
+  /* Motion. Crisp where people work, slower only where they watch. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-press: 120ms;
+  --duration-fast: 160ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+  --duration-show: 560ms;
+  --stagger: 45ms;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/40;
+    @apply border-border;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   html {
-    @apply bg-background font-sans text-foreground scroll-smooth;
+    @apply bg-background font-sans text-foreground;
     overflow-x: clip;
-    /* GPU: promote root for smoother scroll compositing */
+    scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -109,41 +164,41 @@
   body {
     @apply bg-background text-foreground;
     overflow-x: clip;
-    background-image:
-      radial-gradient(
-        circle at top right,
-        rgba(254, 214, 91, 0.14),
-        transparent 22%
-      ),
-      radial-gradient(
-        circle at bottom left,
-        rgba(208, 233, 212, 0.2),
-        transparent 24%
-      );
     font-family: var(--font-body), sans-serif;
+    font-size: 1rem;
     line-height: 1.55;
   }
 
   h1,
   h2,
   h3 {
-    font-family: var(--font-heading), serif;
-    letter-spacing: -0.03em;
+    font-family: var(--font-heading), system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+    text-wrap: balance;
   }
 
   h4,
   h5,
   h6 {
     font-family: var(--font-body), sans-serif;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 
   img,
   video,
-  canvas,
-  svg {
+  canvas {
     max-width: 100%;
     height: auto;
+  }
+
+  svg {
+    max-width: 100%;
   }
 
   * {
@@ -152,265 +207,558 @@
 
   ::selection {
     background: rgba(254, 214, 91, 0.55);
-    color: #241a00;
-  }
-
-  /* GPU: Off-screen sections skip rendering until scrolled into viewport */
-  section {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 600px;
+    color: var(--primary);
   }
 }
 
 @layer components {
-  /* WAAPI handles animation; CSS only provides the initial hidden state
-     and compositor-layer promotion for buttery 60-120fps */
-  .stitch-reveal {
-    opacity: 0;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    contain: layout style;
-  }
-
-  .stitch-reveal[data-visible="true"] {
-    opacity: 1;
-    transform: none;
-    filter: none;
-    will-change: auto;
-  }
-
-  /* Smooth hover micro-interactions — compositor-friendly transforms */
-  .stitch-hover-lift {
-    transition:
-      transform 400ms cubic-bezier(0.16, 1, 0.3, 1),
-      box-shadow 400ms cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: transform;
-    backface-visibility: hidden;
-  }
-
-  .stitch-hover-lift:hover {
-    transform: translate3d(0, -4px, 0);
-    box-shadow: 0 20px 50px -20px rgba(26, 28, 29, 0.18);
-  }
-
-  .stitch-hover-lift:active {
-    transform: translate3d(0, -1px, 0);
-    transition-duration: 100ms;
-  }
-
-  /* Silky smooth button press */
-  .stitch-press {
-    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: transform;
-    backface-visibility: hidden;
-  }
-
-  .stitch-press:active {
-    transform: scale(0.97);
-  }
-
-  .stitch-kicker {
-    @apply text-[10px] font-semibold uppercase tracking-[0.28em] text-secondary/75;
-  }
-
+  /* ── Surfaces ── */
   .stitch-panel {
-    @apply rounded-[24px] border border-black/6 bg-white shadow-[0_24px_60px_-28px_rgba(26,28,29,0.18)];
-    contain: layout style;
+    @apply rounded-2xl border border-border bg-card;
   }
 
   .stitch-panel-soft {
-    @apply rounded-[20px] border border-black/5 bg-surface-container-low;
-    contain: layout style;
+    @apply rounded-xl border border-transparent bg-surface-container-low;
+  }
+
+  .stitch-kicker {
+    @apply text-sm font-semibold text-secondary;
   }
 
   .stitch-pill {
-    @apply inline-flex items-center rounded-full border border-black/8 bg-white px-4 py-2 text-xs font-medium text-muted-foreground;
-  }
-
-  .stitch-input {
-    @apply h-12 w-full rounded-full border border-black/8 bg-surface-container-low px-4 text-sm text-foreground placeholder:text-muted-foreground/60 transition-shadow;
-  }
-
-  .stitch-input:focus {
-    border-color: var(--color-secondary);
-    box-shadow: 0 0 0 3px rgba(115, 92, 0, 0.10);
-    outline: none;
-  }
-
-  .stitch-sidebar-link {
-    @apply flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-muted-foreground transition-all hover:bg-white hover:text-foreground;
-  }
-
-  .stitch-sidebar-link[data-active="true"] {
-    @apply bg-white text-primary shadow-[0_10px_30px_-16px_rgba(26,28,29,0.16)];
+    @apply inline-flex items-center rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground;
   }
 
   .stitch-ghost-border {
-    border: 1px solid rgba(199, 198, 202, 0.2);
+    border: 1px solid var(--border);
   }
 
   .stitch-glass {
-    background: rgba(249, 249, 251, 0.82);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    /* GPU: promote the glass header to its own compositing layer */
-    transform: translateZ(0);
-    will-change: backdrop-filter;
+    background: var(--background);
   }
 
-  .stitch-app-surface [class~="text-white"] {
-    color: #1a1c1d;
+  /* ── Controls ── */
+  .stitch-input {
+    @apply h-11 w-full rounded-lg border border-input bg-card px-3 text-base text-foreground placeholder:text-muted-foreground md:text-sm;
+    transition:
+      border-color var(--duration-fast) ease,
+      box-shadow var(--duration-fast) ease;
   }
 
-  .stitch-app-surface [class*="text-zinc-"],
-  .stitch-app-surface [class*="text-neutral-"],
-  .stitch-app-surface [class*="text-slate-"],
-  .stitch-app-surface [class*="text-stone-"],
-  .stitch-app-surface [class*="text-gray-"] {
-    color: #1a1c1d;
+  .stitch-input:focus {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px rgba(115, 92, 0, 0.16);
+    outline: none;
   }
 
-  .stitch-app-surface [class*="text-zinc-"][class*="/"],
-  .stitch-app-surface [class*="text-neutral-"][class*="/"],
-  .stitch-app-surface [class*="text-slate-"][class*="/"],
-  .stitch-app-surface [class*="text-stone-"][class*="/"],
-  .stitch-app-surface [class*="text-gray-"][class*="/"] {
-    color: #46464a;
+  /* Buttons respond at once: a press compresses, a hover raises a small sun inside. */
+  .stitch-press {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    transition:
+      transform var(--duration-press) var(--ease-out),
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease,
+      color var(--duration-fast) ease;
   }
 
-  .stitch-app-surface [class*="text-white/45"],
-  .stitch-app-surface [class*="text-white/44"],
-  .stitch-app-surface [class*="text-white/42"],
-  .stitch-app-surface [class*="text-white/40"],
-  .stitch-app-surface [class*="text-white/38"],
-  .stitch-app-surface [class*="text-white/36"],
-  .stitch-app-surface [class*="text-white/34"],
-  .stitch-app-surface [class*="text-white/32"],
-  .stitch-app-surface [class*="text-white/30"],
-  .stitch-app-surface [class*="text-white/28"],
-  .stitch-app-surface [class*="text-white/26"],
-  .stitch-app-surface [class*="text-white/24"] {
-    color: #46464a;
+  .stitch-press:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
-  .stitch-app-surface [class*="border-white/5"],
-  .stitch-app-surface [class*="border-white/6"],
-  .stitch-app-surface [class*="border-white/8"],
-  .stitch-app-surface [class*="border-zinc-"],
-  .stitch-app-surface [class*="border-neutral-"],
-  .stitch-app-surface [class*="border-slate-"] {
-    border-color: rgba(26, 28, 29, 0.06);
+  .stitch-press:not(.no-sun)::after {
+    content: "";
+    position: absolute;
+    right: 0.6em;
+    bottom: 0;
+    z-index: -1;
+    width: 1.9em;
+    height: 1.9em;
+    border-radius: 50%;
+    background: var(--btn-sun, var(--gold-200));
+    transform: translate3d(0, 110%, 0);
+    transition: transform var(--duration-base) var(--ease-out);
+    pointer-events: none;
   }
 
-  .stitch-app-surface
-    [class*="divide-white/5"]
-    > :not([hidden])
-    ~ :not([hidden]) {
-    border-color: rgba(26, 28, 29, 0.06);
+  .stitch-press.bg-primary {
+    --btn-sun: var(--accent);
   }
 
-  .stitch-app-surface [class*="bg-[#141414]"],
-  .stitch-app-surface [class*="bg-[#161616]"],
-  .stitch-app-surface [class*="bg-[#1a1a1a]"],
-  .stitch-app-surface [class*="bg-[#1b1b1b]"],
-  .stitch-app-surface [class*="bg-[#1d1d1d]"],
-  .stitch-app-surface [class*="bg-white/[0.03]"],
-  .stitch-app-surface [class*="bg-white/[0.04]"] {
-    background: #ffffff;
+  .stitch-press.bg-accent {
+    --btn-sun: var(--gold-50);
   }
 
-  .stitch-app-surface [class*="bg-[#1a1710]"] {
-    background: rgba(254, 214, 91, 0.22);
+  .stitch-press.bg-destructive,
+  .stitch-press.bg-danger-soft {
+    --btn-sun: rgba(255, 255, 255, 0.3);
   }
 
-  .stitch-app-surface [class*="bg-zinc-"],
-  .stitch-app-surface [class*="bg-neutral-"],
-  .stitch-app-surface [class*="bg-slate-"],
-  .stitch-app-surface [class*="bg-stone-"],
-  .stitch-app-surface [class*="bg-gray-"] {
-    background: #ffffff;
+  @media (hover: hover) and (pointer: fine) {
+    .stitch-press:not(.no-sun):not(:disabled):hover::after {
+      transform: translate3d(0, 52%, 0);
+    }
   }
 
-  .stitch-app-surface [class*="bg-white/4"],
-  .stitch-app-surface [class*="bg-white/[0.03]"] {
-    background: #f3f3f5;
+  /* While pressed the sun drops back, so the press reads as the button giving way. */
+  .stitch-press:not(.no-sun):active::after {
+    transform: translate3d(0, 80%, 0);
+    transition-duration: var(--duration-press);
+  }
+
+  /* Cards you can act on carry a tiny stair. On hover the sun rises behind it. */
+  .stitch-hover-lift {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    transition:
+      transform var(--duration-base) var(--ease-out),
+      border-color var(--duration-fast) ease;
+  }
+
+  .stitch-hover-lift::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    width: 72px;
+    height: 36px;
+    background: var(--gold-50);
+    clip-path: polygon(0 100%, 0 66%, 33% 66%, 33% 33%, 66% 33%, 66% 0, 100% 0, 100% 100%);
+    pointer-events: none;
+  }
+
+  .stitch-hover-lift::after {
+    content: "";
+    position: absolute;
+    right: 8px;
+    bottom: 16px;
+    z-index: -2;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translate3d(0, 44px, 0);
+    transition: transform var(--duration-slow) var(--ease-out);
+    pointer-events: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .stitch-hover-lift:hover {
+      border-color: var(--accent);
+      transform: translate3d(0, -2px, 0);
+    }
+
+    .stitch-hover-lift:hover::after {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  .stitch-hover-lift:active {
+    transform: translate3d(0, 0, 0) scale(0.995);
+    transition-duration: var(--duration-press);
+  }
+
+  /* Lists arrive in quick order, never long enough to wait for. */
+  @media (prefers-reduced-motion: no-preference) {
+    .rise-in > * {
+      animation: rise-in var(--duration-base) var(--ease-out) backwards;
+    }
+
+    .rise-in > :nth-child(2) { animation-delay: 30ms; }
+    .rise-in > :nth-child(3) { animation-delay: 60ms; }
+    .rise-in > :nth-child(4) { animation-delay: 90ms; }
+    .rise-in > :nth-child(5) { animation-delay: 120ms; }
+    .rise-in > :nth-child(6) { animation-delay: 150ms; }
+    .rise-in > :nth-child(n + 7) { animation-delay: 180ms; }
+  }
+
+  /* ── The rail ── */
+  .stitch-sidebar-link {
+    @apply relative flex min-h-9 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium;
+    color: var(--sidebar-foreground);
+    transition:
+      background-color var(--duration-fast) ease,
+      color var(--duration-fast) ease;
+  }
+
+  .stitch-sidebar-link:focus-visible {
+    outline-color: var(--sidebar-ring);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .stitch-sidebar-link:hover {
+      background: var(--sidebar-accent);
+      color: var(--sidebar-accent-foreground);
+    }
+  }
+
+  /* The active item carries the sun, small, at the rail's edge. */
+  .stitch-sidebar-link[data-active="true"] {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+  }
+
+  .stitch-sidebar-link[data-active="true"]::before {
+    content: "";
+    position: absolute;
+    left: -5px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    background: var(--sidebar-primary);
+  }
+
+  .stitch-table-row {
+    transition: background-color var(--duration-fast) ease;
+  }
+
+  /* ── STC signatures ── */
+  /* Corner cut in steps, used once per view at most. */
+  .step-cut {
+    clip-path: polygon(
+      0 0,
+      calc(100% - 36px) 0,
+      calc(100% - 36px) 12px,
+      calc(100% - 24px) 12px,
+      calc(100% - 24px) 24px,
+      calc(100% - 12px) 24px,
+      calc(100% - 12px) 36px,
+      100% 36px,
+      100% 100%,
+      0 100%
+    );
+  }
+
+  .tnum {
+    font-family: var(--font-body), sans-serif;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* ── Reveal: only hidden when script can bring it back ── */
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .stitch-reveal {
+      opacity: 0;
+      transform: translate3d(0, 12px, 0);
+      transition:
+        opacity var(--duration-show) var(--ease-out),
+        transform var(--duration-show) var(--ease-out);
+      transition-delay: var(--reveal-delay, 0ms);
+    }
+
+    .stitch-reveal[data-reveal="fade"] {
+      transform: none;
+    }
+
+    .stitch-reveal[data-visible="true"] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* ── The steps: hero ladder rises once on load ── */
+  @media (prefers-reduced-motion: no-preference) {
+    .step-rise {
+      animation: step-rise var(--duration-show) var(--ease-out) backwards;
+      animation-delay: calc(var(--i, 0) * 70ms + 120ms);
+    }
+  }
+
+}
+
+/* ── Stepwell journey: readable list first, stage only when it can run ── */
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+  .stepwell {
+    height: 420vh;
+  }
+
+  .stepwell-stage {
+    position: sticky;
+    top: 4rem;
+    display: flex;
+    height: calc(100dvh - 4rem);
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .stepwell-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 4rem;
+  }
+
+  .stepwell-art {
+    max-height: 60dvh;
+  }
+
+  .stepwell-panels {
+    display: grid;
+  }
+
+  /* All panels share one cell and trade places as you scroll. */
+  .stepwell-panel {
+    grid-area: 1 / 1;
+  }
+
+  .stepwell-dots {
+    display: flex;
   }
 }
 
-/* Announcement badge animations */
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
+/* ── As the sun climbs, the sky around the top step warms ── */
+.dawn {
+  background: radial-gradient(52rem 34rem at 88% 58%, var(--gold-100), transparent 70%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dawn {
+    animation: dawn 1900ms ease-out backwards;
+    animation-delay: 400ms;
   }
-  50%,
+}
+
+@keyframes dawn {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── The sun: the one moving thing, shared by every page ── */
+.sun-track {
+  transition: transform 420ms var(--ease-in-out);
+  will-change: transform;
+}
+
+.sun-rise {
+  transform-box: fill-box;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sun-rise,
+  .sun-rise-box {
+    animation: sun-rise 1100ms var(--ease-out) backwards;
+    animation-delay: 120ms;
+  }
+}
+
+@keyframes sun-rise {
+  from {
+    transform: translate3d(0, 70%, 0);
+    opacity: 0;
+  }
+}
+
+/* ── Headline words rise out of a mask, once, off the main thread ── */
+.mask-word {
+  display: inline-block;
+  overflow: hidden;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+  vertical-align: top;
+}
+
+.mask-word > span {
+  display: inline-block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mask-word > span {
+    animation: mask-rise 720ms var(--ease-out) backwards;
+    animation-delay: calc(var(--w, 0) * 45ms + 60ms);
+  }
+}
+
+/* ── Register marks and fee bars grow from their baseline ── */
+@media (prefers-reduced-motion: no-preference) {
+  .grow-y {
+    transform-origin: bottom;
+    animation: grow-y var(--duration-slow) var(--ease-out) backwards;
+    animation-delay: calc(var(--i, 0) * 18ms);
+  }
+
+  .grow-x {
+    transform-origin: left;
+    animation: grow-x var(--duration-show) var(--ease-out) backwards;
+  }
+}
+
+/* ── Toast: a transition, so a burst of messages retargets instead of restarting ── */
+.toast-row {
+  transition:
+    opacity var(--duration-base) ease,
+    transform var(--duration-base) var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.98);
+  }
+}
+
+/* ── FAQ: animates height only where the browser supports it ── */
+html {
+  interpolate-size: allow-keywords;
+}
+
+details::details-content {
+  block-size: 0;
+  overflow: clip;
+  transition:
+    block-size var(--duration-base) var(--ease-out),
+    content-visibility var(--duration-base) allow-discrete;
+}
+
+details[open]::details-content {
+  block-size: auto;
+}
+
+/* ── Route changes: content crossfades, the shell stays put ── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+.shell-rail {
+  view-transition-name: shell-rail;
+}
+
+.shell-topbar {
+  view-transition-name: shell-topbar;
+}
+
+.shell-tabs {
+  view-transition-name: shell-tabs;
+}
+
+.site-header {
+  view-transition-name: site-header;
+}
+
+::view-transition-group(shell-rail),
+::view-transition-group(shell-topbar),
+::view-transition-group(shell-tabs),
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 10;
+}
+
+::view-transition-old(shell-rail),
+::view-transition-new(shell-rail),
+::view-transition-old(shell-topbar),
+::view-transition-new(shell-topbar),
+::view-transition-old(shell-tabs),
+::view-transition-new(shell-tabs),
+::view-transition-old(site-header),
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+/* Public pages open like a sunrise, from where the sun sits in each hero. */
+::view-transition-new(.sun-in) {
+  animation: sun-in 560ms var(--ease-in-out) both;
+}
+
+::view-transition-old(.sun-out) {
+  animation: page-out 200ms ease-out 180ms both;
+}
+
+@keyframes sun-in {
+  from {
+    clip-path: circle(0% at 82% 22%);
+  }
+  to {
+    clip-path: circle(150% at 82% 22%);
+  }
+}
+
+::view-transition-old(.page-out) {
+  animation: page-out 90ms ease-out both;
+}
+
+::view-transition-new(.page-in) {
+  animation: page-in var(--duration-base) var(--ease-out) both;
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  details::details-content {
+    transition: none;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+}
+
+@keyframes mask-rise {
+  from {
+    transform: translate3d(0, 105%, 0);
+  }
+}
+
+@keyframes grow-y {
+  from {
+    transform: scaleY(0.2);
+    opacity: 0;
+  }
+}
+
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes step-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0);
+  }
+}
+
+@keyframes skeleton-shimmer {
   100% {
     transform: translateX(100%);
   }
 }
 
-@keyframes pulse-glow {
+/* Five steps lighting in order: the shared loading mark. */
+@keyframes step-load {
   0%,
+  70%,
   100% {
-    border-color: rgba(212, 160, 23, 0);
-    box-shadow: 0 0 0 0 rgba(212, 160, 23, 0);
-  }
-  50% {
-    border-color: rgba(212, 160, 23, 0.15);
-    box-shadow: 0 0 16px 2px rgba(212, 160, 23, 0.08);
-  }
-}
-
-@keyframes sparkle {
-  0%,
-  100% {
-    opacity: 0;
-    transform: scale(0) translateY(0);
+    opacity: 0.22;
   }
   30% {
     opacity: 1;
-    transform: scale(1) translateY(-4px);
-  }
-  70% {
-    opacity: 0.6;
-    transform: scale(0.8) translateY(-8px);
   }
 }
 
-/* Skeleton loading animations */
-@keyframes skeleton-shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes skeleton-pulse {
-  0%,
-  100% {
-    opacity: 0.15;
-    transform: scaleY(0.85);
-  }
-  50% {
-    opacity: 0.4;
-    transform: scaleY(1);
-  }
-}
-
-@keyframes skeleton-width {
-  0%,
-  100% {
-    width: 12px;
-    opacity: 0.3;
-  }
-  50% {
-    width: 48px;
-    opacity: 0.7;
-  }
-}
-
-/* Faculty marquee auto-scroll */
 @keyframes marquee {
   0% {
     transform: translateX(0);
@@ -421,40 +769,32 @@
 }
 
 .animate-marquee {
-  animation: marquee 30s linear infinite;
+  animation: marquee 40s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* Keep state visible; remove the journey. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+
   .animate-marquee {
     animation: none;
   }
-  @layer components {
-    .stitch-reveal {
-      opacity: 1;
-      transform: none;
-      filter: none;
-      transition: none;
-    }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
   }
 }
-
-/* ─── Performance utilities ─── */
-
-/* Skip rendering off-screen footer until user scrolls near it */
-footer {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 400px;
-}
-
-/* GPU-promote scrollable panels to avoid paint thrashing */
-.stitch-sidebar-link {
-  will-change: transform;
-}
-
-/* Reduce paint area for table rows */
-@layer components {
-  .stitch-table-row {
-    contain: layout style;
-  }
-}
-

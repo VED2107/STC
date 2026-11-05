@@ -43,7 +43,7 @@ const csp = [
   `img-src 'self' data: blob: ${supabaseOrigin} https://*.razorpay.com`,
   `font-src 'self' https://fonts.gstatic.com`,
   `connect-src 'self' ${supabaseOrigin} wss://${supabaseHost ?? ""} https://*.razorpay.com`,
-  `frame-src https://checkout.razorpay.com https://api.razorpay.com https://lottie.host`,
+  `frame-src https://checkout.razorpay.com https://api.razorpay.com`,
   `object-src 'none'`,
   `base-uri 'self'`,
   `form-action 'self'`,
@@ -55,6 +55,8 @@ const csp = [
 const nextConfig: NextConfig = {
   allowedDevOrigins: allowedOrigins,
   experimental: {
+    // Route changes run through React <ViewTransition>.
+    viewTransition: true,
     serverActions: {
       allowedOrigins,
     },

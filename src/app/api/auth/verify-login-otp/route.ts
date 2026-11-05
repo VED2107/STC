@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create response object once
-    let response = NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       email: pendingLogin.email,
     }, { headers: noStoreHeaders });

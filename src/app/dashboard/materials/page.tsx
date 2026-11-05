@@ -34,10 +34,10 @@ interface StudentAccessRow {
 const supabase = createClient();
 
 const typeConfig: Record<string, { icon: typeof FileText; accent: string; label: string }> = {
-  pdf: { icon: FileText, accent: "bg-[#fce4ec] text-[#c62828]", label: "PDF Document" },
-  video: { icon: PlayCircle, accent: "bg-[#e8f5e9] text-[#2e7d32]", label: "Video Lesson" },
-  notes: { icon: StickyNote, accent: "bg-[#eef2ff] text-[#3651a5]", label: "Study Notes" },
-  link: { icon: ExternalLink, accent: "bg-[#fff2dc] text-[#9a6500]", label: "External Link" },
+  pdf: { icon: FileText, accent: "bg-danger-soft text-destructive", label: "PDF Document" },
+  video: { icon: PlayCircle, accent: "bg-success-soft text-success", label: "Video Lesson" },
+  notes: { icon: StickyNote, accent: "bg-info-soft text-info", label: "Study Notes" },
+  link: { icon: ExternalLink, accent: "bg-warning-soft text-warning", label: "External Link" },
 };
 
 const materialCardClass = cn(
@@ -138,7 +138,7 @@ export default function StudentMaterialsPage() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="Class Library"
         title="Academic Resources"
@@ -153,8 +153,8 @@ export default function StudentMaterialsPage() {
         <div className="mt-10">
           <StitchEmptyState
             icon={FolderOpen}
-            title="No Academic Resources"
-            description="No materials are available for your class yet. The library will populate once the atelier publishes them."
+            title="No materials yet"
+            description="Materials for your class will appear here once your teacher publishes them."
           />
         </div>
       ) : (
@@ -176,7 +176,7 @@ export default function StudentMaterialsPage() {
                   </span>
                   <div>
                     <p className="text-sm font-semibold text-foreground">{count}</p>
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{type}</p>
+                    <p className="text-xs tracking-widest text-muted-foreground">{type}</p>
                   </div>
                 </div>
               );
@@ -196,18 +196,18 @@ export default function StudentMaterialsPage() {
                   className={materialCardClass}
                 >
                   {/* Hover gradient overlays */}
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#f1edff]/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
 
                   <div className="relative flex items-center justify-between gap-3">
                     <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${config.accent}`}>
                       <TypeIcon className="h-5 w-5" />
                     </span>
-                    <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {material.course?.title ?? "Academy Faculty"}
                     </span>
                   </div>
-                  <h2 className="relative mt-6 text-2xl font-semibold leading-tight text-foreground md:text-3xl">
+                  <h2 className="text-xl relative mt-6 text-2xl font-semibold leading-tight text-foreground">
                     {material.title}
                   </h2>
                   <p className="relative mt-3 text-sm leading-7 text-muted-foreground">

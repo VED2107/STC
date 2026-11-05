@@ -1,3 +1,4 @@
+import { StepHorizon } from "@/components/stitch/step-horizon";
 import Link from "next/link";
 import { ArrowRight, FileText, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -64,19 +65,20 @@ export default async function PublicMaterialsPage({
 
   return (
     <div className="overflow-x-hidden">
-      <section className="relative bg-muted py-24 md:py-32">
-        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+      <section className="relative overflow-hidden bg-gold-50 pt-14 pb-24 md:pt-20 md:pb-36">
+        <StepHorizon />
+        <div className="mx-auto max-w-[1280px] px-4 md:px-8">
           <div className="max-w-3xl">
             <Reveal variant="fade">
               <p className="stitch-kicker">Learning Materials</p>
             </Reveal>
             <Reveal delay={80} variant="mask-up">
-              <h1 className="mt-4 text-5xl font-light italic leading-tight text-primary md:text-7xl xl:text-8xl">
-                Resource library for <span className="text-secondary">active learners</span>.
+              <h1 className="text-4xl font-extrabold leading-[1.05] text-primary md:text-6xl">
+                Resource library for active learners.
               </h1>
             </Reveal>
             <Reveal delay={160}>
-              <p className="mt-8 max-w-2xl text-base font-light leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
+              <p className="mt-8 max-w-2xl text-lg leading-8 text-muted-foreground">
                 Download and review class materials published by faculty and admin.
               </p>
             </Reveal>
@@ -84,7 +86,7 @@ export default async function PublicMaterialsPage({
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
+      <section className="mx-auto max-w-[1280px] px-4 py-24 md:px-8 md:py-32">
         {classOptions.length > 0 ? (
           <Reveal variant="fade">
             <div className="flex flex-wrap gap-3">
@@ -118,7 +120,7 @@ export default async function PublicMaterialsPage({
         {filteredRows.length === 0 ? (
           <Reveal variant="soft-zoom">
             <div className="stitch-panel mt-12 p-10 text-center">
-              <h2 className="text-4xl italic text-primary">No Materials Published Yet</h2>
+              <h2 className="text-4xl text-primary">No Materials Published Yet</h2>
               <p className="mt-4 text-base leading-8 text-muted-foreground">New resources will appear once published by the admin team.</p>
             </div>
           </Reveal>
@@ -139,9 +141,9 @@ export default async function PublicMaterialsPage({
                     </span>
                     <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1 group-hover:text-secondary" />
                   </div>
-                  <h2 className="mt-5 text-2xl italic text-primary sm:text-3xl">{item.title}</h2>
+                  <h2 className="mt-5 text-2xl text-primary sm:text-3xl">{item.title}</h2>
                   <p className="mt-2 text-sm text-muted-foreground">{item.subject}</p>
-                  <p className="mt-4 text-[11px] uppercase tracking-[0.2em] text-secondary">
+                  <p className="mt-4 text-xs text-secondary">
                     {item.class?.board ?? "STC"} · {item.class?.name ?? "Class"} · {item.type}
                   </p>
                 </a>
@@ -152,7 +154,7 @@ export default async function PublicMaterialsPage({
 
         <Reveal delay={200} variant="fade">
           <div className="mt-14">
-            <Link href="/online-courses" className="stitch-press inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(26,28,29,0.35)]">
+            <Link href="/online-courses" className="stitch-press inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-sm font-semibold text-primary-foreground transition">
               Go to Online Courses
               <ArrowRight className="h-4 w-4" />
             </Link>

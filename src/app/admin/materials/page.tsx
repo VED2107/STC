@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmAction } from "@/components/ui/feedback";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -471,7 +472,7 @@ function AdminMaterialsPageInner() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this material?")) return;
+    if (!(await confirmAction({ title: "Delete this material?", description: "This cannot be undone.", confirmLabel: "Delete material", destructive: true }))) return;
     await supabase.from("materials").delete().eq("id", id);
     invalidateAfterMaterialsMutation();
     void fetchMaterials();
@@ -517,11 +518,11 @@ function AdminMaterialsPageInner() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
-        eyebrow="Curriculum / Advanced Atelier Editor"
-        title="Syllabus & Materials"
-        description="Publish materials by board and subject so every linked syllabus surface stays synchronized."
+        eyebrow="Materials"
+        title="Materials"
+        description="Publish materials by board and subject. They appear on the matching syllabus automatically."
         action={
           <>
             <button
@@ -634,12 +635,12 @@ function AdminMaterialsPageInner() {
                 </Select>
               </div>
             </div>
-            <div className="mt-5 rounded-[22px] border border-border bg-muted p-5 text-sm leading-7 text-muted-foreground">
+            <div className="mt-5 rounded-xl border border-border bg-muted p-5 text-sm leading-7 text-muted-foreground">
               Materials published here are attached to every matching class subject under {selectionLabel}
               {selectedClassId !== "all" ? ` / ${classesById.get(selectedClassId)?.name ?? "Selected class"}` : ""}.
             </div>
             {actionError ? (
-              <div className="mt-4 rounded-[18px] border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {actionError}
               </div>
             ) : null}
@@ -648,7 +649,7 @@ function AdminMaterialsPageInner() {
           <div className={stitchPanelClass}>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-4xl text-foreground">Required Reading Materials</h2>
+                <h2 className="text-xl text-foreground">Required Reading Materials</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {matchingSyllabusEntries.length} linked class subjects for {selectionLabel}
                   {selectedClassId !== "all" ? ` / ${classesById.get(selectedClassId)?.name ?? "Class"}` : ""}
@@ -659,7 +660,7 @@ function AdminMaterialsPageInner() {
               </button>
             </div>
 
-            <div className="mt-6 rounded-[20px] border border-black/5 bg-muted/40 p-4">
+            <div className="mt-6 rounded-xl border border-border bg-muted/40 p-4">
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_180px]">
                 <div>
                   <label className="text-sm font-medium">Search</label>
@@ -691,7 +692,7 @@ function AdminMaterialsPageInner() {
                   </Select>
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                 <span>{filteredMaterials.length} materials visible</span>
                 <button
                   type="button"
@@ -718,7 +719,7 @@ function AdminMaterialsPageInner() {
                     key={material.id}
                     className={cn(
                       stitchPanelSoftClass,
-                      "flex items-center justify-between gap-3 p-4 transition-all hover:border-black/10 hover:shadow-[0_8px_24px_-16px_rgba(26,28,29,0.12)]",
+                      "flex items-center justify-between gap-3 p-4 transition-all hover:border-border ",
                       reordering ? "opacity-70" : "",
                       draggingMaterialId === material.id ? "ring-2 ring-primary/40" : "",
                     )}
@@ -728,10 +729,10 @@ function AdminMaterialsPageInner() {
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                        material.type === "pdf" && "bg-rose-50 text-rose-600",
-                        material.type === "notes" && "bg-blue-50 text-blue-600",
-                        material.type === "video" && "bg-purple-50 text-purple-600",
-                        material.type === "link" && "bg-emerald-50 text-emerald-600",
+                        material.type === "pdf" && "bg-danger-soft text-destructive",
+                        material.type === "notes" && "bg-info-soft text-info",
+                        material.type === "video" && "bg-muted text-secondary",
+                        material.type === "link" && "bg-success-soft text-success",
                       )}>
                         {material.type === "pdf" ? <File className="h-4 w-4" /> :
                          material.type === "notes" ? <FileText className="h-4 w-4" /> :
@@ -740,7 +741,7 @@ function AdminMaterialsPageInner() {
                       </div>
                       <div>
                         <p className="text-base text-foreground">{material.title}</p>
-                        <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {material.class?.board ?? "STC"} / {material.class?.name ?? "Class"} / {material.type}
                         </p>
                       </div>
@@ -789,10 +790,10 @@ function AdminMaterialsPageInner() {
 
         <div className="grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-1">
           <div className={cn(stitchPanelClass, "border-dashed text-center")}>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/3 text-primary">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted text-primary">
               <Upload className="h-7 w-7" />
             </div>
-            <h3 className="mt-6 text-3xl text-foreground">Upload Assets</h3>
+            <h3 className="text-xl mt-6 text-foreground">Upload Assets</h3>
             <p className="mt-3 text-sm leading-7 text-muted-foreground">
               Publish once for the selected board and subject, and mirror it across the linked syllabus entries.
             </p>
@@ -812,19 +813,10 @@ function AdminMaterialsPageInner() {
                 <span>Linked Syllabus</span>
                 <span className="rounded-full bg-primary/20 px-3 py-1 text-xs text-primary">Auto Sync</span>
               </div>
-              <div className="rounded-[18px] border border-border bg-muted px-4 py-3">
+              <div className="rounded-xl border border-border bg-muted px-4 py-3">
                 Scope: {selectionLabel}
               </div>
             </div>
-          </div>
-
-          <div className={stitchPanelClass}>
-            <p className="text-base italic leading-8 text-muted-foreground">
-              &quot;The curriculum is not a static document, but a living map for the intellect.&quot;
-            </p>
-            <p className="mt-5 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-              Director of Atelier
-            </p>
           </div>
         </div>
       </div>
@@ -925,7 +917,7 @@ function AdminMaterialsPageInner() {
                   <Label>Upload File</Label>
                   <div className="rounded-lg border-2 border-dashed p-6 text-center">
                     {fileUrl ? (
-                      <p className="text-sm text-green-600">File uploaded successfully</p>
+                      <p className="text-sm text-success">File uploaded successfully</p>
                     ) : (
                       <>
                         <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />

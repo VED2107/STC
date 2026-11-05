@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
+import { confirmAction } from "@/components/ui/feedback";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -291,18 +292,18 @@ function AdminSyllabusPageInner() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this syllabus entry?")) return;
+    if (!(await confirmAction({ title: "Delete this syllabus entry?", description: "This cannot be undone.", confirmLabel: "Delete entry", destructive: true }))) return;
     await supabase.from("syllabus").delete().eq("id", id);
     invalidateAfterSyllabusMutation();
     void fetchData();
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="Curriculum Editorial Desk"
-        title="Syllabus Architecture"
-        description="Manage board and subject entries. Uploaded materials now power the syllabus display automatically."
+        title="Syllabus"
+        description="Manage subjects by board. Uploaded materials appear on each syllabus automatically."
         action={
           <>
             <button
@@ -321,7 +322,7 @@ function AdminSyllabusPageInner() {
       />
 
       {actionError ? (
-        <div className="mt-6 rounded-[18px] border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {actionError}
         </div>
       ) : null}
@@ -334,13 +335,13 @@ function AdminSyllabusPageInner() {
         <div className="mt-10">
           <StitchEmptyState
             icon={BookOpen}
-            title="No Syllabus Published"
-            description="Create the first syllabus entry to establish a board and subject roadmap for students."
+            title="No syllabus yet"
+            description="Add a syllabus entry so students can see what each subject covers."
           />
         </div>
       ) : (
         <>
-          <div className="mt-8 rounded-[22px] border border-black/5 bg-white p-4 md:p-5">
+          <div className="mt-8 rounded-xl border border-border bg-card p-4 md:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
               <div className="min-w-[220px]">
                 <label className="text-sm font-medium">Division</label>
@@ -411,9 +412,9 @@ function AdminSyllabusPageInner() {
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
                           <BookOpen className="h-4 w-4" />
                         </div>
-                        <h2 className="text-2xl text-foreground md:text-3xl">{item.subject}</h2>
+                        <h2 className="text-xl text-2xl text-foreground">{item.subject}</h2>
                       </div>
-                      <p className="mt-2 text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                      <p className="mt-2 text-xs text-muted-foreground">
                         {item.class?.board ?? "STC"} · Level {item.class?.level ?? "-"} · {linkedMaterials.length} materials
                       </p>
                     </div>
@@ -437,13 +438,13 @@ function AdminSyllabusPageInner() {
                         href={material.file_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center justify-between rounded-[18px] border border-border bg-muted/60 p-3.5 transition hover:border-primary/25"
+                        className="flex items-center justify-between rounded-xl border border-border bg-muted/60 p-3.5 transition hover:border-primary/25"
                       >
                         <div className="flex items-center gap-3">
                           <FileText className="h-4 w-4 text-primary" />
                           <div>
                             <p className="text-sm font-medium text-foreground">{material.title}</p>
-                            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {material.type}
                             </p>
                           </div>
@@ -451,7 +452,7 @@ function AdminSyllabusPageInner() {
                         <span className="text-xs text-primary">Open</span>
                       </a>
                     )) : (
-                      <div className="rounded-[18px] border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
                         No materials uploaded for this board and subject yet.
                       </div>
                     )}
@@ -491,7 +492,7 @@ function AdminSyllabusPageInner() {
               </div>
             </div>
 
-            <div className="rounded-[18px] border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
+            <div className="rounded-xl border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
               Unit editing has been removed. The syllabus page now reflects uploaded materials for the selected class and subject.
             </div>
 

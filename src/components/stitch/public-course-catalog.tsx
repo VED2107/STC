@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRight, ImageOff, Search } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import { stitchInputClass } from "@/components/stitch/primitives";
 import {
   type CatalogLevelKey,
@@ -79,11 +79,10 @@ export function PublicCourseCatalog({
 
   return (
     <>
-      <header className="mb-16 flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
+      <header className="mb-10 flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
         <div className="max-w-3xl">
-          <p className="stitch-kicker">Academic Catalog</p>
-          <h1 className="mt-4 text-5xl font-light italic leading-tight text-primary md:text-7xl">
-            Curated paths for the <span className="text-secondary">Modern Scholar</span>.
+          <h1 className="text-4xl font-extrabold leading-[1.05] text-primary md:text-6xl">
+            Online courses for every class.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
             Explore our live curriculum library across primary foundations, board preparation, and senior academic tracks.
@@ -91,7 +90,7 @@ export function PublicCourseCatalog({
         </div>
 
         <div className="w-full max-w-sm">
-          <div className="relative rounded-full bg-muted px-4 stitch-ghost-border">
+          <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={searchQuery}
@@ -100,8 +99,9 @@ export function PublicCourseCatalog({
                 setSearchQuery(nextQuery);
                 updateRoute({ query: nextQuery });
               }}
-              className={cn(stitchInputClass, "border-0 bg-transparent pl-8 shadow-none")}
-              placeholder="Search curriculum..."
+              aria-label="Search courses"
+              className={cn(stitchInputClass, "pl-10")}
+              placeholder="Search courses"
             />
           </div>
         </div>
@@ -134,7 +134,7 @@ export function PublicCourseCatalog({
                   updateRoute({ level: filter.key, track: "" });
                 }}
                 className={cn(
-                  "shrink-0 snap-start rounded-full px-4 py-3 text-center text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] whitespace-normal transition sm:text-[11px] md:px-6 md:py-2 md:tracking-[0.18em]",
+                  "stitch-press min-h-10 shrink-0 snap-start rounded-lg px-4 text-center text-sm font-semibold transition-colors duration-(--duration-fast)",
                   filter.key === "all" ? "min-w-[96px]" : "min-w-[72px]",
                   active
                     ? "bg-accent text-accent-foreground"
@@ -146,14 +146,14 @@ export function PublicCourseCatalog({
             );
           })}
         </div>
-        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:text-[11px] md:tracking-[0.18em]">
-          Displaying {filtered.length} available modules
+        <div className="text-xs font-semibold text-muted-foreground ">
+          {filtered.length} courses
         </div>
       </div>
 
       {filtered.length === 0 ? (
         <div className="stitch-panel p-10 text-center">
-          <h2 className="text-4xl italic text-primary">No Matching Courses</h2>
+          <h2 className="text-4xl text-primary">No Matching Courses</h2>
           <p className="mt-4 text-base leading-8 text-muted-foreground">
             Try another keyword or switch to a different track.
           </p>
@@ -162,7 +162,7 @@ export function PublicCourseCatalog({
         <div className="grid grid-cols-1 gap-8 md:grid-cols-12 lg:gap-10">
           {featured ? (
             <Link href={`/online-courses/${featured.id}`} className="group md:col-span-8">
-              <article className="stitch-panel flex h-full flex-col overflow-hidden md:flex-row">
+              <article className="stitch-panel stitch-hover-lift flex h-full flex-col overflow-hidden md:flex-row">
                 <div className="relative h-72 md:h-auto md:w-1/2">
                   {featured.thumbnail_url ? (
                     <Image
@@ -173,33 +173,30 @@ export function PublicCourseCatalog({
                       className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground">
-                      <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em]">
-                        <ImageOff className="h-4 w-4" />
-                        Thumbnail Unavailable
-                      </span>
+                    <div className="absolute inset-0 flex items-center justify-center bg-gold-50">
+                      <span aria-hidden="true" className="size-28 rounded-full bg-accent" />
                     </div>
                   )}
                   <div className="absolute left-6 top-6 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                    <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-primary">
                       {featured.class?.board ?? "STC"}
                     </span>
-                    <span className="rounded-full bg-accent/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground">
+                    <span className="rounded-full bg-accent/90 px-3 py-1 text-xs font-semibold text-accent-foreground">
                       {levelLabel(featured)}
                     </span>
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col justify-center p-8 md:p-12">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-secondary">
-                    Featured Module
+                  <span className="text-xs font-semibold text-secondary">
+                    Featured course
                   </span>
-                  <h2 className="mt-4 text-4xl font-normal italic leading-tight text-primary md:text-5xl">
+                  <h2 className="mt-2 text-3xl leading-tight text-primary md:text-4xl">
                     {featured.title}
                   </h2>
                   <p className="mt-5 text-base leading-8 text-muted-foreground">
                     {featured.description}
                   </p>
-                  <div className="mt-8 flex items-center justify-between border-t border-black/6 pt-6">
+                  <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
                     <div className="text-sm text-muted-foreground">
                       {[featured.subject, featured.teacher?.name ?? "STC Faculty"].join(" - ")}
                     </div>
@@ -215,29 +212,26 @@ export function PublicCourseCatalog({
 
           {remaining.map((course) => (
             <Link key={course.id} href={`/online-courses/${course.id}`} className="group md:col-span-4">
-              <article className="stitch-panel h-full p-8 transition group-hover:-translate-y-1">
-                <div className="flex items-start justify-between">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-secondary">
-                    <Search className="h-5 w-5" />
-                  </span>
-                  <span className="rounded-full bg-muted px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              <article className="stitch-panel stitch-hover-lift h-full p-6">
+                <div className="flex items-start justify-end">
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
                     {course.class?.board ?? "STC"}
                   </span>
                 </div>
-                <div className="mt-10">
-                  <h3 className="text-3xl font-normal italic leading-snug text-primary">
+                <div className="mt-4">
+                  <h3 className="text-2xl leading-snug text-primary">
                     {course.title}
                   </h3>
                   <p className="mt-4 text-sm leading-7 text-muted-foreground">{course.description}</p>
                 </div>
-                <div className="mt-8 border-t border-black/6 pt-6 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="mt-8 border-t border-border pt-6 text-xs text-muted-foreground">
                   {[course.class?.name ?? levelLabel(course), course.subject].join(" - ")}
                 </div>
                 {matchesCatalogTrack(course, "jee") ? (
-                  <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">JEE track</div>
+                  <div className="mt-3 text-xs font-semibold text-secondary">JEE track</div>
                 ) : null}
                 {matchesCatalogTrack(course, "neet") ? (
-                  <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">NEET track</div>
+                  <div className="mt-3 text-xs font-semibold text-secondary">NEET track</div>
                 ) : null}
               </article>
             </Link>

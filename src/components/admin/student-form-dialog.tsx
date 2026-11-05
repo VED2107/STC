@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
+import { toast } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import {
   Camera,
@@ -59,13 +60,13 @@ interface StudentFormDialogProps {
 }
 
 const sectionClass =
-  "rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
+  "rounded-2xl border border-border bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
 const labelClass =
-  "flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+  "flex items-center gap-2.5 text-xs font-semibold text-muted-foreground";
 const inputClass =
   "stitch-input w-full";
 const checkboxClass =
-  "h-[18px] w-[18px] rounded-md border-2 border-black/12 bg-white text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
+  "h-[18px] w-[18px] rounded-md border-2 border-border bg-card text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
 
 export function StudentFormDialog({
   open,
@@ -235,7 +236,7 @@ export function StudentFormDialog({
     const { error } = await supabase.from("students").delete().eq("id", editStudent.id);
     setDeleting(false);
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
     setConfirmDelete(false);
@@ -276,7 +277,7 @@ export function StudentFormDialog({
           studentRes.error?.message ||
           "Failed to update student account";
         setLoading(false);
-        alert(message);
+        toast.error(message);
         return;
       }
 
@@ -306,7 +307,7 @@ export function StudentFormDialog({
 
     if (!result.success) {
       setLoading(false);
-      alert(result.error || "Failed to enroll student");
+      toast.error(result.error || "Failed to enroll student");
       return;
     }
 
@@ -356,14 +357,14 @@ export function StudentFormDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-info-soft text-info">
               {isEditMode ? <User className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
             </span>
             <div>
               <DialogTitle className="text-xl">
                 {isEditMode ? "Edit Student" : "Enroll Student"}
               </DialogTitle>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {isEditMode ? "Update profile, class, and access" : "Assign signed-up account to class"}
               </p>
             </div>
@@ -387,7 +388,7 @@ export function StudentFormDialog({
                   className={cn(inputClass, "pl-10")}
                 />
               </div>
-              <div className="max-h-44 space-y-1.5 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-2">
+              <div className="max-h-44 space-y-1.5 overflow-y-auto rounded-xl border border-border bg-card p-2">
                 {filteredProfiles.map((profile) => {
                   const isSelected = profile.id === selectedProfileId;
                   return (
@@ -458,7 +459,7 @@ export function StudentFormDialog({
             {/* Photo */}
             <div className="flex items-center gap-4 pt-1">
               <div
-                className="relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-black/8 bg-muted/20 transition hover:border-primary/40 hover:bg-muted/40"
+                className="relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/20 transition hover:border-primary/40 hover:bg-muted/40"
                 onClick={() => photoInputRef.current?.click()}
               >
                 {photoPreview ? (
@@ -475,7 +476,7 @@ export function StudentFormDialog({
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
-                  className="rounded-xl border border-black/8 bg-white px-3.5 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+                  className="rounded-xl border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
                 >
                   {photoPreview || existingAvatarUrl ? "Change Photo" : "Upload Photo"}
                 </button>
@@ -506,7 +507,7 @@ export function StudentFormDialog({
                   value={studentType}
                   onValueChange={(value) => setStudentType((value as StudentType) ?? "tuition")}
                 >
-                  <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                  <SelectTrigger className="h-11 rounded-xl border-border bg-card">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -521,7 +522,7 @@ export function StudentFormDialog({
                   value={isActive}
                   onValueChange={(value) => setIsActive((value as "active" | "inactive") ?? "active")}
                 >
-                  <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                  <SelectTrigger className="h-11 rounded-xl border-border bg-card">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -535,7 +536,7 @@ export function StudentFormDialog({
             <div>
               <label className="mb-1.5 block text-sm text-muted-foreground">Class</label>
               <Select value={classId} onValueChange={(value) => { if (value) { setClassId(value); setBranchId(""); } }}>
-                <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                <SelectTrigger className="h-11 rounded-xl border-border bg-card">
                   <SelectValue placeholder="Select class">
                     {selectedClass ? `${selectedClass.name} (${selectedClass.board})` : undefined}
                   </SelectValue>
@@ -557,7 +558,7 @@ export function StudentFormDialog({
                   value={branchId || "__none"}
                   onValueChange={(value) => setBranchId(!value || value === "__none" ? "" : value)}
                 >
-                  <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                  <SelectTrigger className="h-11 rounded-xl border-border bg-card">
                     <SelectValue placeholder="No branch assigned" />
                   </SelectTrigger>
                   <SelectContent>
@@ -595,7 +596,7 @@ export function StudentFormDialog({
               />
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-black/[0.04] bg-white/60 px-3.5 py-3 transition hover:bg-white">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-card px-3.5 py-3 transition hover:bg-white">
                 <input
                   type="checkbox"
                   checked={feesFullPayment}
@@ -604,7 +605,7 @@ export function StudentFormDialog({
                 />
                 <span className="text-sm text-foreground">Full Payment</span>
               </label>
-              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-black/[0.04] bg-white/60 px-3.5 py-3 transition hover:bg-white">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-card px-3.5 py-3 transition hover:bg-white">
                 <input
                   type="checkbox"
                   checked={feesInst1}
@@ -614,7 +615,7 @@ export function StudentFormDialog({
                 />
                 <span className="text-sm text-foreground">Installment 1</span>
               </label>
-              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-black/[0.04] bg-white/60 px-3.5 py-3 transition hover:bg-white">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-card px-3.5 py-3 transition hover:bg-white">
                 <input
                   type="checkbox"
                   checked={feesInst2}
@@ -644,7 +645,7 @@ export function StudentFormDialog({
                   type="button"
                   onClick={() => setConfirmDelete(false)}
                   disabled={deleting}
-                  className="rounded-xl border border-black/8 bg-white px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+                  className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
                 >
                   Cancel
                 </button>
@@ -662,7 +663,7 @@ export function StudentFormDialog({
           ) : null}
 
           {/* ── Footer actions ── */}
-          <div className="flex items-center justify-between border-t border-black/[0.04] pt-5">
+          <div className="flex items-center justify-between border-t border-border pt-5">
             <div>
               {isEditMode && !confirmDelete ? (
                 <button
@@ -679,7 +680,7 @@ export function StudentFormDialog({
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+                className="rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
               >
                 Cancel
               </button>
@@ -689,7 +690,7 @@ export function StudentFormDialog({
                   loading ||
                   (!isEditMode && (!selectedProfileId || availableProfiles.length === 0))
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isEditMode ? "Update Student" : "Enroll Student"}

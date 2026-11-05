@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Nunito } from "next/font/google";
+import { Bricolage_Grotesque, Hind_Vadodara } from "next/font/google";
 import { cookies } from "next/headers";
 import type { Session, User } from "@supabase/supabase-js";
 import { Analytics } from "@vercel/analytics/next";
@@ -11,18 +11,20 @@ import { SiteJsonLd } from "@/components/seo/json-ld";
 import { SITE_URL } from "@/lib/site-config";
 import "./globals.css";
 
-const nunito = Nunito({
+// Geometric like the STC logotype, with clean lining numerals for class numbers.
+const bricolage = Bricolage_Grotesque({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["600", "700", "800"],  // Only weights actually used in UI
-  style: ["normal", "italic"],
+  weight: ["500", "600", "700", "800"],
   display: "swap",
   preload: true,
 });
 
-const inter = Inter({
+// Body type with Gujarati glyphs, so student and parent names render in one face.
+const hindVadodara = Hind_Vadodara({
   variable: "--font-body",
-  subsets: ["latin"],
+  subsets: ["latin", "gujarati"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
   preload: true,
 });
@@ -32,13 +34,13 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#ffffff",
+  themeColor: "#f9f9fb",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "STC Academy | The Modern Scholar",
+    default: "STC Academy | The students",
     template: "%s | STC Academy",
   },
   description:
@@ -72,7 +74,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "STC Academy",
-    title: "STC Academy | The Modern Scholar",
+    title: "STC Academy | The students",
     description:
       "STC Tuition Centre provides high-quality study materials and excellent education across every course and level.",
     images: [
@@ -86,7 +88,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "STC Academy | The Modern Scholar",
+    title: "STC Academy | The students",
     description:
       "STC Tuition Centre provides high-quality study materials and excellent education across every course and level.",
     images: ["/android-chrome-512x512.png"],
@@ -149,7 +151,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${nunito.variable} ${inter.variable} h-full antialiased`}
+      className={`${bricolage.variable} ${hindVadodara.variable} h-full antialiased`}
     >
       <head>
         {/* Pre-connect to Supabase for faster API / storage requests */}

@@ -1,9 +1,21 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
+import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Suspense, useCallback, useEffect, useState, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BadgeCheck, ArrowRightLeft, CircleDollarSign, Clock, Download, FileSpreadsheet, FileText, Loader2, Search, UserCheck, Users } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  Search,
+  Users,
+  Plus,
+  MoreHorizontal,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -17,12 +29,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
+  StatStrip,
   StitchEmptyState,
-  StitchSectionHeader,
   stitchButtonClass,
   stitchInputClass,
-  stitchPanelClass,
-  stitchPanelSoftClass,
   stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
@@ -30,12 +40,12 @@ import dynamic from "next/dynamic";
 
 const StudentFormDialog = dynamic(() => import("@/components/admin/student-form-dialog").then(mod => ({ default: mod.StudentFormDialog })), {
   ssr: false,
-  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
+  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-border border-t-transparent rounded-full animate-spin"></div></div>
 });
 
 const CsvUploadDialog = dynamic(() => import("@/components/admin/csv-upload-dialog").then(mod => ({ default: mod.CsvUploadDialog })), {
   ssr: false,
-  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
+  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-border border-t-transparent rounded-full animate-spin"></div></div>
 });
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import {
@@ -558,11 +568,6 @@ function AdminStudentsPageInner() {
       setMigrating(false);
     }
   }
-
-  const summaryCardClass = cn(
-    stitchPanelSoftClass,
-    "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]",
-  );
   const editStudentForDialog =
     editingStudent?.rowKind === "enrolled" && editingStudent.class_id
       ? {
@@ -572,222 +577,134 @@ function AdminStudentsPageInner() {
       : null;
 
   return (
-    <div className="px-6 py-8 md:px-10">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <StitchSectionHeader
-          eyebrow={isTeacherView ? "Teacher Workspace" : "Administration Hub"}
-          title={isTeacherView ? "Assigned Students" : "Student Management"}
-          description={
-            isTeacherView
-              ? "Review students in your assigned classes, including their access type, board, and current status."
-              : "Oversee your cohort's academic progress, administrative standing, and board affiliations through the central atelier interface."
-          }
-        />
-        <div className="flex w-full flex-col gap-3 xl:max-w-none xl:flex-row xl:flex-wrap xl:items-center xl:justify-end">
-          {isTeacherView ? null : (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className={cn(stitchSecondaryButtonClass, "gap-2")}
-                onClick={() => setCsvDialogOpen(true)}
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Bulk Upload
-              </button>
-              <button
-                type="button"
-                className={cn(stitchSecondaryButtonClass, "gap-2")}
-                onClick={openMigrateDialog}
-              >
-                <ArrowRightLeft className="h-4 w-4" />
-                Migrate Class
-              </button>
-              <button
-                type="button"
-                className={stitchButtonClass}
-                onClick={() => {
-                  setEditingStudent(null);
-                  setInitialProfileId(null);
-                  setDialogOpen(true);
-                }}
-              >
-                Enroll Student
-              </button>
-            </div>
-          )}
-          <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto xl:min-w-[380px] xl:max-w-[520px] xl:flex-1">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className={cn(stitchInputClass, "pl-11")}
-                placeholder="Filter by name, phone, email, or subject..."
-              />
-            </div>
-            <button
-              type="button"
-              className={cn(stitchSecondaryButtonClass, "gap-2")}
-              onClick={() => setSearch((value) => value.trim())}
-              disabled={!search.trim()}
-            >
-              <Search className="h-4 w-4" />
-              Search
-            </button>
-            <button
-              type="button"
-              className={stitchSecondaryButtonClass}
-              onClick={() => setSearch("")}
-              disabled={!search.trim()}
-            >
+    <div className="px-4 py-6 md:px-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl text-primary md:text-4xl">{isTeacherView ? "My students" : "Students"}</h1>
+          <p className="mt-1 text-muted-foreground">
+            {isTeacherView
+              ? "Students in your assigned classes. Administrators manage enrollment and fees."
+              : "Search, enroll, and manage students, classes, and fees."}
+          </p>
+        </div>
+        {isTeacherView ? null : (
+          <button
+            type="button"
+            className={stitchButtonClass}
+            onClick={() => {
+              setEditingStudent(null);
+              setInitialProfileId(null);
+              setDialogOpen(true);
+            }}
+          >
+            <Plus aria-hidden="true" className="h-4 w-4" />
+            Enroll student
+          </button>
+        )}
+      </div>
+
+      <StatStrip
+        className="mt-6"
+        items={[
+          { label: pendingCount > 0 ? `Students, ${pendingCount} pending` : "Students", value: students.length },
+          { label: "Fully paid", value: feesPaidCount, tone: "success" },
+          { label: "Part paid", value: feesPartialCount, tone: "warning" },
+          { label: "Not paid", value: feesNotPaidCount, tone: "destructive" },
+        ]}
+      />
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-60 flex-1">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Filter students"
+            className={cn(stitchInputClass, "pl-9 pr-16")}
+            placeholder="Filter by name, phone, email, or subject"
+          />
+          {search ? (
+            <button type="button" onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-secondary">
               Clear
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className={cn(stitchSecondaryButtonClass, "gap-2")}
-              onClick={() => void handleDownloadCSV()}
-              disabled={filtered.length === 0}
-              title="Download as CSV"
-            >
-              <Download className="h-4 w-4" />
-              CSV
-            </button>
-            <button
-              type="button"
-              className={cn(stitchSecondaryButtonClass, "gap-2")}
-              onClick={() => void handleDownloadXLSX()}
-              disabled={filtered.length === 0}
-              title="Download as Excel"
-            >
-              <Download className="h-4 w-4" />
-              Excel
-            </button>
-            <button
-              type="button"
-              className={cn(stitchSecondaryButtonClass, "gap-2")}
-              onClick={() => void handleDownloadForm()}
-              disabled={filtered.length === 0}
-              title="Download student form as PDF"
-            >
-              <FileText className="h-4 w-4" />
-              Form
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <div className="flex items-center justify-between">
-            <p className="stitch-kicker">Total Students</p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-primary/15">
-              <Users className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="mt-4 font-heading text-5xl text-foreground">{students.length}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            <span className="font-medium text-primary">{activeCount}</span> active
-            {pendingCount > 0 ? <> &middot; <span className="font-medium text-amber-600">{pendingCount}</span> pending</> : ""}
-          </p>
-        </div>
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <div className="flex items-center justify-between">
-            <p className="stitch-kicker">Fees Fully Paid</p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/8 text-emerald-600 transition-colors group-hover:bg-emerald-500/15">
-              <BadgeCheck className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="mt-4 font-heading text-5xl text-emerald-600">{feesPaidCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Full payment or both installments
-          </p>
-        </div>
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <div className="flex items-center justify-between">
-            <p className="stitch-kicker">Fees Partial</p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/8 text-amber-600 transition-colors group-hover:bg-amber-500/15">
-              <Clock className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="mt-4 font-heading text-5xl text-amber-600">{feesPartialCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            Installments in progress
-          </p>
-        </div>
-        <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
-          <div className="flex items-center justify-between">
-            <p className="stitch-kicker">Fees Not Paid</p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/8 text-rose-600 transition-colors group-hover:bg-rose-500/15">
-              <CircleDollarSign className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="mt-4 font-heading text-5xl text-rose-600">{feesNotPaidCount}</p>
-          <p className="mt-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/72">
-            No payment received
-          </p>
-        </div>
-      </div>
-
-      {filterClasses.length > 0 ? (
-        <div className={cn(stitchPanelClass, "mt-6")}>
-          <div className={cn("grid gap-4", filterBranches.length > 0 ? "md:grid-cols-2" : "md:grid-cols-1 max-w-xs")}>
-            <Select
-              value={selectedClassFilterId || "__all"}
-              onValueChange={(v) => setSelectedClassFilterId(v === "__all" ? "" : (v ?? ""))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All classes">
-                  {selectedClassFilterId
-                    ? filterClasses.find((c) => c.id === selectedClassFilterId)?.name ?? "All classes"
-                    : "All classes"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all">All classes</SelectItem>
-                {filterClasses.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {filterBranches.length > 0 ? (
-              <Select
-                value={selectedBranchFilterId || "__all"}
-                onValueChange={(v) => setSelectedBranchFilterId(v === "__all" ? "" : (v ?? ""))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All branches">
-                    {selectedBranchFilterId
-                      ? filterBranches.find((b) => b.id === selectedBranchFilterId)?.name ?? "All branches"
-                      : "All branches"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all">All branches</SelectItem>
-                  {filterBranches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
-          </div>
-          {(selectedClassFilterId || selectedBranchFilterId) ? (
-            <button
-              type="button"
-              className="mt-3 text-xs text-muted-foreground transition hover:text-foreground"
-              onClick={() => { setSelectedClassFilterId(""); setSelectedBranchFilterId(""); }}
-            >
-              Clear filters
             </button>
           ) : null}
         </div>
-      ) : null}
+
+        {filterClasses.length > 0 ? (
+          <Select
+            value={selectedClassFilterId || "__all"}
+            onValueChange={(v) => setSelectedClassFilterId(v === "__all" ? "" : (v ?? ""))}
+          >
+            <SelectTrigger aria-label="Filter by class">
+              <SelectValue placeholder="All classes">
+                {selectedClassFilterId
+                  ? filterClasses.find((c) => c.id === selectedClassFilterId)?.name ?? "All classes"
+                  : "All classes"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">All classes</SelectItem>
+              {filterClasses.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+
+        {filterBranches.length > 0 ? (
+          <Select
+            value={selectedBranchFilterId || "__all"}
+            onValueChange={(v) => setSelectedBranchFilterId(v === "__all" ? "" : (v ?? ""))}
+          >
+            <SelectTrigger aria-label="Filter by branch">
+              <SelectValue placeholder="All branches">
+                {selectedBranchFilterId
+                  ? filterBranches.find((b) => b.id === selectedBranchFilterId)?.name ?? "All branches"
+                  : "All branches"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">All branches</SelectItem>
+              {filterBranches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger className={cn(stitchSecondaryButtonClass, "gap-2")}>
+            <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
+            More
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {isTeacherView ? null : (
+              <>
+                <DropdownMenuItem onClick={() => setCsvDialogOpen(true)}>
+                  <FileSpreadsheet aria-hidden="true" className="h-4 w-4" />
+                  Bulk upload
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={openMigrateDialog}>
+                  <ArrowRightLeft aria-hidden="true" className="h-4 w-4" />
+                  Move to another class
+                </DropdownMenuItem>
+              </>
+            )}
+            <DropdownMenuItem disabled={filtered.length === 0} onClick={() => void handleDownloadCSV()}>
+              <Download aria-hidden="true" className="h-4 w-4" />
+              Download CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={filtered.length === 0} onClick={() => void handleDownloadXLSX()}>
+              <Download aria-hidden="true" className="h-4 w-4" />
+              Download Excel
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={filtered.length === 0} onClick={() => void handleDownloadForm()}>
+              <FileText aria-hidden="true" className="h-4 w-4" />
+              Download forms (PDF)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
@@ -797,239 +714,117 @@ function AdminStudentsPageInner() {
         <div className="mt-10">
           <StitchEmptyState
             icon={Users}
-            title="No Students Found"
-            description="Signed-up accounts and enrolled students will appear here as soon as they are available."
+            title="No students found"
+            description="Try a different search or filter. New sign-ups and enrolled students appear here."
           />
         </div>
       ) : (
         <>
-          <div className={cn(stitchPanelClass, "mt-8 overflow-x-auto")}>
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-3xl text-foreground">
-                {isTeacherView ? "Assigned Student Directory" : "Institutional Registry"}
-              </h2>
-              {isTeacherView ? null : (
-                <button
-                  type="button"
-                  className={stitchButtonClass}
-                  onClick={() => {
-                    setEditingStudent(null);
-                    setInitialProfileId(null);
-                    setDialogOpen(true);
-                  }}
-                >
-                  Enroll Student
-                </button>
-              )}
+          <div className="stitch-panel mt-4 overflow-hidden">
+            <div className="hidden grid-cols-[minmax(0,1.5fr)_7rem_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_5rem] gap-4 border-b px-5 py-3 text-sm font-medium text-muted-foreground lg:grid">
+              <span>Student</span>
+              <span>Student ID</span>
+              <span>Class</span>
+              <span>Access</span>
+              <span>Fees</span>
+              <span className="sr-only">Actions</span>
             </div>
-            <table className="w-full min-w-[1040px] text-left">
-              <thead className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                <tr className="border-b-2 border-border/60">
-                  <th className="pb-4 font-medium">Name & Profile</th>
-                  <th className="pb-4 font-medium">Student ID</th>
-                  <th className="pb-4 font-medium">Class Level</th>
-                  <th className="pb-4 font-medium">Branch</th>
-                  <th className="pb-4 font-medium">Academic Board</th>
-                  <th className="pb-4 font-medium">Subject Access</th>
-                  <th className="pb-4 font-medium">Access Type</th>
-                  <th className="pb-4 font-medium">Status</th>
-                  <th className="pb-4 font-medium">Fees</th>
-                  <th className="pb-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {filtered.map((student, index) => {
-                  const studentName = student.profile?.full_name || "Unnamed Scholar";
-                  const initials = studentName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
-                  const hue = studentName.charCodeAt(0) * 7 % 360;
+            <ul className="divide-y">
+              {filtered.map((student, index) => {
+                const studentName = student.profile?.full_name || "Unnamed student";
+                const initials = studentName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                const pending = student.rowKind === "pending";
+                const courseTitles = (student.enrollments ?? [])
+                  .filter((entry) => entry.status === "active")
+                  .map((entry) => entry.course?.title)
+                  .filter((value): value is string => Boolean(value))
+                  .join(", ");
 
-                  return (
-                  <tr key={`${student.rowKind}-${student.id}`} className="transition-colors hover:bg-surface-container-low/60">
-                    <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        {student.profile?.avatar_url ? (
-                          <img src={student.profile.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
-                        ) : (
-                          <div
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                            style={{ background: `hsl(${hue}, 45%, 90%)`, color: `hsl(${hue}, 40%, 40%)` }}
-                          >
-                            {initials}
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {studentName}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {student.profile?.phone || student.profile?.email || "No contact info"}
-                          </p>
+                return (
+                  <li
+                    key={`${student.rowKind}-${student.id}`}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors duration-(--duration-fast) hover:bg-surface-container-low lg:grid-cols-[minmax(0,1.5fr)_7rem_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_5rem] lg:px-5"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      {student.profile?.avatar_url ? (
+                        <img src={student.profile.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                      ) : (
+                        <div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-100 text-xs font-bold text-primary">
+                          {initials}
                         </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-foreground">{studentName}</p>
+                        <p className="tnum truncate text-sm text-muted-foreground">
+                          {student.profile?.phone || student.profile?.email || "No contact info"}
+                        </p>
                       </div>
-                    </td>
-                    <td className="py-4 text-sm text-primary">
+                    </div>
+
+                    <p className="tnum order-last col-span-2 hidden text-sm text-muted-foreground lg:order-none lg:col-span-1 lg:block">
                       {student.enrollment_date
                         ? `STC-${new Date(student.enrollment_date).getFullYear()}-${String(index + 1).padStart(3, "0")}`
                         : "Pending"}
-                    </td>
-                    <td className="py-4 text-sm text-muted-foreground">
-                      {student.class?.name ?? "Awaiting assignment"}
-                    </td>
-                    <td className="py-4 text-sm text-muted-foreground">
-                      {student.branch?.name ?? "—"}
-                    </td>
-                    <td className="py-4 text-sm text-muted-foreground">
-                      {student.class?.board ?? "Pending"}
-                    </td>
-                    <td className="py-4 text-sm text-muted-foreground">
-                      {student.rowKind === "pending"
-                        ? "No online course"
-                        : student.student_type === "online"
-                          ? (student.enrollments ?? [])
-                              .filter((entry) => entry.status === "active")
-                              .map((entry) => entry.course?.title)
-                              .filter((value): value is string => Boolean(value))
-                              .join(", ") || "No online course"
-                          : "Free class subjects"}
-                    </td>
-                    <td className="py-4">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs ${
-                          student.rowKind === "pending"
-                            ? "bg-amber-100 text-amber-700"
-                            : student.student_type === "tuition"
-                              ? "bg-primary/10 text-primary"
-                              : "bg-[#163241] text-[#9db7c5]"
-                        }`}
-                      >
-                        {student.rowKind === "pending"
-                          ? "Signup"
-                          : student.student_type === "tuition"
-                            ? "Tuition"
-                            : "Online"}
-                      </span>
-                    </td>
-                    <td className="py-4">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs ${
-                          student.rowKind === "pending"
-                            ? "bg-amber-100 text-amber-700"
-                            : student.is_active
-                              ? "bg-primary/10 text-primary"
-                              : "bg-[#3f231b] text-[#ff9b82]"
-                        }`}
-                      >
-                        {student.rowKind === "pending"
-                          ? "Pending Enrollment"
-                          : student.is_active
-                            ? "Active"
-                            : "Pending Review"}
-                      </span>
-                    </td>
-                    <td className="py-4">
-                      {student.rowKind === "pending" ? (
-                        <div className="space-y-1">
-                          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-700">
-                            Pending enrollment
-                          </span>
-                          <p className="text-xs text-muted-foreground">
-                            Fees can be added after class assignment.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs ${
-                              isFullyPaid(student)
-                                ? "bg-green-100 text-green-700"
-                                : isPartiallyPaid(student)
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {getFeesStatusLabel(student)}
-                          </span>
-                          {hasFullPaymentMarked(student) ? (
-                            <p className="text-xs text-green-700">Settled with full payment</p>
-                          ) : null}
-                          {student.fees_amount > 0 ? (
-                            <p className="text-xs text-muted-foreground">
-                              Rs {student.fees_amount.toLocaleString("en-IN")}
-                            </p>
-                          ) : null}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4 text-sm text-muted-foreground">
-                      {isTeacherView ? (
-                        <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          Read only
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className={stitchSecondaryButtonClass}
-                          onClick={() => {
-                            if (student.rowKind === "pending") {
-                              setEditingStudent(null);
-                              setInitialProfileId(student.profile_id);
-                            } else {
-                              setEditingStudent(student);
-                              setInitialProfileId(null);
-                            }
-                            setDialogOpen(true);
-                          }}
-                        >
-                          {student.rowKind === "pending" ? "Enroll" : "Edit"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    </p>
 
-          <div className="mt-8 grid gap-6 xl:grid-cols-2">
-            <div className={stitchPanelClass}>
-              <h3 className="text-4xl text-foreground">
-                {isTeacherView ? "Class Distribution Overview" : "Board Compliance Overview"}
-              </h3>
-              <p className="mt-4 text-base leading-8 text-muted-foreground">
-                {isTeacherView
-                  ? "Use this directory to confirm which students belong to each class before publishing attendance, syllabus, and materials."
-                  : "Your current enrollment aligns with 94% institutional policy. Review pending status updates to maintain accreditation."}
-              </p>
-              {isTeacherView ? null : (
-                <button
-                  type="button"
-                  className={cn(stitchButtonClass, "mt-8")}
-                  onClick={() => router.push("/admin/classes")}
-                >
-                  View Compliance Report
-                </button>
-              )}
-            </div>
-            <div className={stitchPanelClass}>
-              <h3 className="text-4xl text-foreground">
-                {isTeacherView ? "Teaching Notes" : "Mastery Progression"}
-              </h3>
-              <p className="mt-4 text-base leading-8 text-muted-foreground">
-                {isTeacherView
-                  ? "Any attendance, syllabus, or material updates you publish for your assigned classes remain visible to admin automatically."
-                  : "Student level distributions are trending toward advanced cohorts. Consider expanding atelier capacity for the upcoming semester."}
-              </p>
-              {isTeacherView ? null : (
-                <button
-                  type="button"
-                  className={cn(stitchSecondaryButtonClass, "mt-8")}
-                  onClick={() => router.push("/admin/attendance")}
-                >
-                  Analyze Academic Trends
-                </button>
-              )}
-            </div>
+                    <div className="order-last col-span-2 min-w-0 text-sm lg:order-none lg:col-span-1">
+                      <p className="truncate font-medium text-foreground">{student.class?.name ?? "No class assigned"}</p>
+                      <p className="truncate text-muted-foreground">
+                        {[student.class?.board, student.branch?.name].filter(Boolean).join(", ") || "Board pending"}
+                      </p>
+                    </div>
+
+                    <div className="order-last col-span-2 min-w-0 text-sm lg:order-none lg:col-span-1">
+                      <Badge variant={pending ? "warning" : student.is_active ? "secondary" : "warning"}>
+                        {pending ? "Waiting to enroll" : student.student_type === "tuition" ? "Tuition" : "Online"}
+                        {!pending && !student.is_active ? ", in review" : ""}
+                      </Badge>
+                      {!pending && student.student_type === "online" ? (
+                        <p className="mt-1 truncate text-muted-foreground">{courseTitles || "No online course"}</p>
+                      ) : null}
+                    </div>
+
+                    <div className="order-last col-span-2 min-w-0 text-sm lg:order-none lg:col-span-1">
+                      {pending ? (
+                        <p className="text-muted-foreground">Added after enrollment</p>
+                      ) : (
+                        <>
+                          <Badge variant={isFullyPaid(student) ? "success" : isPartiallyPaid(student) ? "warning" : "destructive"}>
+                            {getFeesStatusLabel(student)}
+                          </Badge>
+                          <p className="tnum mt-1 text-muted-foreground">
+                            {student.fees_amount > 0 ? `₹${student.fees_amount.toLocaleString("en-IN")}` : ""}
+                            {hasFullPaymentMarked(student) ? " in one payment" : ""}
+                          </p>
+                        </>
+                      )}
+                    </div>
+
+                    {isTeacherView ? (
+                      <span className="sr-only">Read only</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className={cn(stitchSecondaryButtonClass, "min-h-9 px-3")}
+                        aria-label={`${pending ? "Enroll" : "Edit"} ${studentName}`}
+                        onClick={() => {
+                          if (pending) {
+                            setEditingStudent(null);
+                            setInitialProfileId(student.profile_id);
+                          } else {
+                            setEditingStudent(student);
+                            setInitialProfileId(null);
+                          }
+                          setDialogOpen(true);
+                        }}
+                      >
+                        {pending ? "Enroll" : "Edit"}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </>
       )}
@@ -1064,7 +859,7 @@ function AdminStudentsPageInner() {
 
               <div className="mt-4 space-y-4">
                 <div>
-                  <label htmlFor="migrate-source-class" className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Source Class</label>
+                  <label htmlFor="migrate-source-class" className="mb-2 block text-xs text-muted-foreground">Source Class</label>
                   <Select value={migrateSourceClassId} onValueChange={(v) => { setMigrateSourceClassId(v ?? ""); setMigrateError(""); setMigrateSuccess(""); }}>
                     <SelectTrigger id="migrate-source-class"><SelectValue placeholder="Select source class" /></SelectTrigger>
                     <SelectContent>
@@ -1081,7 +876,7 @@ function AdminStudentsPageInner() {
                 </div>
 
                 <div>
-                  <label htmlFor="migrate-target-class" className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Target Class</label>
+                  <label htmlFor="migrate-target-class" className="mb-2 block text-xs text-muted-foreground">Target Class</label>
                   <Select value={migrateTargetClassId} onValueChange={(v) => { setMigrateTargetClassId(v ?? ""); setMigrateError(""); setMigrateSuccess(""); }}>
                     <SelectTrigger id="migrate-target-class"><SelectValue placeholder="Select target class" /></SelectTrigger>
                     <SelectContent>
@@ -1106,7 +901,7 @@ function AdminStudentsPageInner() {
                 </label>
 
                 {migrateError && <p className="text-sm text-destructive" role="alert">{migrateError}</p>}
-                {migrateSuccess && <p className="text-sm text-emerald-600" role="status">{migrateSuccess}</p>}
+                {migrateSuccess && <p className="text-sm text-success" role="status">{migrateSuccess}</p>}
 
                 <div className="flex justify-end gap-3 pt-2">
                   <Button variant="outline" onClick={() => setMigrateDialogOpen(false)} disabled={migrating} className="cursor-pointer">

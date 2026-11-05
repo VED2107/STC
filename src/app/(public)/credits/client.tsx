@@ -383,15 +383,15 @@ export function CreditsPage() {
       {/* ─── Hero ─── */}
       <section
         ref={heroRef}
-        className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-muted py-24 md:py-32 lg:py-40"
+        className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-muted py-16 md:py-24 lg:py-40"
       >
         <GradientMesh />
         <FloatingParticles />
 
-        <div className="relative z-10 mx-auto max-w-[1600px] px-6 text-center md:px-12">
+        <div className="relative z-10 mx-auto max-w-[1280px] px-6 text-center md:px-12">
           <p className="hero-kicker stitch-kicker">Credits & Founders</p>
 
-          <h1 className="mt-6 text-5xl font-light italic leading-tight text-primary md:text-7xl xl:text-8xl">
+          <h1 className="mt-6 text-5xl font-light leading-tight text-primary md:text-7xl xl:text-8xl">
             {heroWords.map((word, i) => (
               <span
                 key={i}
@@ -407,25 +407,25 @@ export function CreditsPage() {
             ))}
           </h1>
 
-          <p className="hero-subtitle mx-auto mt-8 max-w-3xl text-base font-light leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
+          <p className="hero-subtitle mx-auto mt-8 max-w-3xl text-lg leading-8 text-muted-foreground">
             A showcase of the vision, leadership, and engineering behind the
             Student Tracking & Campus Management Platform.
           </p>
 
           <div className="hero-scroll-cue mt-16 flex flex-col items-center gap-2 text-muted-foreground/50">
-            <span className="text-[10px] uppercase tracking-[0.3em]">Scroll to explore</span>
+            <span className="text-xs">Scroll to explore</span>
             <div className="h-8 w-px bg-gradient-to-b from-muted-foreground/30 to-transparent" />
           </div>
         </div>
       </section>
 
       {/* ─── Founder Showcase ─── */}
-      <section ref={founderRef} className="relative py-24 md:py-32 lg:py-40">
-        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+      <section ref={founderRef} className="relative py-16 md:py-24 lg:py-40">
+        <div className="mx-auto max-w-[1280px] px-4 md:px-8">
           <div className="founder-header max-w-3xl">
             <p className="stitch-kicker">The Visionary</p>
-            <h2 className="mt-4 text-4xl font-light italic text-primary sm:text-5xl md:text-6xl lg:text-7xl">
-              Founded on a <span className="text-secondary">mission</span>
+            <h2 className="mt-2 text-3xl text-primary md:text-5xl lg:text-7xl">
+              Founded on a mission
             </h2>
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
               Behind every great institution is a leader with unwavering vision.
@@ -434,14 +434,14 @@ export function CreditsPage() {
           </div>
 
           <div ref={founderCardRef} className="mt-16">
-            <div className="relative overflow-hidden rounded-[28px] border border-black/[0.04] bg-white p-1 shadow-[0_32px_80px_-32px_rgba(26,28,29,0.12)]">
-              <div className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-secondary/5 via-transparent to-accent/5" />
-              <div className="relative rounded-[24px] bg-white p-6 sm:p-8 md:p-10 lg:p-12">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-secondary/5 via-transparent to-accent/5" />
+              <div className="relative rounded-xl bg-card p-6 sm:p-8 md:p-10 lg:p-12">
                 <div className="flex flex-col items-start gap-8 lg:flex-row lg:gap-14">
                   {/* Photo */}
                   <div className="group relative shrink-0">
-                    <div className="absolute -inset-2 rounded-[28px] bg-gradient-to-br from-secondary/20 to-accent/20 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100" />
-                    <div className="relative h-48 w-48 overflow-hidden rounded-[24px] bg-muted sm:h-56 sm:w-56 lg:h-64 lg:w-64">
+                    <div className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-secondary/20 to-accent/20 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100" />
+                    <div className="relative h-48 w-48 overflow-hidden rounded-xl bg-muted sm:h-56 sm:w-56 lg:h-64 lg:w-64">
                       <Image
                         src={FOUNDER.photo}
                         alt={FOUNDER.name}
@@ -449,7 +449,7 @@ export function CreditsPage() {
                         sizes="(min-width: 1024px) 256px, (min-width: 640px) 224px, 192px"
                         className="object-cover object-top"
                       />
-                      <div className="absolute inset-0 rounded-[24px] ring-1 ring-inset ring-black/5" />
+                      <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-black/5" />
                     </div>
                   </div>
 
@@ -469,7 +469,7 @@ export function CreditsPage() {
                       {FOUNDER.experience}
                     </div>
 
-                    <p className="max-w-xl text-base leading-relaxed text-muted-foreground italic">
+                    <p className="max-w-xl text-base leading-relaxed text-muted-foreground">
                       &ldquo;{FOUNDER.vision}&rdquo;
                     </p>
 
@@ -481,14 +481,14 @@ export function CreditsPage() {
                     <div className="flex items-center gap-3 pt-2">
                       <a
                         href={`tel:${FOUNDER.phone}`}
-                        className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-secondary hover:text-white hover:shadow-lg"
+                        className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:bg-secondary hover:text-primary hover:shadow-lg"
                         aria-label="Call founder"
                       >
                         <Phone className="h-5 w-5" />
                       </a>
                       <a
                         href={`mailto:${FOUNDER.email}`}
-                        className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-secondary hover:text-white hover:shadow-lg"
+                        className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:bg-secondary hover:text-primary hover:shadow-lg"
                         aria-label="Email founder"
                       >
                         <Mail className="h-5 w-5" />
@@ -503,19 +503,19 @@ export function CreditsPage() {
       </section>
 
       {/* ─── Divider ─── */}
-      <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+      <div className="mx-auto max-w-[1280px] px-4 md:px-8">
         <div className="h-px bg-gradient-to-r from-transparent via-black/8 to-transparent" />
       </div>
 
       {/* ─── Powered By Showcase ─── */}
-      <section ref={developerRef} className="relative py-24 md:py-32 lg:py-40">
+      <section ref={developerRef} className="relative py-16 md:py-24 lg:py-40">
         <GradientMesh />
 
-        <div className="relative z-10 mx-auto max-w-[1600px] px-6 md:px-12">
+        <div className="relative z-10 mx-auto max-w-[1280px] px-4 md:px-8">
           <div className="developer-header max-w-3xl">
             <p className="stitch-kicker">Powered By</p>
-            <h2 className="mt-4 text-4xl font-light italic text-primary sm:text-5xl md:text-6xl lg:text-7xl">
-              Engineered with <span className="text-secondary">precision</span>
+            <h2 className="mt-2 text-3xl text-primary md:text-5xl lg:text-7xl">
+              Engineered with precision
             </h2>
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
               The entire STC platform — every component, every API endpoint, every pixel — was
@@ -525,15 +525,15 @@ export function CreditsPage() {
 
           {/* Developer card */}
           <div ref={developerCardRef} className="mt-16">
-            <div className="relative overflow-hidden rounded-[28px] border border-black/[0.04] bg-white p-1 shadow-[0_32px_80px_-32px_rgba(26,28,29,0.12)]">
-              <div className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-secondary/5 via-transparent to-accent/8" />
-              <div className="relative rounded-[24px] bg-white">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-secondary/5 via-transparent to-accent/8" />
+              <div className="relative rounded-xl bg-card">
                 <div className="p-6 sm:p-8 md:p-10 lg:p-12">
                   <div className="flex flex-col items-start gap-8 lg:flex-row lg:gap-14">
                     {/* Photo */}
                     <div className="group relative shrink-0">
-                      <div className="absolute -inset-3 rounded-[28px] bg-gradient-to-br from-secondary/25 to-accent/25 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
-                      <div className="relative h-48 w-48 overflow-hidden rounded-[24px] bg-muted sm:h-56 sm:w-56 lg:h-64 lg:w-64">
+                      <div className="absolute -inset-3 rounded-2xl bg-gradient-to-br from-secondary/25 to-accent/25 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+                      <div className="relative h-48 w-48 overflow-hidden rounded-xl bg-muted sm:h-56 sm:w-56 lg:h-64 lg:w-64">
                         <Image
                           src={DEVELOPER.photo}
                           alt={DEVELOPER.name}
@@ -541,7 +541,7 @@ export function CreditsPage() {
                           sizes="(min-width: 1024px) 256px, (min-width: 640px) 224px, 192px"
                           className="object-cover object-top"
                         />
-                        <div className="absolute inset-0 rounded-[24px] ring-1 ring-inset ring-black/5" />
+                        <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-black/5" />
                       </div>
                     </div>
 
@@ -594,7 +594,7 @@ export function CreditsPage() {
                 {/* Stats bar */}
                 <div
                   ref={statsRef}
-                  className="border-t border-black/[0.04] bg-muted/30 px-6 py-6 sm:px-8 md:px-10 lg:px-12"
+                  className="border-t border-border bg-muted/30 px-6 py-6 sm:px-8 md:px-10 lg:px-12"
                 >
                   <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
                     {ENGINEERING_STATS.map((stat) => (
@@ -602,7 +602,7 @@ export function CreditsPage() {
                         <p className="font-heading text-2xl font-bold text-primary sm:text-3xl">
                           {stat.value}
                         </p>
-                        <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {stat.label}
                         </p>
                       </div>
@@ -611,7 +611,7 @@ export function CreditsPage() {
                 </div>
 
                 {/* Social + Portfolio */}
-                <div className="border-t border-black/[0.04] px-6 py-6 sm:px-8 md:px-10 lg:px-12">
+                <div className="border-t border-border px-6 py-6 sm:px-8 md:px-10 lg:px-12">
                   <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                     {/* Social links */}
                     <div ref={socialsRef} className="flex items-center gap-3">
@@ -619,7 +619,7 @@ export function CreditsPage() {
                         href={DEVELOPER.github}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-foreground hover:text-white hover:shadow-lg"
+                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:bg-foreground hover:text-primary hover:shadow-lg"
                         aria-label="GitHub"
                       >
                         <Github className="h-5 w-5" />
@@ -628,7 +628,7 @@ export function CreditsPage() {
                         href={DEVELOPER.linkedin}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-[#0a66c2] hover:text-white hover:shadow-lg"
+                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:bg-[#0a66c2] hover:text-primary hover:shadow-lg"
                         aria-label="LinkedIn"
                       >
                         <Linkedin className="h-5 w-5" />
@@ -637,14 +637,14 @@ export function CreditsPage() {
                         href={DEVELOPER.instagram}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-gradient-to-br hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:text-white hover:shadow-lg"
+                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:bg-gradient-to-br hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:text-primary hover:shadow-lg"
                         aria-label="Instagram"
                       >
                         <Instagram className="h-5 w-5" />
                       </a>
                       <a
                         href={`mailto:${DEVELOPER.email}`}
-                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-secondary hover:text-white hover:shadow-lg"
+                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:bg-secondary hover:text-primary hover:shadow-lg"
                         aria-label="Email"
                       >
                         <Mail className="h-5 w-5" />
@@ -657,7 +657,7 @@ export function CreditsPage() {
                       href={DEVELOPER.portfolio}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group/portfolio relative inline-flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-secondary to-secondary/80 px-7 py-4 text-base font-semibold text-white shadow-[0_8px_30px_-8px_rgba(115,92,0,0.4)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-8px_rgba(115,92,0,0.5)]"
+                      className="group/portfolio relative inline-flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-secondary to-secondary/80 px-7 py-4 text-base font-semibold text-primary shadow-sm transition-all"
                     >
                       <div className="portfolio-glow pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-r from-accent/30 to-secondary/30 opacity-0 blur-xl" />
                       <Globe className="relative h-5 w-5" />
@@ -673,17 +673,17 @@ export function CreditsPage() {
       </section>
 
       {/* ─── Divider ─── */}
-      <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+      <div className="mx-auto max-w-[1280px] px-4 md:px-8">
         <div className="h-px bg-gradient-to-r from-transparent via-black/8 to-transparent" />
       </div>
 
       {/* ─── Engineering & Development (SNOWBROS) ─── */}
-      <section ref={snowbrosRef} className="relative py-24 md:py-32 lg:py-40">
-        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+      <section ref={snowbrosRef} className="relative py-16 md:py-24 lg:py-40">
+        <div className="mx-auto max-w-[1280px] px-4 md:px-8">
           <div className="snowbros-header max-w-3xl">
             <p className="stitch-kicker">Engineering & Development</p>
-            <h2 className="mt-4 text-4xl font-light italic text-primary sm:text-5xl md:text-6xl lg:text-7xl">
-              Built by <span className="text-secondary">{SNOWBROS.name}</span>
+            <h2 className="mt-2 text-3xl text-primary md:text-5xl lg:text-7xl">
+              Built by {SNOWBROS.name}
             </h2>
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
               {SNOWBROS.tagline} From initial planning and UI engineering to backend
@@ -694,9 +694,9 @@ export function CreditsPage() {
           </div>
 
           <div ref={snowbrosCardRef} className="mt-16">
-            <div className="relative overflow-hidden rounded-[28px] border border-black/[0.04] bg-white p-1 shadow-[0_32px_80px_-32px_rgba(26,28,29,0.12)]">
-              <div className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-secondary/5 via-transparent to-accent/8" />
-              <div className="relative rounded-[24px] bg-white">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-secondary/5 via-transparent to-accent/8" />
+              <div className="relative rounded-xl bg-card">
                 <div className="p-6 sm:p-8 md:p-10 lg:p-12">
                   <div className="flex items-center gap-4">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-secondary/8 text-secondary">
@@ -714,7 +714,7 @@ export function CreditsPage() {
 
                   {/* Responsibilities */}
                   <div className="mt-10">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    <p className="text-xs font-semibold text-muted-foreground">
                       Responsibilities
                     </p>
                     <div ref={responsibilitiesRef} className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -735,14 +735,14 @@ export function CreditsPage() {
 
                   {/* Tech Stack */}
                   <div className="mt-8">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    <p className="text-xs font-semibold text-muted-foreground">
                       Technology Stack
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {TECH_STACK.map((tech) => (
                         <span
                           key={tech}
-                          className="rounded-full border border-black/[0.06] bg-white px-3.5 py-1.5 text-xs font-medium text-foreground/70"
+                          className="rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-foreground/70"
                         >
                           {tech}
                         </span>
@@ -757,14 +757,14 @@ export function CreditsPage() {
                 </div>
 
                 {/* Social + Website */}
-                <div className="border-t border-black/[0.04] px-6 py-6 sm:px-8 md:px-10 lg:px-12">
+                <div className="border-t border-border px-6 py-6 sm:px-8 md:px-10 lg:px-12">
                   <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                     <div ref={snowbrosSocialsRef} className="flex items-center gap-3">
                       <a
                         href={SNOWBROS.github}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-foreground hover:text-white hover:shadow-lg"
+                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:bg-foreground hover:text-primary hover:shadow-lg"
                         aria-label="SNOWBROS GitHub"
                       >
                         <Github className="h-5 w-5" />
@@ -773,7 +773,7 @@ export function CreditsPage() {
                         href={SNOWBROS.linkedin}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:-translate-y-0.5 hover:bg-[#0a66c2] hover:text-white hover:shadow-lg"
+                        className="social-item group/social flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/60 transition-all hover:bg-[#0a66c2] hover:text-primary hover:shadow-lg"
                         aria-label="SNOWBROS LinkedIn"
                       >
                         <Linkedin className="h-5 w-5" />
@@ -787,7 +787,7 @@ export function CreditsPage() {
                       href={SNOWBROS.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group/portfolio relative inline-flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-secondary to-secondary/80 px-7 py-4 text-base font-semibold text-white shadow-[0_8px_30px_-8px_rgba(115,92,0,0.4)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-8px_rgba(115,92,0,0.5)]"
+                      className="group/portfolio relative inline-flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-secondary to-secondary/80 px-7 py-4 text-base font-semibold text-primary shadow-sm transition-all"
                     >
                       <Globe className="relative h-5 w-5" />
                       <span className="relative">snowbros.me</span>
@@ -802,31 +802,29 @@ export function CreditsPage() {
       </section>
 
       {/* ─── Closing ─── */}
-      <section ref={closingRef} className="relative overflow-hidden py-24 md:py-32">
-        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
-          <div className="relative overflow-hidden rounded-[28px] bg-primary px-8 py-16 md:px-16 md:py-24">
-            <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/[0.03]" />
-            <div className="pointer-events-none absolute -bottom-12 left-1/4 h-40 w-40 rounded-full bg-white/[0.04]" />
-            <div className="pointer-events-none absolute left-1/2 top-0 h-px w-1/2 -translate-x-1/2 bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
+      <section ref={closingRef} className="relative overflow-hidden py-16 md:py-24">
+        <div className="mx-auto max-w-[1280px] px-4 md:px-8">
+          <div className="relative overflow-hidden rounded-2xl bg-primary px-8 py-16 md:px-16 md:py-24">
+                                    <div className="pointer-events-none absolute left-1/2 top-0 h-px w-1/2 -translate-x-1/2 bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
 
             <div ref={closingContentRef} className="relative mx-auto max-w-3xl text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                 <GraduationCap className="h-8 w-8 text-accent" />
               </div>
 
-              <h2 className="mt-8 text-4xl font-light text-white sm:text-5xl md:text-6xl">
+              <h2 className="mt-8 text-4xl font-light text-primary sm:text-5xl md:text-6xl">
                 Building the future of{" "}
-                <span className="italic text-accent">education</span>
+                education
               </h2>
 
-              <p className="mt-6 text-base leading-relaxed text-white/60 md:text-lg">
+              <p className="mt-6 text-base leading-relaxed text-primary md:text-lg">
                 STC Academy is more than a platform — it&apos;s a commitment to
                 transforming how students learn, how teachers teach, and how
                 institutions grow. Every line of code, every design decision, and
                 every feature was crafted with one goal: empowering education.
               </p>
 
-              <div className="mt-10 flex items-center justify-center gap-2 text-sm text-white/40">
+              <div className="mt-10 flex items-center justify-center gap-2 text-sm text-primary/40">
                 <span>Made with</span>
                 <Heart className="h-4 w-4 text-red-400" />
                 <span>for education</span>
@@ -835,14 +833,14 @@ export function CreditsPage() {
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 <Link
                   href="/courses"
-                  className="stitch-press inline-flex items-center gap-2 rounded-xl bg-accent px-8 py-4 text-base font-semibold text-accent-foreground transition hover:-translate-y-0.5 hover:brightness-105"
+                  className="stitch-press inline-flex items-center gap-2 rounded-xl bg-accent px-8 py-4 text-base font-semibold text-accent-foreground transition hover:brightness-105"
                 >
                   Explore Courses
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/about"
-                  className="stitch-press rounded-xl bg-white/10 px-8 py-4 text-base font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/15"
+                  className="stitch-press rounded-xl bg-muted px-8 py-4 text-base font-semibold text-primary transition hover:bg-muted"
                 >
                   About STC
                 </Link>
