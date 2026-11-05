@@ -16,19 +16,19 @@ import {
 import { cn } from "@/lib/utils";
 
 const subjectColors = [
-  "bg-[#eef2ff] text-[#3651a5]",
-  "bg-[#fff2dc] text-[#9a6500]",
-  "bg-[#f1edff] text-[#6a4bc4]",
-  "bg-[#d0e9d4]/55 text-[#374c3d]",
-  "bg-[#fce4ec] text-[#c62828]",
-  "bg-[#e8f5e9] text-[#2e7d32]",
+  "bg-info-soft text-info",
+  "bg-warning-soft text-warning",
+  "bg-muted text-secondary",
+  "bg-success-soft text-success",
+  "bg-danger-soft text-destructive",
+  "bg-success-soft text-success",
 ];
 
 const typeConfig: Record<string, { accent: string }> = {
-  pdf: { accent: "bg-[#fce4ec] text-[#c62828]" },
-  video: { accent: "bg-[#e8f5e9] text-[#2e7d32]" },
-  notes: { accent: "bg-[#eef2ff] text-[#3651a5]" },
-  link: { accent: "bg-[#fff2dc] text-[#9a6500]" },
+  pdf: { accent: "bg-danger-soft text-destructive" },
+  video: { accent: "bg-success-soft text-success" },
+  notes: { accent: "bg-info-soft text-info" },
+  link: { accent: "bg-warning-soft text-warning" },
 };
 
 interface SyllabusRow {
@@ -176,7 +176,7 @@ export default function StudentSyllabusPage() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="Class Curriculum"
         title={className || "Syllabus Overview"}
@@ -188,7 +188,7 @@ export default function StudentSyllabusPage() {
           <StitchEmptyState
             icon={BookOpen}
             title="No Syllabus Published"
-            description="No syllabus is available for your class yet. The atelier will publish the roadmap here."
+            description="No syllabus is available for your class yet. It will appear here once your teacher publishes it."
           />
         </div>
       ) : (
@@ -200,7 +200,7 @@ export default function StudentSyllabusPage() {
                 <div
                   key={syllabus.id}
                   className={cn(
-                    "rounded-2xl px-4 py-3 text-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-sm cursor-default",
+                    "rounded-2xl px-4 py-3 text-sm transition duration-200 hover:shadow-sm cursor-default",
                     index === 0
                       ? "bg-primary/10 text-primary"
                       : subjectColors[index % subjectColors.length]
@@ -227,7 +227,7 @@ export default function StudentSyllabusPage() {
                     >
                       <BookOpen className="h-4 w-4" />
                     </span>
-                    <h2 className="text-4xl text-foreground">{syllabus.subject}</h2>
+                    <h2 className="text-xl text-foreground">{syllabus.subject}</h2>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
@@ -239,11 +239,11 @@ export default function StudentSyllabusPage() {
                         href={material.file_url}
                         target="_blank"
                         rel="noreferrer"
-                        className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/12")}
+                        className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-200 hover:shadow-md hover:border-primary/12")}
                       >
-                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#f1edff]/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                         <div className="relative flex items-center justify-between gap-3">
-                          <span className={cn("stitch-pill px-3 py-1 text-[10px] border-transparent", materialTypeConfig.accent)}>
+                          <span className={cn("stitch-pill px-3 py-1 text-xs border-transparent", materialTypeConfig.accent)}>
                             {material.type}
                           </span>
                           <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", materialTypeConfig.accent)}>
@@ -254,7 +254,7 @@ export default function StudentSyllabusPage() {
                             )}
                           </span>
                         </div>
-                        <h3 className="relative mt-8 text-3xl leading-tight text-foreground">{material.title}</h3>
+                        <h3 className="text-xl relative mt-8 leading-tight text-foreground">{material.title}</h3>
                         <p className="relative mt-4 text-sm leading-7 text-muted-foreground">
                           Linked study material for this subject.
                         </p>

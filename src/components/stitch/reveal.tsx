@@ -1,8 +1,7 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { useSmoothReveal } from "@/hooks/use-smooth-animation";
 
 type RevealVariant = "fade-up" | "fade" | "mask-up" | "soft-zoom";
 
@@ -12,46 +11,43 @@ interface RevealProps {
   delay?: number;
   threshold?: number;
   variant?: RevealVariant;
-  /** Override animation duration in ms (default: 900) */
+  /** Accepted for existing call sites. Timing now comes from the motion tokens. */
   duration?: number;
 }
 
 /**
- * Scroll-triggered reveal component powered by Web Animations API.
- *
- * WAAPI runs animations on the compositor thread, guaranteeing
- * buttery 60-120fps regardless of main-thread load.
- *
- * - "fade-up"   — opacity + translateY (default)
- * - "fade"      — opacity only
- * - "mask-up"   — opacity + large translateY + blur
- * - "soft-zoom" — opacity + scale + blur
+ * Reveals content once as it scrolls into view. The transition lives in CSS,
+ * so content stays visible without script and with reduced motion on.
  */
-export function Reveal({
-  children,
-  className,
-  delay = 0,
-  threshold = 0.15,
-  variant = "fade-up",
-  duration = 900,
-}: RevealProps) {
-  const ref = useSmoothReveal(variant, delay, threshold, duration);
+export function Reveal({ children, className, delay = 0, threshold = 0.12, variant = "fade-up" }: RevealProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries, obs) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            (entry.target as HTMLElement).dataset.visible = "true";
+            obs.unobserve(entry.target);
+          }
+        }
+      },
+      { rootMargin: "0px 0px -6% 0px", threshold },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
 
   return (
     <div
       ref={ref}
-      data-reveal={variant}
+      data-reveal={variant === "fade" ? "fade" : "rise"}
       className={cn("stitch-reveal", className)}
-      style={
-        {
-          // Start hidden (WAAPI will animate from here)
-          opacity: 0,
-          // GPU-promote so compositor handles the layer
-          contain: "layout style",
-          backfaceVisibility: "hidden",
-          WebkitBackfaceVisibility: "hidden",
-        } as CSSProperties
-      }
+      style={{ "--reveal-delay": `${Math.min(delay, 240)}ms` } as CSSProperties}
     >
       {children}
     </div>

@@ -45,7 +45,7 @@ function StudentSettingsPageInner() {
 
   const sidebarCardClass = cn(
     stitchPanelClass,
-    "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+    "group relative overflow-hidden transition duration-300 "
   );
 
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
@@ -154,7 +154,7 @@ function StudentSettingsPageInner() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="Account Settings"
         title="Profile Settings"
@@ -166,7 +166,7 @@ function StudentSettingsPageInner() {
       />
 
       {!data?.hasStudentRecord ? (
-        <div className="mt-6 rounded-[24px] border border-amber-300/50 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+        <div className="mt-6 rounded-xl border border-warning/30 bg-warning-soft px-5 py-4 text-sm text-warning">
           Your account is created, but no class is assigned yet. An admin needs to enroll you before class-based dashboard features become available.
         </div>
       ) : null}
@@ -176,7 +176,7 @@ function StudentSettingsPageInner() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className={stitchPanelSoftClass}>
               <div className="flex items-center gap-3 mb-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-info-soft text-info">
                   <User className="h-4 w-4" />
                 </span>
                 <p className="stitch-kicker">Full Name</p>
@@ -190,7 +190,7 @@ function StudentSettingsPageInner() {
             </div>
             <div className={stitchPanelSoftClass}>
               <div className="flex items-center gap-3 mb-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-secondary">
                   <Mail className="h-4 w-4" />
                 </span>
                 <p className="stitch-kicker">Email</p>
@@ -199,7 +199,7 @@ function StudentSettingsPageInner() {
             </div>
             <div className={stitchPanelSoftClass}>
               <div className="flex items-center gap-3 mb-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#d0e9d4]/55 text-[#374c3d]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-success-soft text-success">
                   <Phone className="h-4 w-4" />
                 </span>
                 <p className="stitch-kicker">Phone</p>
@@ -220,7 +220,7 @@ function StudentSettingsPageInner() {
             </div>
             <div className={stitchPanelSoftClass}>
               <div className="flex items-center gap-3 mb-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-warning-soft text-warning">
                   <Users className="h-4 w-4" />
                 </span>
                 <p className="stitch-kicker">Parent Phone</p>
@@ -282,19 +282,19 @@ function StudentSettingsPageInner() {
 
           <div className={sidebarCardClass}>
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-secondary">
                 <UserCircle2 className="h-4 w-4" />
               </span>
-              <h3 className="text-3xl text-foreground">Role</h3>
+              <h3 className="text-xl text-foreground">Role</h3>
             </div>
             <div className="mt-4">
               <span className={cn(
-                "inline-flex rounded-full px-4 py-1.5 text-xs font-medium uppercase tracking-[0.22em]",
+                "inline-flex rounded-full px-4 py-1.5 text-xs font-medium ",
                 data?.role === "admin" || data?.role === "super_admin"
-                  ? "bg-[#fce4ec] text-[#c62828]"
+                  ? "bg-danger-soft text-destructive"
                   : data?.role === "teacher"
-                    ? "bg-[#eef2ff] text-[#3651a5]"
-                    : "bg-[#d0e9d4]/55 text-[#374c3d]"
+                    ? "bg-info-soft text-info"
+                    : "bg-success-soft text-success"
               )}>
                 {data?.role ?? "student"}
               </span>
@@ -305,12 +305,12 @@ function StudentSettingsPageInner() {
 
           <div className={sidebarCardClass}>
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-warning-soft text-warning">
                 <Bell className="h-4 w-4" />
               </span>
-              <h3 className="text-3xl text-foreground">Notifications</h3>
+              <h3 className="text-xl text-foreground">Notifications</h3>
             </div>
-            <p className="mt-4 font-heading text-5xl text-foreground">
+            <p className="mt-4 tnum text-3xl font-bold text-foreground">
               {data?.notifications ?? 0}
             </p>
             <p className="mt-3 text-sm text-muted-foreground">

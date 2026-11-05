@@ -1,27 +1,31 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
+import { confirmAction } from "@/components/ui/feedback";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { BookOpen, ImageOff, RefreshCw, Search } from "lucide-react";
+import {
+  BookOpen,
+  RefreshCw,
+  Search,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
 import {
   StitchEmptyState,
-  StitchSectionHeader,
   stitchButtonClass,
   stitchInputClass,
-  stitchPanelClass,
+  stitchSecondaryButtonClass,
 } from "@/components/stitch/primitives";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 
 const CourseFormDialog = dynamic(() => import("@/components/admin/course-form-dialog").then(mod => ({ default: mod.CourseFormDialog })), {
   ssr: false,
-  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>
+  loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-border border-t-transparent rounded-full animate-spin"></div></div>
 });
 import { getAdminPageCache, getAdminPageStorageCache, setAdminPageCache } from "@/lib/admin-page-cache";
 import { invalidateAfterCourseMutation } from "@/lib/cache-invalidation";
@@ -120,7 +124,7 @@ function AdminCoursesPageInner() {
   }, [role, searchParams, dialogOpen, router, pathname]);
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm("Delete this course?")) return;
+    if (!(await confirmAction({ title: "Delete this subject?", description: "This cannot be undone.", confirmLabel: "Delete subject", destructive: true }))) return;
     await supabase.from("courses").delete().eq("id", id);
     invalidateAfterCourseMutation();
     void fetchCourses();
@@ -148,60 +152,62 @@ function AdminCoursesPageInner() {
   }, [courses, selectedSubject, search]);
 
   return (
-    <div className="px-6 py-8 md:px-10">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <StitchSectionHeader
-          eyebrow="Online Subject Atelier"
-          title="Manage Subjects"
-          description="Create free online subjects with a class label for display only, without mixing them into offline tuition class access."
-        />
-        <div className="flex w-full max-w-xl gap-3">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className={cn(stitchInputClass, "pl-11")}
-              placeholder="Search course or subject..."
-            />
-          </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-3 text-sm text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={() => {
-              setSelectedSubject("");
-              void fetchCourses();
-            }}
-            disabled={loading}
-          >
-            <RefreshCw className={cn("h-4 w-4", loading ? "animate-spin" : "")} />
-            Load Courses
-          </button>
-          <button
-            type="button"
-            className={stitchButtonClass}
-            onClick={() => {
-              setEditingCourse(undefined);
-              setDialogOpen(true);
-            }}
-          >
-            Add Course
-          </button>
+    <div className="px-4 py-6 md:px-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl text-primary md:text-4xl">Subjects</h1>
+          <p className="mt-1 max-w-2xl text-muted-foreground">Online subjects students can buy. The class label is for display only and does not grant tuition access.</p>
         </div>
+        <button
+          type="button"
+          className={stitchButtonClass}
+          onClick={() => {
+            setEditingCourse(undefined);
+            setDialogOpen(true);
+          }}
+        >
+          Add subject
+        </button>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-60 flex-1 md:max-w-md">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search subjects"
+            className={cn(stitchInputClass, "pl-9")}
+            placeholder="Search subjects"
+          />
+        </div>
+        <button
+          type="button"
+          aria-label="Reload subjects"
+          title="Reload subjects"
+          className="flex size-10 items-center justify-center rounded-lg border border-input bg-card transition-colors duration-(--duration-fast) hover:bg-muted disabled:opacity-60"
+          onClick={() => {
+            setSelectedSubject("");
+            void fetchCourses();
+          }}
+          disabled={loading}
+        >
+          <RefreshCw aria-hidden="true" className={cn("h-4 w-4", loading ? "animate-spin motion-reduce:animate-none" : "")} />
+        </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
           className={cn(
-            "rounded-full border px-4 py-2 text-sm transition",
+            "stitch-press min-h-9 rounded-lg border px-3 text-sm font-medium transition-colors duration-(--duration-fast)",
             !selectedSubject
-              ? "border-primary bg-primary text-white"
+              ? "border-accent bg-gold-100 text-primary"
               : "border-border bg-background text-foreground hover:bg-muted",
           )}
           onClick={() => setSelectedSubject("")}
         >
-          All Courses
+          All subjects
         </button>
         {subjectOptions.map((subject) => {
           const active = selectedSubject.toLowerCase() === subject.toLowerCase();
@@ -211,9 +217,9 @@ function AdminCoursesPageInner() {
               key={subject}
               type="button"
               className={cn(
-                "rounded-full border px-4 py-2 text-sm transition",
+                "stitch-press min-h-9 rounded-lg border px-3 text-sm font-medium transition-colors duration-(--duration-fast)",
                 active
-                  ? "border-primary bg-primary text-white"
+                  ? "border-accent bg-gold-100 text-primary"
                   : "border-border bg-background text-foreground hover:bg-muted",
               )}
               onClick={() => setSelectedSubject(subject)}
@@ -232,68 +238,53 @@ function AdminCoursesPageInner() {
         <div className="mt-10">
           <StitchEmptyState
             icon={BookOpen}
-            title="No Online Subjects Published"
-            description="Add the first online subject to start building the student course library."
+            title="No online subjects yet"
+            description="Add a subject and it will appear in the online course catalogue."
           />
         </div>
       ) : (
-        <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-3">
+        <ul className="rise-in mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((course) => (
-            <article key={course.id} className={stitchPanelClass}>
-              <div className="overflow-hidden rounded-[22px] border border-border">
-                {course.thumbnail_url ? (
-                  <Image
-                    src={course.thumbnail_url}
-                    alt={course.title}
-                    width={400}
-                    height={472}
-                    className="aspect-[1.18] w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex aspect-[1.18] w-full items-center justify-center bg-muted text-muted-foreground">
-                    <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em]">
-                      <ImageOff className="h-4 w-4" />
-                      No Thumbnail Uploaded
-                    </span>
-                  </div>
-                )}
+            <li key={course.id} className="stitch-panel stitch-hover-lift flex flex-col overflow-hidden">
+              {course.thumbnail_url ? (
+                <Image src={course.thumbnail_url} alt="" width={400} height={160} className="aspect-[5/2] w-full object-cover" />
+              ) : (
+                <div aria-hidden="true" className="relative aspect-[5/1] w-full overflow-hidden bg-gold-50">
+                  <span className="absolute -bottom-6 right-6 size-14 rounded-full bg-accent" />
+                </div>
+              )}
+              <div className="flex flex-1 flex-col p-4">
+                <p className="text-sm text-muted-foreground">
+                  {[course.class?.board, course.class?.name].filter(Boolean).join(", ") || "Independent"}
+                </p>
+                <h2 className="mt-0.5 text-lg leading-snug text-primary">{course.title}</h2>
+                {course.description ? <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{course.description}</p> : null}
+                <p className="tnum mt-3 text-sm font-semibold text-foreground">
+                  {course.subject}, ₹{Number(course.fee_inr ?? 0).toLocaleString("en-IN")}
+                </p>
+                <div className="mt-auto flex gap-2 pt-4">
+                  <button
+                    type="button"
+                    className={cn(stitchSecondaryButtonClass, "min-h-9 flex-1")}
+                    onClick={() => {
+                      setEditingCourse(course);
+                      setDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="stitch-press min-h-9 rounded-lg px-3 text-sm font-semibold text-destructive transition-colors duration-(--duration-fast) hover:bg-danger-soft"
+                    onClick={() => void handleDelete(course.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className="stitch-pill border-primary/10 bg-primary/10 px-3 py-1 text-[10px] text-primary">
-                  {course.class?.board ?? "STC"}
-                </span>
-                <span className="stitch-pill px-3 py-1 text-[10px]">
-                  {course.class?.name ?? "Independent"}
-                </span>
-              </div>
-              <h2 className="mt-5 text-4xl leading-tight text-foreground">{course.title}</h2>
-              <p className="mt-4 text-sm leading-7 text-muted-foreground">{course.description}</p>
-              <div className="mt-6 text-sm text-muted-foreground">
-                <p>Subject: {course.subject}</p>
-                <p className="mt-2">Fee: INR {Number(course.fee_inr ?? 0).toLocaleString("en-IN")}</p>
-              </div>
-              <div className="mt-8 flex gap-3">
-                <button
-                  type="button"
-                  className={stitchButtonClass}
-                  onClick={() => {
-                    setEditingCourse(course);
-                    setDialogOpen(true);
-                  }}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="rounded-full border border-destructive/20 px-5 py-3 text-sm text-destructive transition hover:bg-destructive/10"
-                  onClick={() => void handleDelete(course.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </article>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       <CourseFormDialog

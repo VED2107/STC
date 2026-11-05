@@ -1,3 +1,4 @@
+import { StepHorizon } from "@/components/stitch/step-horizon";
 import { ShieldCheck } from "lucide-react";
 import { Reveal } from "@/components/stitch/reveal";
 import type { Metadata } from "next";
@@ -17,13 +18,14 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <div className="overflow-x-hidden">
-      <section className="relative bg-muted py-24 md:py-32">
+      <section className="relative overflow-hidden bg-gold-50 pt-14 pb-24 md:pt-20 md:pb-36">
+        <StepHorizon />
         <div className="mx-auto max-w-4xl px-6 md:px-10">
           <Reveal variant="fade">
             <p className="stitch-kicker">Privacy</p>
           </Reveal>
           <Reveal delay={80} variant="mask-up">
-            <h1 className="mt-4 text-5xl font-light italic text-primary md:text-6xl xl:text-7xl">Privacy Policy</h1>
+            <h1 className="mt-4 text-5xl font-light text-primary md:text-6xl xl:text-7xl">Privacy Policy</h1>
           </Reveal>
         </div>
       </section>
@@ -35,7 +37,7 @@ export default function PrivacyPage() {
             <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
               <ShieldCheck className="h-7 w-7" />
             </span>
-            <h2 className="mt-6 text-3xl italic text-primary">Data Usage</h2>
+            <h2 className="mt-6 text-3xl text-primary">Data Usage</h2>
             <p className="mt-5 text-base leading-8 text-muted-foreground">
               STC Academy uses student and guardian information only for admissions,
               academic operations, attendance communication, and course delivery.

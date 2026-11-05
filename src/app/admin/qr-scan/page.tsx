@@ -39,7 +39,7 @@ import { buildTeacherSubjectAccessKey } from "@/lib/teacher-subject-access";
 const QRScannerWidget = dynamic(() => import("@/components/qr-scanner"), {
   ssr: false,
   loading: () => (
-    <div className="flex min-h-[250px] items-center justify-center rounded-xl bg-black/50">
+    <div className="flex min-h-[250px] items-center justify-center rounded-xl bg-muted">
       <LoadingAnimation size="md" />
     </div>
   ),
@@ -508,7 +508,7 @@ export default function QrScanPage() {
 
       <StitchSectionHeader
         eyebrow="QR Attendance"
-        title="Instant Attendance Scanner"
+        title="QR scanner"
         description="Open today’s session, point the camera at a student QR, and mark check-in or check-out immediately."
       />
 
@@ -635,7 +635,7 @@ export default function QrScanPage() {
           <div className={cn(stitchPanelClass, "overflow-hidden")}>
             <div
               className={cn(
-                "relative mx-auto w-full max-w-sm overflow-hidden rounded-xl bg-black/50",
+                "relative mx-auto w-full max-w-sm overflow-hidden rounded-xl bg-muted",
                 !scannerActive && "flex min-h-[280px] items-center justify-center",
               )}
             >
@@ -660,7 +660,7 @@ export default function QrScanPage() {
 
               {scannerActive && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="h-56 w-56 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.18)]" />
+                  <div className="h-56 w-56 rounded-2xl border-2 border-border" />
                 </div>
               )}
             </div>
@@ -710,8 +710,8 @@ export default function QrScanPage() {
               className={cn(
                 stitchPanelClass,
                 latestResult.status === "checked_in" && "border-primary/30 bg-primary/5",
-                latestResult.status === "checked_out" && "border-blue-500/30 bg-blue-500/5",
-                latestResult.status === "already_done" && "border-amber-500/30 bg-amber-500/5",
+                latestResult.status === "checked_out" && "border-info/30 bg-info-soft",
+                latestResult.status === "already_done" && "border-warning/30 bg-warning-soft",
               )}
             >
               <div className="flex items-start gap-4">
@@ -723,10 +723,10 @@ export default function QrScanPage() {
                     <h3 className="truncate text-2xl text-foreground">{latestResult.studentName}</h3>
                     <span
                       className={cn(
-                        "rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
+                        "rounded-full px-3 py-1 text-xs ",
                         latestResult.status === "checked_in" && "bg-primary/10 text-primary",
-                        latestResult.status === "checked_out" && "bg-blue-500/10 text-blue-500",
-                        latestResult.status === "already_done" && "bg-amber-500/10 text-amber-600",
+                        latestResult.status === "checked_out" && "bg-info-soft text-info",
+                        latestResult.status === "already_done" && "bg-warning-soft text-warning",
                       )}
                     >
                       {latestResult.status === "checked_in" && "Checked In"}
@@ -743,13 +743,13 @@ export default function QrScanPage() {
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-lg bg-background/60 px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Check-In</p>
+                  <p className="text-xs tracking-wider text-muted-foreground">Check-In</p>
                   <p className="mt-1 text-lg font-semibold text-foreground">
                     {formatClock(latestResult.checkInAt)}
                   </p>
                 </div>
                 <div className="rounded-lg bg-background/60 px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Check-Out</p>
+                  <p className="text-xs tracking-wider text-muted-foreground">Check-Out</p>
                   <p className="mt-1 text-lg font-semibold text-foreground">
                     {formatClock(latestResult.checkOutAt)}
                   </p>
@@ -772,7 +772,7 @@ export default function QrScanPage() {
                   className={cn(
                     "w-full max-w-md rounded-2xl border bg-background p-6 shadow-2xl",
                     confirmResult.status === "checked_in" && "border-primary/30",
-                    confirmResult.status === "checked_out" && "border-blue-500/30",
+                    confirmResult.status === "checked_out" && "border-info/30",
                   )}
                 >
                   <div className="flex flex-col items-center gap-3 text-center">
@@ -780,14 +780,14 @@ export default function QrScanPage() {
                       className={cn(
                         "flex h-16 w-16 items-center justify-center rounded-full",
                         confirmResult.status === "checked_in" && "bg-primary/10",
-                        confirmResult.status === "checked_out" && "bg-blue-500/10",
+                        confirmResult.status === "checked_out" && "bg-info-soft",
                       )}
                     >
                       <CheckCircle2
                         className={cn(
                           "h-8 w-8",
                           confirmResult.status === "checked_in" && "text-primary",
-                          confirmResult.status === "checked_out" && "text-blue-500",
+                          confirmResult.status === "checked_out" && "text-info",
                         )}
                       />
                     </div>
@@ -798,9 +798,9 @@ export default function QrScanPage() {
 
                     <span
                       className={cn(
-                        "rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-widest",
+                        "rounded-full px-4 py-1.5 text-xs font-semibold tracking-widest",
                         confirmResult.status === "checked_in" && "bg-primary/10 text-primary",
-                        confirmResult.status === "checked_out" && "bg-blue-500/10 text-blue-500",
+                        confirmResult.status === "checked_out" && "bg-info-soft text-info",
                       )}
                     >
                       {confirmResult.status === "checked_in" ? "Checked In" : "Checked Out"}
@@ -812,13 +812,13 @@ export default function QrScanPage() {
 
                     <div className="mt-2 grid w-full grid-cols-2 gap-3">
                       <div className="rounded-lg bg-muted/30 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Check-In</p>
+                        <p className="text-xs tracking-wider text-muted-foreground">Check-In</p>
                         <p className="mt-0.5 text-base font-semibold text-foreground">
                           {formatClock(confirmResult.checkInAt)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-muted/30 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Check-Out</p>
+                        <p className="text-xs tracking-wider text-muted-foreground">Check-Out</p>
                         <p className="mt-0.5 text-base font-semibold text-foreground">
                           {formatClock(confirmResult.checkOutAt)}
                         </p>
@@ -846,18 +846,18 @@ export default function QrScanPage() {
             <div className="flex items-center gap-3">
               <div className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-xl",
-                activeSession ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground"
+                activeSession ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
               )}>
                 <ScanLine className="h-4 w-4" />
               </div>
               <div>
                 <h3 className="text-2xl text-foreground">Today&apos;s Session</h3>
                 {activeSession ? (
-                  <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-emerald-600">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                  <span className="mt-0.5 inline-flex items-center gap-1 text-xs text-success">
+                    <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Live
                   </span>
                 ) : (
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Not active</span>
+                  <span className="text-xs text-muted-foreground">Not active</span>
                 )}
               </div>
             </div>
@@ -880,7 +880,7 @@ export default function QrScanPage() {
           </div>
 
           <div className={stitchPanelClass}>
-            <h3 className="text-3xl text-foreground">Recent Scans</h3>
+            <h3 className="text-xl text-foreground">Recent Scans</h3>
             {history.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
                 No scans yet. Open a session and start the camera to begin.
@@ -903,10 +903,10 @@ export default function QrScanPage() {
                       </div>
                       <span
                         className={cn(
-                          "shrink-0 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
+                          "shrink-0 rounded-full px-3 py-1 text-xs ",
                           entry.status === "checked_in" && "bg-primary/10 text-primary",
-                          entry.status === "checked_out" && "bg-blue-500/10 text-blue-500",
-                          entry.status === "already_done" && "bg-amber-500/10 text-amber-600",
+                          entry.status === "checked_out" && "bg-info-soft text-info",
+                          entry.status === "already_done" && "bg-warning-soft text-warning",
                         )}
                       >
                         {entry.status === "checked_in" && "IN"}
@@ -922,7 +922,7 @@ export default function QrScanPage() {
           </div>
 
           <div className={stitchPanelClass}>
-            <h3 className="text-3xl text-foreground">Scan Rules</h3>
+            <h3 className="text-xl text-foreground">Scan Rules</h3>
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
               <p>First scan marks check-in.</p>
               <p>Second scan marks check-out.</p>

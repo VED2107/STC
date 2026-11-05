@@ -374,7 +374,7 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
             </p>
           ) : null}
           {unmatchedPhotoRefs.length > 0 ? (
-            <p className="mt-2 text-xs text-amber-700">
+            <p className="mt-2 text-xs text-warning">
               Missing selected files for: {unmatchedPhotoRefs.slice(0, 5).join(", ")}
               {unmatchedPhotoRefs.length > 5 ? ` and ${unmatchedPhotoRefs.length - 5} more` : ""}
             </p>
@@ -428,13 +428,13 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 p-4">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium text-green-700">{result.totalSuccess} Registered</span>
+                <CheckCircle2 className="h-5 w-5 text-success" />
+                <span className="text-sm font-medium text-success">{result.totalSuccess} Registered</span>
               </div>
               {result.totalSkipped > 0 ? (
                 <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700">{result.totalSkipped} Skipped</span>
+                  <FileSpreadsheet className="h-5 w-5 text-info" />
+                  <span className="text-sm font-medium text-info">{result.totalSkipped} Skipped</span>
                 </div>
               ) : null}
               {result.totalFailed > 0 ? (
@@ -479,8 +479,8 @@ export function CsvUploadDialog({ open, onOpenChange, onSuccess }: CsvUploadDial
                             className={
                               item.success
                                 ? item.skipped
-                                  ? "text-blue-700"
-                                  : "text-green-700"
+                                  ? "text-info"
+                                  : "text-success"
                                 : "text-destructive"
                             }
                           >

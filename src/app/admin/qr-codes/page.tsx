@@ -396,11 +396,11 @@ export default function AdminQrCodesPage() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="QR Management"
-        title="Student QR Codes"
-        description="Generate, view, and download QR codes for student attendance scanning."
+        title="QR codes"
+        description="Create and download the codes students show at check-in."
       />
 
       <div className="mt-8 grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -562,7 +562,7 @@ export default function AdminQrCodesPage() {
 
                   {/* Token created date */}
                   {student.token_created_at && (
-                    <p className="mt-1 text-[10px] text-muted-foreground/70">
+                    <p className="mt-1 text-xs text-muted-foreground/70">
                       Generated: {formatRegenDate(student.token_created_at)}
                     </p>
                   )}
@@ -649,18 +649,18 @@ export default function AdminQrCodesPage() {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">QR Generated</span>
-                <span className="font-heading text-lg text-emerald-600">{withTokenCount}</span>
+                <span className="font-heading text-lg text-success">{withTokenCount}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Pending</span>
-                <span className={cn("font-heading text-lg", students.length - withTokenCount > 0 ? "text-amber-600" : "text-muted-foreground")}>
+                <span className={cn("font-heading text-lg", students.length - withTokenCount > 0 ? "text-warning" : "text-muted-foreground")}>
                   {students.length - withTokenCount}
                 </span>
               </div>
               {students.length > 0 && (
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-emerald-500/60 transition-all duration-500"
+                    className="h-full rounded-full bg-success/60 transition-all duration-500"
                     style={{ width: `${Math.round((withTokenCount / students.length) * 100)}%` }}
                   />
                 </div>
@@ -669,7 +669,7 @@ export default function AdminQrCodesPage() {
           </div>
 
           <div className={stitchPanelClass}>
-            <h3 className="text-3xl text-foreground">How It Works</h3>
+            <h3 className="text-xl text-foreground">How It Works</h3>
             <ol className="mt-5 list-inside list-decimal space-y-3 text-sm leading-7 text-muted-foreground">
               <li>Generate missing QR codes only for students who do not have one yet</li>
               <li>Use whole-class regeneration only when every old QR in the class must be invalidated</li>
@@ -680,14 +680,14 @@ export default function AdminQrCodesPage() {
             </ol>
           </div>
 
-          <div className={cn(stitchPanelSoftClass, "border-amber-500/20 bg-amber-500/5")}>
+          <div className={cn(stitchPanelSoftClass, "border-warning/30 bg-warning-soft")}>
             <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
               <div>
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                <p className="text-sm font-medium text-warning dark:text-warning">
                   Regeneration Warning
                 </p>
-                <p className="mt-1 text-xs text-amber-600/80 dark:text-amber-500/80">
+                <p className="mt-1 text-xs text-warning/80 dark:text-warning/80">
                   Regenerating a QR code immediately invalidates the
                   student&apos;s current physical QR card. Only regenerate if
                   the card is lost or compromised.
@@ -703,8 +703,8 @@ export default function AdminQrCodesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning-soft">
+                <AlertTriangle className="h-5 w-5 text-warning" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-foreground">
@@ -722,7 +722,7 @@ export default function AdminQrCodesPage() {
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
-                className="flex-1 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700"
+                className="flex-1 rounded-xl bg-warning px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-warning"
                 onClick={() =>
                   void handleRegenerate(confirmRegenStudent.student_id)
                 }
@@ -744,8 +744,8 @@ export default function AdminQrCodesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning-soft">
+                <AlertTriangle className="h-5 w-5 text-warning" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-foreground">
@@ -762,7 +762,7 @@ export default function AdminQrCodesPage() {
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
-                className="flex-1 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700"
+                className="flex-1 rounded-xl bg-warning px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-warning"
                 onClick={() => void handleRegenerateClass()}
               >
                 Yes, Regenerate All

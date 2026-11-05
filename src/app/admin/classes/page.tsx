@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmAction } from "@/components/ui/feedback";
 import { useCallback, useEffect, useState } from "react";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -527,7 +528,7 @@ function AdminClassesPageInner() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this class?")) return;
+    if (!(await confirmAction({ title: "Delete this class?", description: "This cannot be undone.", confirmLabel: "Delete class", destructive: true }))) return;
     const { error } = await supabase.from("classes").delete().eq("id", id);
     if (!error) {
       refreshClasses();
@@ -621,11 +622,11 @@ function AdminClassesPageInner() {
   }, [classFilterOptions, selectedClassId]);
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="Institutional Structures"
-        title="Academic Structures"
-        description="Manage classrooms, student capacities, and curriculum timelines across the academy's core disciplines."
+        title="Classes"
+        description="Manage classes, capacity, and branches."
         action={
           <>
             <button
@@ -651,14 +652,14 @@ function AdminClassesPageInner() {
         <div className="mt-10">
           <StitchEmptyState
             icon={Loader2}
-            title="No Academic Structures"
-            description="Create the first class level to begin mapping the STC teaching architecture."
+            title="No classes yet"
+            description="Add your first class to start assigning students and teachers."
           />
         </div>
       ) : (
         <>
           <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-          <div className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+          <div className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-300 ")}>
             <div className="flex items-center justify-between">
               <p className="stitch-kicker">Total Enrollment</p>
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-primary/15">
@@ -670,27 +671,27 @@ function AdminClassesPageInner() {
               Active students across {classes.length} classes
             </p>
           </div>
-          <div className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.22)]")}>
+          <div className={cn(stitchPanelClass, "group relative overflow-hidden transition duration-300 ")}>
             <div className="flex items-center justify-between">
               <p className="stitch-kicker">Capacity Utilization</p>
               <div className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
-                utilizationPercent >= 90 ? "bg-rose-500/8 text-rose-600 group-hover:bg-rose-500/15" :
-                utilizationPercent >= 70 ? "bg-amber-500/8 text-amber-600 group-hover:bg-amber-500/15" :
-                "bg-emerald-500/8 text-emerald-600 group-hover:bg-emerald-500/15"
+                utilizationPercent >= 90 ? "bg-danger-soft text-destructive group-hover:bg-danger-soft" :
+                utilizationPercent >= 70 ? "bg-warning-soft text-warning group-hover:bg-warning-soft" :
+                "bg-success-soft text-success group-hover:bg-success-soft"
               )}>
                 <BarChart3 className="h-5 w-5" />
               </div>
             </div>
             <p className={cn(
               "mt-4 font-heading text-6xl",
-              utilizationPercent >= 90 ? "text-rose-600" : utilizationPercent >= 70 ? "text-amber-600" : "text-emerald-600"
+              utilizationPercent >= 90 ? "text-destructive" : utilizationPercent >= 70 ? "text-warning" : "text-success"
             )}>{utilizationPercent}%</p>
             <div className="mt-3 flex items-center gap-3">
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                 <div className={cn(
                   "h-full rounded-full transition-all duration-700",
-                  utilizationPercent >= 90 ? "bg-rose-500/60" : utilizationPercent >= 70 ? "bg-amber-500/60" : "bg-emerald-500/60"
+                  utilizationPercent >= 90 ? "bg-destructive/60" : utilizationPercent >= 70 ? "bg-warning/60" : "bg-success/60"
                 )} style={{ width: `${utilizationPercent}%` }} />
               </div>
               <span className="text-xs text-muted-foreground">{totalActiveStudents}/{totalCapacity}</span>
@@ -791,8 +792,8 @@ function AdminClassesPageInner() {
           {showPrimarySection ? (
           <section className="mt-10">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-4xl text-foreground">Class 1-9 Division</h2>
-              <span className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+              <h2 className="text-xl text-foreground">Class 1-9 Division</h2>
+              <span className="text-xs text-muted-foreground">
                 {visiblePrimaryClasses.length} Active Classes
               </span>
             </div>
@@ -817,7 +818,7 @@ function AdminClassesPageInner() {
                     return (
                       <>
                         <div className="flex items-center justify-between">
-                          <span className="stitch-pill px-2.5 py-1 text-[9px]">{item.board}</span>
+                          <span className="stitch-pill px-2.5 py-1 text-xs">{item.board}</span>
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
@@ -872,17 +873,17 @@ function AdminClassesPageInner() {
                         <div className="mt-3 h-1.5 rounded-full bg-border">
                           <div className={cn(
                             "h-1.5 rounded-full transition-all duration-500",
-                            usage >= 90 ? "bg-rose-500/70" : usage >= 70 ? "bg-amber-500/70" : "bg-primary/60"
+                            usage >= 90 ? "bg-destructive/70" : usage >= 70 ? "bg-warning/70" : "bg-primary/60"
                           )} style={{ width: `${usage}%` }} />
                         </div>
-                        <div className="mt-2.5 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                        <div className="mt-2.5 flex items-center justify-between text-xs text-muted-foreground">
                           <span>Capacity</span>
                           <span>{enrolled}/{capacity}</span>
                         </div>
                         <div className="mt-3 flex gap-1.5">
                           <button
                             type="button"
-                            className="rounded-md bg-muted/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                            className="rounded-md bg-muted/60 px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
                             onClick={() => void exportClassStudents(item.id, item.name)}
                             disabled={exportingClassId === item.id}
                             title="Download students Excel"
@@ -908,10 +909,10 @@ function AdminClassesPageInner() {
 
           {showSeniorSection ? (
           <section className="mt-10">
-            <h2 className="text-4xl text-foreground">Secondary & Higher Secondary</h2>
+            <h2 className="text-xl text-foreground">Secondary & Higher Secondary</h2>
             <div className={cn(stitchPanelClass, "mt-5 overflow-x-auto")}>
               <table className="w-full min-w-[840px] text-left">
-                <thead className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                <thead className="text-xs text-muted-foreground">
                   <tr>
                     <th className="pb-4 font-medium">Classification</th>
                     <th className="pb-4 font-medium">Class Name</th>
@@ -930,7 +931,7 @@ function AdminClassesPageInner() {
                       onDrop={() => void handleDrop(item.id, "senior")}
                     >
                       <td className="py-4">
-                        <span className="stitch-pill px-3 py-1 text-[10px]">{item.level}</span>
+                        <span className="stitch-pill px-3 py-1 text-xs">{item.level}</span>
                       </td>
                       <td className="py-4">
                         <p className="text-base text-foreground">{item.name}</p>
@@ -970,7 +971,7 @@ function AdminClassesPageInner() {
                             <div className="h-1.5 rounded-full bg-border">
                               <div className={cn(
                                 "h-1.5 rounded-full transition-all duration-500",
-                                usage >= 90 ? "bg-rose-500/70" : usage >= 70 ? "bg-amber-500/70" : "bg-primary/60"
+                                usage >= 90 ? "bg-destructive/70" : usage >= 70 ? "bg-warning/70" : "bg-primary/60"
                               )} style={{ width: `${usage}%` }} />
                             </div>
                           );

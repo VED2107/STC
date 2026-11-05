@@ -29,7 +29,7 @@ const REQUIRED_ATTENDANCE = 75;
 
 const summaryCardClass = cn(
   stitchPanelSoftClass,
-  "group relative overflow-hidden border-white/70 bg-white/78 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(26,28,29,0.22)] transition duration-300 hover:-translate-y-1 hover:border-white hover:bg-white/92 hover:shadow-[0_24px_52px_-28px_rgba(26,28,29,0.26)]"
+  "group relative overflow-hidden border-border bg-card transition duration-300 hover:border-border hover:bg-card "
 );
 
 interface AttendanceRow {
@@ -198,12 +198,12 @@ export default function StudentAttendancePage() {
   }
 
   function handleDownloadCSV() {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     downloadCSV(buildReportRows(), reportHeaders, `my_attendance_${today}`);
   }
 
   async function handleDownloadXLSX() {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     await downloadXLSX(buildReportRows(), reportHeaders, `my_attendance_${today}`);
   }
 
@@ -216,7 +216,7 @@ export default function StudentAttendancePage() {
   }
 
   return (
-    <div className="px-6 py-8 md:px-10">
+    <div className="px-4 py-6 md:px-8">
       <StitchSectionHeader
         eyebrow="Session History"
         title="Attendance Archive"
@@ -260,15 +260,15 @@ export default function StudentAttendancePage() {
 
       <div className="mt-10 grid grid-cols-2 gap-4 md:gap-6 md:grid-cols-4">
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#eef2ff]/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <div className="relative flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2ff] text-[#3651a5] transition-transform duration-300 group-hover:scale-110">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-info-soft text-info transition-transform duration-300 group-hover:scale-110">
               <BarChart3 className="h-5 w-5" />
             </span>
             <div>
-              <p className="font-heading text-5xl text-primary">{rate}%</p>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+              <p className="tnum text-3xl font-bold text-primary">{rate}%</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Overall Attendance
               </p>
             </div>
@@ -278,45 +278,45 @@ export default function StudentAttendancePage() {
           </div>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#fff2dc]/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <div className="relative flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff2dc] text-[#9a6500] transition-transform duration-300 group-hover:scale-110">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning-soft text-warning transition-transform duration-300 group-hover:scale-110">
               <CalendarCheck className="h-5 w-5" />
             </span>
             <div>
-              <p className="font-heading text-5xl text-foreground">{monthlyRate}%</p>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+              <p className="tnum text-3xl font-bold text-foreground">{monthlyRate}%</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Current Month
               </p>
             </div>
           </div>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#d0e9d4]/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <div className="relative flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d0e9d4]/55 text-[#374c3d] transition-transform duration-300 group-hover:scale-110">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success-soft text-success transition-transform duration-300 group-hover:scale-110">
               <CheckCircle2 className="h-5 w-5" />
             </span>
             <div>
-              <p className="font-heading text-5xl text-foreground">{stats.present}</p>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+              <p className="tnum text-3xl font-bold text-foreground">{stats.present}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Days Present
               </p>
             </div>
           </div>
         </div>
         <div className={summaryCardClass}>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#fce4ec]/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white to-transparent opacity-80" />
           <div className="relative flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fce4ec] text-[#c62828] transition-transform duration-300 group-hover:scale-110">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger-soft text-destructive transition-transform duration-300 group-hover:scale-110">
               <XCircle className="h-5 w-5" />
             </span>
             <div>
-              <p className="font-heading text-5xl text-foreground">{stats.absent}</p>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+              <p className="tnum text-3xl font-bold text-foreground">{stats.absent}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Days Absent
               </p>
             </div>
@@ -349,8 +349,8 @@ export default function StudentAttendancePage() {
                       className={cn(
                         "flex h-9 w-9 items-center justify-center rounded-xl",
                         record.status === "present"
-                          ? "bg-[#d0e9d4]/55 text-[#374c3d]"
-                          : "bg-[#fce4ec] text-[#c62828]"
+                          ? "bg-success-soft text-success"
+                          : "bg-danger-soft text-destructive"
                       )}
                     >
                       {record.status === "present" ? (
@@ -363,7 +363,7 @@ export default function StudentAttendancePage() {
                       <p className="text-base text-foreground">
                         {record.course?.title ?? record.class?.name ?? "Studio Session"}
                       </p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {new Date(record.date).toLocaleDateString("en-IN", {
                           weekday: "short",
                           day: "numeric",
@@ -388,7 +388,7 @@ export default function StudentAttendancePage() {
                     </div>
                   </div>
                   <span
-                    className={`rounded-full px-4 py-2 text-xs uppercase tracking-[0.18em] ${
+                    className={`rounded-full px-4 py-2 text-xs ${
                       record.status === "present"
                         ? "bg-primary/10 text-primary"
                         : "bg-destructive/10 text-destructive"
@@ -396,7 +396,7 @@ export default function StudentAttendancePage() {
                   >
                     {record.status}
                     {record.scan_method === "qr" && (
-                      <span className="ml-1 text-[9px] text-blue-500">QR</span>
+                      <span className="ml-1 text-xs text-info">QR</span>
                     )}
                   </span>
                 </div>
@@ -404,7 +404,7 @@ export default function StudentAttendancePage() {
             </div>
 
             <div className={stitchPanelClass}>
-              <h3 className="text-3xl text-foreground">Subject-wise Attendance</h3>
+              <h3 className="text-xl text-foreground">Subject-wise Attendance</h3>
               <div className="mt-5 space-y-3">
                 {subjectStats.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No subject data yet.</p>

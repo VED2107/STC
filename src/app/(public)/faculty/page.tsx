@@ -1,6 +1,6 @@
+import { StepHorizon } from "@/components/stitch/step-horizon";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import { ImageOff } from "lucide-react";
 import { Reveal } from "@/components/stitch/reveal";
 import { PersonJsonLd } from "@/components/seo/json-ld";
 import type { Metadata } from "next";
@@ -38,19 +38,20 @@ export default async function FacultyPage() {
 
   return (
     <div className="overflow-x-hidden">
-      <section className="relative bg-muted py-24 md:py-32">
-        <div className="mx-auto max-w-[1600px] px-6 md:px-12">
+      <section className="relative overflow-hidden bg-gold-50 pt-14 pb-24 md:pt-20 md:pb-36">
+        <StepHorizon />
+        <div className="mx-auto max-w-[1280px] px-4 md:px-8">
           <div className="max-w-3xl">
             <Reveal variant="fade">
               <p className="stitch-kicker">Faculty Directory</p>
             </Reveal>
             <Reveal delay={80} variant="mask-up">
-              <h1 className="mt-4 text-5xl font-light italic leading-tight text-primary md:text-7xl xl:text-8xl">
-                Fellows guiding the <span className="text-secondary">Modern Scholar</span>.
+              <h1 className="mt-3 text-4xl font-extrabold leading-[1.05] text-primary md:text-6xl">
+                Meet your teachers.
               </h1>
             </Reveal>
             <Reveal delay={160}>
-              <p className="mt-8 max-w-2xl text-base font-light leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
+              <p className="mt-8 max-w-2xl text-lg leading-8 text-muted-foreground">
                 Meet the academic team shaping the live curriculum across board preparation,
                 foundational study, and higher-secondary pathways.
               </p>
@@ -59,11 +60,11 @@ export default async function FacultyPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1600px] px-6 py-24 md:px-12 md:py-32">
+      <section className="mx-auto max-w-[1280px] px-4 py-24 md:px-8 md:py-32">
         {teachers.length === 0 ? (
           <Reveal variant="soft-zoom">
             <div className="stitch-panel p-10 text-center">
-              <h2 className="text-4xl italic text-primary">Faculty List Coming Soon</h2>
+              <h2 className="text-4xl text-primary">Faculty List Coming Soon</h2>
               <p className="mt-4 text-base leading-8 text-muted-foreground">
                 Teachers added from the admin desk will appear here automatically.
               </p>
@@ -80,7 +81,7 @@ export default async function FacultyPage() {
                   image={teacher.photo_url}
                 />
                 <article className="stitch-panel stitch-hover-lift group overflow-hidden p-6 sm:p-8">
-                  <div className="overflow-hidden rounded-[20px] stitch-ghost-border">
+                  <div className="overflow-hidden rounded-xl stitch-ghost-border">
                     {teacher.photo_url ? (
                       <Image
                         src={teacher.photo_url}
@@ -91,19 +92,18 @@ export default async function FacultyPage() {
                         className="aspect-[1.1] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                       />
                     ) : (
-                      <div className="flex aspect-[1.1] w-full items-center justify-center bg-muted text-muted-foreground">
-                        <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em]">
-                          <ImageOff className="h-4 w-4" />
-                          Photo Unavailable
+                      <div className="flex aspect-[1.6] w-full items-center justify-center bg-gold-50">
+                        <span aria-hidden="true" className="flex size-24 items-center justify-center rounded-full bg-accent font-heading text-3xl font-bold text-primary">
+                          {teacher.name.split(" ").filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toUpperCase()}
                         </span>
                       </div>
                     )}
                   </div>
                   <div className="mt-6">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-secondary">
+                    <p className="text-xs font-semibold text-secondary">
                       {teacher.subject}
                     </p>
-                    <h2 className="mt-3 text-3xl italic text-primary sm:text-4xl">{teacher.name}</h2>
+                    <h2 className="mt-3 text-3xl text-primary sm:text-4xl">{teacher.name}</h2>
                     <p className="mt-3 text-sm font-medium text-foreground/70">{teacher.qualification}</p>
                     <p className="mt-5 text-sm leading-7 text-muted-foreground">
                       {teacher.bio || "A member of the STC faculty, committed to clarity, rigor, and student progress."}

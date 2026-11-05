@@ -444,7 +444,7 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
 
   if (error) {
     return (
-      <div className="flex min-h-[250px] items-center justify-center rounded-xl bg-black/30 p-6">
+      <div className="flex min-h-[250px] items-center justify-center rounded-xl bg-muted p-6">
         <p className="text-center text-sm text-destructive">{error}</p>
       </div>
     );

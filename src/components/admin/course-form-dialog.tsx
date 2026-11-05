@@ -41,12 +41,12 @@ type CourseInsert = Database["public"]["Tables"]["courses"]["Insert"];
 type CourseUpdate = Database["public"]["Tables"]["courses"]["Update"];
 
 const sectionClass =
-  "rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
+  "rounded-2xl border border-border bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
 const labelClass =
-  "flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+  "flex items-center gap-2.5 text-xs font-semibold text-muted-foreground";
 const inputClass = "stitch-input w-full";
 const checkboxClass =
-  "h-[18px] w-[18px] rounded-md border-2 border-black/12 bg-white text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
+  "h-[18px] w-[18px] rounded-md border-2 border-border bg-card text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
 
 export function CourseFormDialog({
   open,
@@ -252,14 +252,14 @@ export function CourseFormDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d0e9d4]/55 text-[#374c3d]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success-soft text-success">
               <PlayCircle className="h-5 w-5" />
             </span>
             <div>
               <DialogTitle className="text-xl">
                 {editCourse?.id ? "Edit Course" : "New Course"}
               </DialogTitle>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {editCourse?.id ? "Update online course details" : "Create online subject for students"}
               </p>
             </div>
@@ -311,7 +311,7 @@ export function CourseFormDialog({
               <div>
                 <label className="mb-1.5 block text-sm text-muted-foreground">Show Under Class</label>
                 <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
-                  <SelectTrigger className="h-11 rounded-xl border-black/8 bg-white">
+                  <SelectTrigger className="h-11 rounded-xl border-border bg-card">
                     <SelectValue placeholder="Select class">
                       {selectedClass ? `${selectedClass.name} (${selectedClass.board})` : undefined}
                     </SelectValue>
@@ -326,7 +326,7 @@ export function CourseFormDialog({
                 </Select>
               </div>
             </div>
-            <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-black/[0.04] bg-white/60 px-3.5 py-3 transition hover:bg-white">
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-card px-3.5 py-3 transition hover:bg-white">
               <input
                 type="checkbox"
                 checked={isActive}
@@ -393,18 +393,18 @@ export function CourseFormDialog({
           ) : null}
 
           {/* ── Footer ── */}
-          <div className="flex items-center justify-end gap-2.5 border-t border-black/[0.04] pt-5">
+          <div className="flex items-center justify-end gap-2.5 border-t border-border pt-5">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+              className="rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {editCourse?.id ? "Update" : "Create"}

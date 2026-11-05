@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmAction } from "@/components/ui/feedback";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -26,12 +27,12 @@ interface BranchWithSubjects extends Branch {
 }
 
 const sectionClass =
-  "rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
+  "rounded-2xl border border-border bg-gradient-to-br from-white/80 to-muted/30 p-5 space-y-4";
 const labelClass =
-  "flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+  "flex items-center gap-2.5 text-xs font-semibold text-muted-foreground";
 const inputClass = "stitch-input w-full";
 const checkboxClass =
-  "h-[18px] w-[18px] rounded-md border-2 border-black/12 bg-white text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
+  "h-[18px] w-[18px] rounded-md border-2 border-border bg-card text-primary accent-primary transition focus:ring-2 focus:ring-primary/20";
 
 const supabase = createClient();
 
@@ -190,7 +191,7 @@ export function BranchManagementDialog({
   }
 
   async function handleDelete(branchId: string) {
-    if (!confirm("Delete this branch?")) return;
+    if (!(await confirmAction({ title: "Delete this branch?", description: "This cannot be undone.", confirmLabel: "Delete branch", destructive: true }))) return;
     const { error: deleteError } = await supabase.from("branches").delete().eq("id", branchId);
     if (deleteError) {
       setError(deleteError.message);
@@ -205,12 +206,12 @@ export function BranchManagementDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f1edff] text-[#6a4bc4]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-secondary">
               <GitBranch className="h-5 w-5" />
             </span>
             <div>
               <DialogTitle className="text-xl">Branches</DialogTitle>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {classDisplayName}
               </p>
             </div>
@@ -235,7 +236,7 @@ export function BranchManagementDialog({
                 {branches.map((branch) => (
                   <div
                     key={branch.id}
-                    className="flex items-start justify-between rounded-2xl border border-black/[0.04] bg-gradient-to-br from-white/80 to-muted/20 p-4 transition hover:border-black/8"
+                    className="flex items-start justify-between rounded-2xl border border-border bg-gradient-to-br from-white/80 to-muted/20 p-4 transition hover:border-border"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground">{branch.name}</p>
@@ -270,18 +271,18 @@ export function BranchManagementDialog({
                 {error}
               </div>
             ) : null}
-            <div className="flex justify-end gap-2.5 border-t border-black/[0.04] pt-5">
+            <div className="flex justify-end gap-2.5 border-t border-border pt-5">
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+                className="rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
               >
                 Close
               </button>
               <button
                 type="button"
                 onClick={openAdd}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-105"
               >
                 <Plus className="h-4 w-4" />
                 Add Branch
@@ -323,7 +324,7 @@ export function BranchManagementDialog({
                     No subjects defined for this class yet.
                   </p>
                 ) : (
-                  <div className="mt-2 max-h-48 space-y-1.5 overflow-y-auto rounded-xl border border-black/[0.04] bg-white/60 p-3">
+                  <div className="mt-2 max-h-48 space-y-1.5 overflow-y-auto rounded-xl border border-border bg-card p-3">
                     {classSubjects.map((subject) => (
                       <label key={subject} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-muted/40">
                         <input
@@ -346,11 +347,11 @@ export function BranchManagementDialog({
               </div>
             ) : null}
 
-            <div className="flex justify-end gap-2.5 border-t border-black/[0.04] pt-5">
+            <div className="flex justify-end gap-2.5 border-t border-border pt-5">
               <button
                 type="button"
                 onClick={() => setFormMode("list")}
-                className="rounded-xl border border-black/8 bg-white px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+                className="rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
               >
                 Cancel
               </button>
@@ -358,7 +359,7 @@ export function BranchManagementDialog({
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving || !formName.trim()}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 {formMode === "edit" ? "Update" : "Create"}
