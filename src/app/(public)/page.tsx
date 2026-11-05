@@ -168,7 +168,7 @@ export default async function HomePage() {
             {stats.map((stat) => (
               <div key={stat.label} className="flex items-baseline gap-2">
                 <dd className="tnum text-4xl font-bold text-primary">{stat.value.toLocaleString("en-IN")}</dd>
-                <dt className="text-muted-foreground">{stat.label}</dt>
+                <dt className="text-muted-foreground">{stat.value === 1 ? stat.label.replace(/s$/, "") : stat.label}</dt>
               </div>
             ))}
           </dl>
